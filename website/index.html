@@ -20,6 +20,7 @@
       </a>
       <nav>
         <a href="#vst">AIFRED</a>
+        <a href="#analyzer">Analyzer</a>
         <a href="#beats">Beats</a>
         <a href="#services">Services</a>
         <a href="#chat">Ask Aifred</a>
@@ -67,6 +68,37 @@
           <div class="card-actions">
             <a class="btn" id="aifred-buy-button" target="_blank" rel="noreferrer">Buy AIFRED</a>
             <a class="btn ghost" id="aifred-release-button" target="_blank" rel="noreferrer">Release builds</a>
+          </div>
+          <div class="download-strip" id="aifred-downloads" aria-label="AIFRED release downloads"></div>
+        </div>
+      </section>
+
+      <section id="analyzer" class="analyzer-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Free Mix Analyzer</p>
+            <h2>Upload a mix. Keep the data only when the mix earns the reference pool.</h2>
+            <p>
+              AIFRED reads tone balance, loudness, dynamics, stereo width, low-end control,
+              and harshness control in the browser. Passing metadata feeds the reference system.
+              Failing metadata is discarded.
+            </p>
+          </div>
+          <label class="btn">
+            Upload Mix
+            <input id="analysis-upload" class="hidden-input" type="file" accept="audio/*" />
+          </label>
+        </div>
+        <div class="analyzer-grid">
+          <div class="visualizer-shell">
+            <canvas id="spectral-canvas" width="920" height="320" aria-label="Spectral visualizer"></canvas>
+          </div>
+          <div class="analysis-readout">
+            <h3 id="analysis-title">No mix loaded</h3>
+            <p id="analysis-status">Choose a WAV, MP3, or audio export to run the free diagnostic gate.</p>
+            <div id="analysis-metrics" class="metric-list"></div>
+            <button class="btn ghost" id="analysis-submit" type="button" disabled>Submit Metadata Gate</button>
+            <pre id="analysis-result">Reference pool gate has not run yet.</pre>
           </div>
         </div>
       </section>

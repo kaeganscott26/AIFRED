@@ -3,6 +3,7 @@ const API_BASE = String(config.apiBase || window.location.origin || "").replace(
 const CONTACT_EMAIL = String(config.contactEmail || "north3rnlight3rofficial@outlook.com").trim();
 const DEFAULT_ART = "assets/brand/aifred-mascot.jpg";
 const RELEASE_URL = String(config.releaseUrl || "https://github.com/kaeganscott26/AIFRED/releases/latest").trim();
+const DOWNLOAD_URLS = config.downloadUrls || {};
 const PRODUCT_PRICE = String(config.productPrice || "$149.99").trim();
 
 const catalogList = document.getElementById("catalog-list");
@@ -19,8 +20,17 @@ const contactStatus = document.getElementById("contact-status");
 const year = document.getElementById("year");
 const aifredBuyButton = document.getElementById("aifred-buy-button");
 const aifredReleaseButton = document.getElementById("aifred-release-button");
+const aifredDownloads = document.getElementById("aifred-downloads");
+const analysisUpload = document.getElementById("analysis-upload");
+const spectralCanvas = document.getElementById("spectral-canvas");
+const analysisTitle = document.getElementById("analysis-title");
+const analysisStatus = document.getElementById("analysis-status");
+const analysisMetrics = document.getElementById("analysis-metrics");
+const analysisSubmit = document.getElementById("analysis-submit");
+const analysisResult = document.getElementById("analysis-result");
 
 let tracks = [];
+let currentAnalysis = null;
 
 function apiUrl(path) {
   const safePath = path.startsWith("/") ? path : `/${path}`;
@@ -171,10 +181,197 @@ function setupForms() {
 function renderReleaseActions() {
   aifredBuyButton.href = paypalUrl("AIFRED VST3 Plugin", PRODUCT_PRICE, RELEASE_URL);
   aifredReleaseButton.href = RELEASE_URL;
+  if (!aifredDownloads) return;
+  const downloads = [
+    ["Windows .exe", DOWNLOAD_URLS.windows || `${RELEASE_URL}/download/AIFRED-VST3-Setup.exe`],
+    ["macOS VST3", DOWNLOAD_URLS.macos || `${RELEASE_URL}/download/AIFRED-VST3-macOS.zip`],
+    ["Arch Linux", DOWNLOAD_URLS.arch || `${RELEASE_URL}/download/AIFRED-VST3-Arch.tar.gz`]
+  ];
+  aifredDownloads.innerHTML = downloads.map(([label, url]) => (
+    `<a href="${url}" target="_blank" rel="noreferrer">${label}</a>`
+  )).join("");
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function db(value) {
+  return 20 * Math.log10(Math.max(value, 0.000001));
+}
+
+function drawSpectrum(buffer) {
+  const canvas = spectralCanvas;
+  const ctx = canvas.getContext("2d");
+  const width = canvas.width;
+  const height = canvas.height;
+  const left = buffer.getChannelData(0);
+  const step = Math.max(1, Math.floor(left.length / width));
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = "#02060b";
+  ctx.fillRect(0, 0, width, height);
+
+  for (let x = 0; x < width; x += 1) {
+    let sum = 0;
+    let peak = 0;
+    const start = x * step;
+    for (let i = 0; i < step && start + i < left.length; i += 1) {
+      const value = Math.abs(left[start + i]);
+      sum += value;
+      peak = Math.max(peak, value);
+    }
+    const energy = clamp(sum / step, 0, 1);
+    const bar = Math.max(2, Math.round((energy * 0.55 + peak * 0.45) * height));
+    const hue = 172 - Math.round(energy * 85);
+    ctx.fillStyle = `hsl(${hue} 95% ${48 + Math.round(energy * 25)}%)`;
+    ctx.fillRect(x, height - bar, 1, bar);
+  }
+
+  ctx.strokeStyle = "rgba(140,255,69,0.86)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  const mid = height / 2;
+  for (let x = 0; x < width; x += 1) {
+    const value = left[Math.min(left.length - 1, x * step)] || 0;
+    const y = mid + value * mid * 0.82;
+    if (x === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+}
+
+function analyzeAudioBuffer(buffer, fileName) {
+  const left = buffer.getChannelData(0);
+  const right = buffer.numberOfChannels > 1 ? buffer.getChannelData(1) : left;
+  const sampleRate = buffer.sampleRate;
+  const stride = Math.max(1, Math.floor(left.length / 240000));
+  let sumSquares = 0;
+  let peak = 0;
+  let sideSum = 0;
+  let midSum = 0;
+  let lowEnergy = 0;
+  let highEnergy = 0;
+  let diffEnergy = 0;
+  let previous = 0;
+  let count = 0;
+
+  for (let i = 0; i < left.length; i += stride) {
+    const l = left[i] || 0;
+    const r = right[i] || 0;
+    const mono = (l + r) * 0.5;
+    const side = (l - r) * 0.5;
+    sumSquares += mono * mono;
+    peak = Math.max(peak, Math.abs(l), Math.abs(r));
+    midSum += Math.abs(mono);
+    sideSum += Math.abs(side);
+    const diff = Math.abs(mono - previous);
+    diffEnergy += diff;
+    if (diff < 0.012) lowEnergy += Math.abs(mono);
+    else highEnergy += diff;
+    previous = mono;
+    count += 1;
+  }
+
+  const rms = Math.sqrt(sumSquares / Math.max(1, count));
+  const rmsDb = db(rms);
+  const peakDb = db(peak);
+  const crest = peakDb - rmsDb;
+  const width = clamp(sideSum / Math.max(0.000001, midSum + sideSum), 0, 1);
+  const transient = diffEnergy / Math.max(1, count);
+  const brightness = clamp(highEnergy / Math.max(0.000001, lowEnergy + highEnergy), 0, 1);
+  const integratedLufs = rmsDb - 0.7;
+  const lowEndControl = clamp(100 - Math.abs(brightness - 0.34) * 170 - Math.max(0, width - 0.85) * 60, 0, 100);
+  const harshnessControl = clamp(100 - Math.max(0, brightness - 0.62) * 180 - Math.max(0, peakDb + 0.8) * 12, 0, 100);
+  const toneBalance = clamp(100 - Math.abs(brightness - 0.46) * 125, 0, 100);
+
+  return {
+    file_name: fileName,
+    duration_seconds: buffer.duration,
+    metrics: {
+      tone_balance: Math.round(toneBalance),
+      integrated_lufs: Number(integratedLufs.toFixed(1)),
+      peak_dbfs: Number(peakDb.toFixed(1)),
+      crest_factor_db: Number(crest.toFixed(1)),
+      stereo_width: Number(width.toFixed(2)),
+      low_end_control: Math.round(lowEndControl),
+      harshness_control: Math.round(harshnessControl),
+      transient_density: Number(transient.toFixed(4)),
+      spectral_centroid_hz: Math.round(brightness * sampleRate * 0.45)
+    }
+  };
+}
+
+function renderAnalysis(analysis) {
+  const rows = [
+    ["Tone balance", `${analysis.metrics.tone_balance}/100`],
+    ["Loudness", `${analysis.metrics.integrated_lufs} LUFS`],
+    ["Peak", `${analysis.metrics.peak_dbfs} dBFS`],
+    ["Dynamics", `${analysis.metrics.crest_factor_db} dB crest`],
+    ["Stereo width", analysis.metrics.stereo_width],
+    ["Low-end control", `${analysis.metrics.low_end_control}/100`],
+    ["Harshness control", `${analysis.metrics.harshness_control}/100`]
+  ];
+  analysisMetrics.innerHTML = rows.map(([label, value]) => `
+    <article>
+      <span>${label}</span>
+      <strong>${value}</strong>
+    </article>
+  `).join("");
+}
+
+async function handleAnalysisFile(file) {
+  if (!file) return;
+  analysisTitle.textContent = file.name;
+  analysisStatus.textContent = "Decoding and reading mix behavior...";
+  analysisSubmit.disabled = true;
+  analysisResult.textContent = "Analysis running locally in your browser.";
+  try {
+    const context = new AudioContext();
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = await context.decodeAudioData(arrayBuffer);
+    drawSpectrum(buffer);
+    currentAnalysis = analyzeAudioBuffer(buffer, file.name);
+    renderAnalysis(currentAnalysis);
+    analysisStatus.textContent = "Local analysis complete. Submit the metadata gate to test reference-pool eligibility.";
+    analysisSubmit.disabled = false;
+    context.close().catch(() => {});
+  } catch (error) {
+    currentAnalysis = null;
+    analysisStatus.textContent = "This browser could not decode that audio file.";
+    analysisResult.textContent = error.message || "Audio decode failed.";
+  }
+}
+
+async function submitAnalysisGate() {
+  if (!currentAnalysis) return;
+  analysisSubmit.disabled = true;
+  analysisResult.textContent = "Checking pro target gate...";
+  try {
+    const response = await fetch(apiUrl("/api/v1/analysis/submit"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(currentAnalysis)
+    });
+    const payload = await response.json();
+    if (!response.ok || !payload.ok) throw new Error(payload.error || "gate failed");
+    const lines = [
+      payload.accepted ? "PASSED: metadata accepted for the AIFRED reference pool." : "NOT PASSED: metadata disposed.",
+      `Score: ${payload.score}/100`,
+      `Persistence: ${payload.persistence}`,
+      ...payload.checks.map((check) => `${check.ok ? "PASS" : "MISS"} ${check.target}`)
+    ];
+    analysisResult.textContent = lines.join("\n");
+  } catch (error) {
+    analysisResult.textContent = `Gate unavailable: ${error.message || "request failed"}`;
+  } finally {
+    analysisSubmit.disabled = false;
+  }
 }
 
 year.textContent = new Date().getFullYear();
 catalogRefresh.addEventListener("click", loadCatalog);
+analysisUpload.addEventListener("change", (event) => handleAnalysisFile(event.target.files?.[0]));
+analysisSubmit.addEventListener("click", submitAnalysisGate);
 renderReleaseActions();
 renderServices();
 setupForms();

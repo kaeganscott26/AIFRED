@@ -23,6 +23,10 @@ private:
     float spectralTilt = 0.0f;
     float transientDensity = 0.0f;
     float signal01 = 0.0f;
+    float candleOpen = 0.0f;
+    float candleHigh = 0.0f;
+    float candleLow = 0.0f;
+    float candleClose = 0.0f;
   };
 
   FeatureFrame live_;

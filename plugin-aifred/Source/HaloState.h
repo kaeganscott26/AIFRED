@@ -20,14 +20,30 @@ struct DomainAlignment {
   std::string summary;
 };
 
-struct FixItem {
-  std::string title;
-  std::string cause;
-  std::string nextStep;
-  Severity severity = Severity::Minor;
-  Confidence confidence = Confidence::Low;
-  Domain impactDomain = Domain::Tone;
-  float priority = 0.0f;
+struct DspMetrics {
+  float tone01 = 0.0f;
+  float width01 = 0.0f;
+  float punch01 = 0.0f;
+  float loudness01 = 0.0f;
+  float rmsDb = -90.0f;
+  float peakDb = -90.0f;
+  float crestDb = 0.0f;
+  float correlation = 1.0f;
+  float transientDensity = 0.0f;
+  float candleOpen = 0.0f;
+  float candleHigh = 0.0f;
+  float candleLow = 0.0f;
+  float candleClose = 0.0f;
+};
+
+struct ReferenceTarget {
+  float tone01 = 0.48f;
+  float width01 = 0.52f;
+  float punch01 = 0.58f;
+  float loudnessDb = -17.32f;
+  float crestDb = 15.25f;
+  int poolSize = 25;
+  std::string label = "PRO 25x6";
 };
 
 struct HaloState {
@@ -36,12 +52,13 @@ struct HaloState {
   DomainAlignment stereo;
   DomainAlignment loudness;
   DomainAlignment dynamics;
+  DspMetrics metrics;
+  ReferenceTarget reference;
   float totalAlignment01 = 1.0f;
-  std::string primaryTitle = "Waiting For Signal";
-  std::string primaryCause = "Play audio through Aifred to begin mix alignment.";
+  std::string primaryTitle = "Signal idle";
+  std::string primaryCause = "Play audio through AIFRED.";
   Severity primarySeverity = Severity::Minor;
   Confidence primaryConfidence = Confidence::Low;
-  std::vector<FixItem> rankedFixes;
 };
 
 float clamp01(float value);

@@ -22,17 +22,9 @@ jobs:
             os: windows-latest
           - name: macos
             os: macos-latest
-          - name: ubuntu
-            os: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Linux JUCE dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libasound2-dev libcurl4-openssl-dev libfreetype6-dev libgl1-mesa-dev libwebkit2gtk-4.1-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev ninja-build
 
       - name: Configure
         run: cmake -S . -B build/aifred -DCMAKE_BUILD_TYPE=Release
@@ -40,12 +32,18 @@ jobs:
       - name: Build
         run: cmake --build build/aifred --config Release --parallel
 
+      - uses: actions/setup-dotnet@v5
+        if: runner.os == 'Windows'
+        with:
+          dotnet-version: "10.0.x"
+
       - name: Package Windows installer
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $plugin = Get-ChildItem build/aifred -Recurse -Filter Aifred.vst3 | Where-Object { $_.PSIsContainer } | Select-Object -First 1
           New-Item -ItemType Directory -Force -Path package/AIFRED-Windows | Out-Null
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
           Copy-Item -Recurse -LiteralPath $plugin.FullName -Destination package/AIFRED-Windows/Aifred.vst3
           @(
             '$ErrorActionPreference = "Stop"',
@@ -55,7 +53,10 @@ jobs:
             'Copy-Item -Recurse -Force -LiteralPath $source -Destination $target',
             'Write-Host "AIFRED installed to $target. Rescan plugins in FL Studio."'
           ) | Set-Content package/AIFRED-Windows/install-aifred.ps1
-          Compress-Archive -Path package/AIFRED-Windows/* -DestinationPath AIFRED-VST3-Windows.zip
+          Compress-Archive -Path package/AIFRED-Windows/* -DestinationPath dist/AIFRED-VST3-windows.zip
+          dotnet publish tools/AifredWindowsInstaller/AifredWindowsInstaller.csproj -c Release -o dist/installer/windows
+          Copy-Item dist/installer/windows/AIFRED-VST3-Setup.exe AIFRED-VST3-Setup.exe
+          Copy-Item dist/AIFRED-VST3-windows.zip AIFRED-VST3-windows.zip
 
       - name: Package macOS installer
         if: runner.os == 'macOS'
@@ -76,31 +77,13 @@ jobs:
           chmod +x package/AIFRED-macOS/install-aifred.command
           ditto -c -k --keepParent package/AIFRED-macOS AIFRED-VST3-macOS.zip
 
-      - name: Package Ubuntu build artifact
-        if: runner.os == 'Linux'
-        run: |
-          PLUGIN="$(find build/aifred -name Aifred.vst3 -type d | head -n 1)"
-          mkdir -p package/AIFRED-Ubuntu
-          cp -R "$PLUGIN" package/AIFRED-Ubuntu/Aifred.vst3
-          cat > package/AIFRED-Ubuntu/install-aifred.sh <<'SCRIPT'
-          #!/usr/bin/env bash
-          set -euo pipefail
-          SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/Aifred.vst3"
-          DEST="$HOME/.vst3/Aifred.vst3"
-          mkdir -p "$(dirname "$DEST")"
-          rm -rf "$DEST"
-          cp -R "$SRC" "$DEST"
-          echo "AIFRED installed to $DEST. Rescan plugins in your DAW."
-          SCRIPT
-          chmod +x package/AIFRED-Ubuntu/install-aifred.sh
-          tar -czf AIFRED-VST3-Ubuntu.tar.gz -C package AIFRED-Ubuntu
-
       - name: Upload VST3 package
         uses: actions/upload-artifact@v4
         with:
           name: AIFRED-VST3-${{ matrix.name }}
           path: |
             AIFRED-VST3-*.zip
+            AIFRED-VST3-Setup.exe
             AIFRED-VST3-*.tar.gz
           if-no-files-found: error
 
@@ -182,8 +165,10 @@ jobs:
       - name: JavaScript syntax
         run: |
           node --check website/app.js
+          node --check website/_worker.js
           node --check 'website/functions/api/v1/[[path]].js'
           node --check 'website/functions/api/[[path]].js'
+          node --check website/functions/ws/chat.js
           node --check tools/serve-website.mjs
 
       - name: Guard active paths and product names
@@ -209,7 +194,7 @@ jobs:
         run: |
           gh release create "${GITHUB_REF_NAME}" release-assets/* \
             --title "AIFRED ${GITHUB_REF_NAME}" \
-            --notes "AIFRED release packages for Windows VST3, macOS VST3, Arch Linux VST3, Ubuntu validation artifact, and Android admin debug APK."
+            --notes "AIFRED release packages for Windows VST3, macOS VST3, Arch Linux VST3, and the private Android admin debug APK."
 
   deploy-website:
     name: Deploy Cloudflare Pages

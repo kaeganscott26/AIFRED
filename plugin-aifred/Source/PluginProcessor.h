@@ -3,6 +3,7 @@
 #include "AnalysisEngine.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <atomic>
 
 namespace aifred {
 
@@ -35,9 +36,14 @@ public:
   void setStateInformation(const void* data, int sizeInBytes) override;
 
   HaloState getHaloState() const;
+  HaloState getCompareHaloState() const;
+  AnalysisMode getMode() const;
+  void setMode(AnalysisMode mode);
 
 private:
   AnalysisEngine analysis_;
+  AnalysisEngine compareAnalysis_;
+  std::atomic<int> mode_ { static_cast<int>(AnalysisMode::Analyze) };
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AifredAudioProcessor)
 };
 

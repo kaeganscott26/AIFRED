@@ -79,6 +79,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
+import java.security.MessageDigest
+import java.util.concurrent.TimeUnit
 import java.util.UUID
 
 class MainActivity : ComponentActivity() {
@@ -251,8 +253,9 @@ private val ReferenceGenres = listOf("rap", "hip-hop", "edm", "dubstep", "pop", 
 
 private const val ADMIN_NOTIFICATION_CHANNEL = "AIFRED_admin_status"
 private const val ADMIN_NOTIFICATION_ID = 2207
-private const val DEFAULT_ADMIN_USERNAME = ""
+private const val DEFAULT_ADMIN_USERNAME = "North3rnLight3r"
 private const val DEFAULT_ADMIN_PASSWORD = ""
+private const val DEFAULT_ADMIN_PASSWORD_SHA256 = "c5c5188f8c698dfa5f956f4883f878a212d882fef0c8aed7c49a12c41d9ad8c5"
 private const val ADMIN_PREFS_NAME = "AIFRED_admin_local_config"
 private const val ADMIN_PREF_USERNAME = "admin_username"
 private const val ADMIN_PREF_PASSWORD = "admin_password"
@@ -287,6 +290,28 @@ private fun saveConfiguredAdminCredentials(context: Context, username: String, p
         .putString(ADMIN_PREF_USERNAME, username.trim())
         .putString(ADMIN_PREF_PASSWORD, password.trim())
         .apply()
+}
+
+private fun sha256Hex(value: String): String {
+    val digest = MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8))
+    return digest.joinToString("") { "%02x".format(it) }
+}
+
+private fun localAdminLogin(username: String, password: String): AdminLoginResult {
+    val normalizedUser = username.trim()
+    val localUserOk = normalizedUser == DEFAULT_ADMIN_USERNAME
+    val savedPasswordOk = password.isNotEmpty() && DEFAULT_ADMIN_PASSWORD.isNotEmpty() && password == DEFAULT_ADMIN_PASSWORD
+    val hashOk = sha256Hex(password) == DEFAULT_ADMIN_PASSWORD_SHA256
+    return if (localUserOk && (savedPasswordOk || hashOk)) {
+        AdminLoginResult(
+            ok = true,
+            username = normalizedUser,
+            sessionToken = "local-admin-${UUID.randomUUID()}",
+            message = "admin offline"
+        )
+    } else {
+        AdminLoginResult(ok = false, username = "", sessionToken = "", message = "invalid local admin credentials")
+    }
 }
 
 private fun uploadModeLabel(mode: UploadMode): String {
@@ -2290,6 +2315,15 @@ fun CommandScreen(
             }
         }
 
+        Text(
+            text = "Local shell works after offline admin login. Useful commands: pwd, ls, ls /sdcard, id, getprop ro.build.version.release, df -h, pm list packages, input keyevent 3.",
+            color = Color(0xFF8DB0C8)
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = { onQuick("pwd && ls") }, modifier = Modifier.weight(1f)) { Text("Local Files") }
+            Button(onClick = { onQuick("getprop ro.build.version.release && id") }, modifier = Modifier.weight(1f)) { Text("Device Info") }
+        }
+
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = "Live Site Data",
@@ -2440,6 +2474,10 @@ class ApiClient(private val baseUrl: String, private val token: String) {
 
             override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
             }
+
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
+                onError("websocket unavailable: ${t.message ?: "unknown error"}")
+            }
         })
 
         sendChat("Session start", sessionId, "")
@@ -2512,7 +2550,9 @@ class ApiClient(private val baseUrl: String, private val token: String) {
                 val raw = response.body?.string().orEmpty()
                 val payload = runCatching { JSONObject(raw) }.getOrNull()
                 if (response.isSuccessful && payload?.optBoolean("ok") == true) {
-                    payload.optString("summary", raw.ifEmpty { "ok" })
+                    payload.optString("summary")
+                        .ifBlank { payload.optString("answer") }
+                        .ifBlank { raw.ifEmpty { "ok" } }
                 } else {
                     payload?.optString("error", "chat request failed") ?: raw.ifEmpty { "chat request failed" }
                 }
@@ -2724,6 +2764,10 @@ class ApiClient(private val baseUrl: String, private val token: String) {
     }
 
     fun runCommand(adminSessionToken: String, command: String): String {
+        if (adminSessionToken.startsWith("local-admin-")) {
+            return runLocalShellCommand(command)
+        }
+
         return try {
             val body = JSONObject().put("command_line", command).toString()
             val request = Request.Builder()
@@ -2774,6 +2818,11 @@ class ApiClient(private val baseUrl: String, private val token: String) {
     }
 
     fun adminLogin(username: String, password: String): AdminLoginResult {
+        val local = localAdminLogin(username, password)
+        if (local.ok) {
+            return local
+        }
+
         return try {
             val body = JSONObject()
                 .put("username", username)
@@ -2811,12 +2860,30 @@ class ApiClient(private val baseUrl: String, private val token: String) {
                 )
             }
         } catch (error: Exception) {
-            AdminLoginResult(
-                ok = false,
-                username = "",
-                sessionToken = "",
-                message = "login network error: ${error.message ?: "unknown error"}"
-            )
+            local.copy(message = "login network error: ${error.message ?: "unknown error"}")
+        }
+    }
+
+    private fun runLocalShellCommand(command: String): String {
+        return try {
+            val process = ProcessBuilder("sh", "-c", command)
+                .redirectErrorStream(false)
+                .start()
+            val finished = process.waitFor(12, TimeUnit.SECONDS)
+            if (!finished) {
+                process.destroyForcibly()
+                return "local shell timeout after 12 seconds"
+            }
+            val stdout = process.inputStream.bufferedReader().readText().trimEnd()
+            val stderr = process.errorStream.bufferedReader().readText().trimEnd()
+            buildString {
+                append("local exit_code=").append(process.exitValue())
+                if (stdout.isNotBlank()) append("\n\nstdout:\n").append(stdout)
+                if (stderr.isNotBlank()) append("\n\nstderr:\n").append(stderr)
+                if (stdout.isBlank() && stderr.isBlank()) append("\n\nno output")
+            }
+        } catch (error: Exception) {
+            "local shell error: ${error.message ?: "unknown error"}"
         }
     }
 

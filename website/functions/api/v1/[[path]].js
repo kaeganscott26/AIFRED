@@ -16,10 +16,120 @@ async function readJson(request) {
   }
 }
 
+function base64Url(bytes) {
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+async function sha256Hex(input) {
+  const bytes = new TextEncoder().encode(input);
+  const hash = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function getExpectedAdmin(env) {
+  return {
+    username: String(env.AIFRED_ADMIN_USERNAME || "North3rnLight3r").trim(),
+    passwordHash: String(env.AIFRED_ADMIN_PASSWORD_SHA256 || "c5c5188f8c698dfa5f956f4883f878a212d882fef0c8aed7c49a12c41d9ad8c5").trim().toLowerCase()
+  };
+}
+
+async function createAdminSession(username, env) {
+  const secret = String(env.AIFRED_ADMIN_SESSION_SECRET || env.AIFRED_API_TOKEN || "aifred-local-session").trim();
+  const issuedAt = Date.now();
+  const nonce = crypto.randomUUID();
+  const payload = `${username}|${issuedAt}|${nonce}`;
+  const sig = await sha256Hex(`${payload}|${secret}`);
+  return base64Url(new TextEncoder().encode(`${payload}|${sig}`));
+}
+
+async function verifyAdmin(request, env) {
+  const auth = request.headers.get("authorization") || "";
+  const token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
+  if (!token) return false;
+  try {
+    const decoded = atob(token.replace(/-/g, "+").replace(/_/g, "/"));
+    const parts = decoded.split("|");
+    if (parts.length !== 4) return false;
+    const [username, issuedAt, nonce, sig] = parts;
+    if (!username || !issuedAt || !nonce || !sig) return false;
+    const ageMs = Date.now() - Number(issuedAt);
+    if (!Number.isFinite(ageMs) || ageMs < 0 || ageMs > 24 * 60 * 60 * 1000) return false;
+    const secret = String(env.AIFRED_ADMIN_SESSION_SECRET || env.AIFRED_API_TOKEN || "aifred-local-session").trim();
+    const expected = await sha256Hex(`${username}|${issuedAt}|${nonce}|${secret}`);
+    return expected === sig;
+  } catch (_) {
+    return false;
+  }
+}
+
 async function loadCatalog(request) {
   const response = await fetch(new URL("/assets/data/beat_catalog.json", request.url), { cache: "no-store" });
   const tracks = await response.json();
   return Array.isArray(tracks) ? tracks : [];
+}
+
+function proGate(metrics) {
+  const checks = [
+    ["tone_balance", metrics.tone_balance >= 72 && metrics.tone_balance <= 96, "Tone balance target: 72-96"],
+    ["integrated_lufs", metrics.integrated_lufs >= -14.5 && metrics.integrated_lufs <= -8.0, "Loudness target: -14.5 to -8 LUFS"],
+    ["peak_dbfs", metrics.peak_dbfs <= -0.8, "Peak target: below -0.8 dBFS"],
+    ["crest_factor_db", metrics.crest_factor_db >= 6.0 && metrics.crest_factor_db <= 14.0, "Dynamics target: 6-14 dB crest"],
+    ["stereo_width", metrics.stereo_width >= 0.28 && metrics.stereo_width <= 0.92, "Stereo width target: 0.28-0.92"],
+    ["low_end_control", metrics.low_end_control >= 66, "Low-end control target: 66+"],
+    ["harshness_control", metrics.harshness_control >= 62, "Harshness control target: 62+"]
+  ];
+  const passed = checks.filter(([, ok]) => ok).length;
+  const score = Math.round((passed / checks.length) * 100);
+  return {
+    accepted: score >= 86,
+    score,
+    checks: checks.map(([id, ok, target]) => ({ id, ok, target }))
+  };
+}
+
+async function handleAnalysisSubmit(request, env) {
+  const body = await readJson(request);
+  const metrics = {
+    tone_balance: Number(body.metrics?.tone_balance || 0),
+    integrated_lufs: Number(body.metrics?.integrated_lufs || -99),
+    peak_dbfs: Number(body.metrics?.peak_dbfs || 99),
+    crest_factor_db: Number(body.metrics?.crest_factor_db || 0),
+    stereo_width: Number(body.metrics?.stereo_width || 0),
+    low_end_control: Number(body.metrics?.low_end_control || 0),
+    harshness_control: Number(body.metrics?.harshness_control || 0),
+    spectral_centroid_hz: Number(body.metrics?.spectral_centroid_hz || 0)
+  };
+  const gate = proGate(metrics);
+  const analysisId = crypto.randomUUID();
+  const metadata = {
+    id: analysisId,
+    created_at: new Date().toISOString(),
+    file_name: String(body.file_name || "browser-analysis").slice(0, 180),
+    duration_seconds: Number(body.duration_seconds || 0),
+    metrics,
+    gate
+  };
+
+  let persistence = "disposed";
+  if (gate.accepted && env.AIFRED_REFERENCE_POOL) {
+    await env.AIFRED_REFERENCE_POOL.put(`reference:${analysisId}`, JSON.stringify(metadata));
+    persistence = "stored";
+  } else if (gate.accepted) {
+    persistence = "accepted-no-binding";
+  }
+
+  return json({
+    ok: true,
+    accepted: gate.accepted,
+    score: gate.score,
+    action: gate.accepted ? "metadata eligible for the AIFRED reference pool" : "metadata disposed",
+    persistence,
+    checks: gate.checks,
+    analysis_id: gate.accepted ? analysisId : null
+  });
 }
 
 function contentPayload() {
@@ -118,6 +228,168 @@ async function handleChat(request, env) {
   }
 }
 
+function chatSettingsPayload(request, env) {
+  const url = new URL(request.url);
+  const wsProtocol = url.protocol === "https:" ? "wss:" : "ws:";
+  return {
+    ok: true,
+    websocket_url: `${wsProtocol}//${url.host}/ws/chat`,
+    persistence: env.AIFRED_CHAT_SESSIONS ? "bound" : "stateless",
+    active_model: env.OPENAI_MODEL || env.OLLAMA_MODEL || "gpt-5.4-mini",
+    models: [env.OPENAI_MODEL || "gpt-5.4-mini", env.OLLAMA_MODEL || "llama3.1"].filter(Boolean),
+    settings: {
+      transport_mode: "websocket",
+      webhook: { enabled: false, url: "", secret: "", events: ["chat.completed", "chat.failed"] },
+      context: { use_previous_response_id: true, memory_window_items: 40, summary_items: 6, max_prompt_chars: 4000, compact_threshold: 12 },
+      prompt: { tone: "direct", personality_mode: "professional_mentor", system_prefix: "", system_suffix: "" },
+      reasoning: { enabled: true, effort: "low" },
+      response: { verbosity: "low", max_output_tokens: 900 }
+    }
+  };
+}
+
+function commandCatalog() {
+  return [
+    { id: "health", description: "Check live website API health", command: "health" },
+    { id: "catalog:list", description: "Count beat catalog tracks", command: "catalog:list" },
+    { id: "models:list", description: "Show configured OpenAI/Ollama model routes", command: "models:list" },
+    { id: "reference:stats", description: "Show analyzer reference-pool status", command: "reference:stats" },
+    { id: "deploy:status", description: "Show Cloudflare Pages deployment status", command: "deploy:status" },
+    { id: "deploy:site", description: "Dispatch GitHub Actions website deployment when GITHUB_TOKEN is configured", command: "deploy:site" }
+  ];
+}
+
+function repoConfig(env) {
+  const repo = String(env.AIFRED_GITHUB_REPO || "kaeganscott26/AIFRED").trim();
+  const branch = String(env.AIFRED_GITHUB_BRANCH || "main").trim();
+  return { repo, branch };
+}
+
+function safeRepoPath(path) {
+  const normalized = String(path || "").replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized || normalized.includes("..") || normalized.startsWith(".git/")) {
+    throw new Error("unsafe repo path");
+  }
+  return normalized;
+}
+
+function githubHeaders(env) {
+  if (!env.GITHUB_TOKEN) throw new Error("GITHUB_TOKEN is not configured in Cloudflare Pages");
+  return {
+    "accept": "application/vnd.github+json",
+    "authorization": `Bearer ${env.GITHUB_TOKEN}`,
+    "content-type": "application/json",
+    "user-agent": "aifred-admin"
+  };
+}
+
+function utf8ToBase64(value) {
+  const bytes = new TextEncoder().encode(value);
+  let binary = "";
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return btoa(binary);
+}
+
+function base64ToUtf8(value) {
+  const binary = atob(value.replace(/\n/g, ""));
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+async function githubRequest(env, path, init = {}) {
+  const response = await fetch(`https://api.github.com${path}`, {
+    ...init,
+    headers: { ...githubHeaders(env), ...(init.headers || {}) }
+  });
+  const raw = await response.text();
+  const payload = raw ? JSON.parse(raw) : {};
+  if (!response.ok) throw new Error(payload?.message || `GitHub request failed (${response.status})`);
+  return payload;
+}
+
+async function handleAdminFileRead(request, env) {
+  if (!(await verifyAdmin(request, env))) return json({ ok: false, error: "admin session required" }, { status: 401 });
+  const body = await readJson(request);
+  const relPath = safeRepoPath(body.path);
+  if (!env.GITHUB_TOKEN) {
+    const response = await fetch(new URL(`/${relPath}`, request.url), { cache: "no-store" });
+    if (!response.ok) return json({ ok: false, error: "GITHUB_TOKEN required for repo reads outside deployed assets" }, { status: 501 });
+    return json({ ok: true, path: relPath, content: await response.text(), source: "deployed asset" });
+  }
+  const { repo, branch } = repoConfig(env);
+  const payload = await githubRequest(env, `/repos/${repo}/contents/${encodeURIComponent(relPath).replace(/%2F/g, "/")}?ref=${branch}`);
+  return json({ ok: true, path: relPath, sha: payload.sha, content: base64ToUtf8(payload.content || ""), source: "github" });
+}
+
+async function handleAdminFileWrite(request, env) {
+  if (!(await verifyAdmin(request, env))) return json({ ok: false, error: "admin session required" }, { status: 401 });
+  const body = await readJson(request);
+  const relPath = safeRepoPath(body.path);
+  const content = String(body.content || "");
+  const { repo, branch } = repoConfig(env);
+  const encodedPath = encodeURIComponent(relPath).replace(/%2F/g, "/");
+  let sha = "";
+  try {
+    const existing = await githubRequest(env, `/repos/${repo}/contents/${encodedPath}?ref=${branch}`);
+    sha = existing.sha || "";
+  } catch (_) {}
+  const payload = await githubRequest(env, `/repos/${repo}/contents/${encodedPath}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      message: `Update ${relPath} from AIFRED admin`,
+      content: utf8ToBase64(content),
+      branch,
+      ...(sha ? { sha } : {})
+    })
+  });
+  return json({ ok: true, path: relPath, commit: payload.commit?.sha || "", message: "website file committed; Pages deploy will follow GitHub integration or workflow" });
+}
+
+async function dispatchDeploy(env) {
+  const { repo, branch } = repoConfig(env);
+  await githubRequest(env, `/repos/${repo}/actions/workflows/build.yml/dispatches`, {
+    method: "POST",
+    body: JSON.stringify({ ref: branch })
+  });
+  return "GitHub Actions workflow dispatched for website deployment.";
+}
+
+async function handleCommand(request, env) {
+  if (!(await verifyAdmin(request, env))) return json({ ok: false, error: "admin session required" }, { status: 401 });
+  const body = await readJson(request);
+  const command = String(body.command_line || body.command || "").trim();
+  const normalized = command.startsWith("action:") ? command.slice(7).trim() : command;
+  let stdout = "";
+  if (normalized === "health") stdout = JSON.stringify({ ok: true, service: "AIFRED website backend" }, null, 2);
+  else if (normalized === "catalog:list") stdout = `tracks=${(await loadCatalog(request)).length}`;
+  else if (normalized === "models:list") stdout = JSON.stringify({
+    openai: Boolean(env.OPENAI_API_KEY),
+    openai_model: env.OPENAI_MODEL || "gpt-5.4-mini",
+    ollama: Boolean(env.OLLAMA_BASE_URL),
+    ollama_model: env.OLLAMA_MODEL || "llama3.1"
+  }, null, 2);
+  else if (normalized === "reference:stats") stdout = JSON.stringify({
+    reference_pool_binding: Boolean(env.AIFRED_REFERENCE_POOL),
+    accepted_uploads: env.AIFRED_REFERENCE_POOL ? "stored in KV" : "accepted metadata is reported but not persisted until KV is bound"
+  }, null, 2);
+  else if (normalized === "deploy:status") stdout = "Cloudflare Pages production domain: north3rnlight3r.com / www.north3rnlight3r.com";
+  else if (normalized === "deploy:site") stdout = await dispatchDeploy(env);
+  else return json({ ok: false, exit_code: 2, stderr: "Unsupported command. Use /api/v1/registry/actions for the allowlist." }, { status: 400 });
+  return json({ ok: true, exit_code: 0, stdout, stderr: "" });
+}
+
+async function handleAdminLogin(request, env) {
+  const body = await readJson(request);
+  const username = String(body.username || "").trim();
+  const password = String(body.password || "");
+  const expected = getExpectedAdmin(env);
+  const passwordHash = await sha256Hex(password);
+  if (username !== expected.username || passwordHash !== expected.passwordHash) {
+    return json({ ok: false, error: "invalid admin credentials" }, { status: 401 });
+  }
+  return json({ ok: true, username, session_token: await createAdminSession(username, env) });
+}
+
 export async function onRequest({ request, env, params }) {
   const path = Array.isArray(params.path) ? params.path.join("/") : String(params.path || "");
 
@@ -126,9 +398,28 @@ export async function onRequest({ request, env, params }) {
   if (path === "catalog/list") return json({ ok: true, tracks: await loadCatalog(request) });
   if (path === "soundpacks/list") return json({ ok: true, soundpacks: [] });
   if (path === "content/get") return json({ ok: true, content: contentPayload() });
+  if (path === "analysis/submit" && request.method === "POST") return handleAnalysisSubmit(request, env);
+  if (path === "analyzer/submit" && request.method === "POST") return handleAnalysisSubmit(request, env);
+  if (path === "chat/settings") return json(chatSettingsPayload(request, env));
+  if (path === "admin/chat/settings/save" && request.method === "POST") return json(chatSettingsPayload(request, env));
+  if (path === "admin/login" && request.method === "POST") return handleAdminLogin(request, env);
+  if (path === "command/run" && request.method === "POST") return handleCommand(request, env);
+  if (path === "registry/actions") return json({ ok: true, actions: commandCatalog() });
+  if (path === "admin/dashboard/state") return json({ ok: true, traffic: { status: "live" }, catalog: { tracks: (await loadCatalog(request)).length } });
+  if (path === "admin/catalog/list") return json({ ok: true, tracks: await loadCatalog(request) });
+  if (path === "admin/files/read" && request.method === "POST") return handleAdminFileRead(request, env);
+  if (path === "admin/files/write" && request.method === "POST") return handleAdminFileWrite(request, env);
+  if (path === "admin/files/list") return json({ ok: false, error: "GitHub-backed directory listing is not enabled yet" }, { status: 501 });
+  if (path === "admin/files/delete") return json({ ok: false, error: "Delete is intentionally disabled from mobile admin" }, { status: 403 });
+  if (path === "admin/inquiries/list") return json({ ok: true, inquiries: [] });
+  if (path === "admin/logs/list") return json({ ok: true, logs: [] });
+  if (path === "admin/sales/list") return json({ ok: true, sales: [] });
+  if (path === "admin/sales/record" && request.method === "POST") return json({ ok: true, sale_id: crypto.randomUUID() });
   if (path === "models/list") {
     return json({
       ok: true,
+      models: [env.OPENAI_MODEL || "gpt-5.4-mini", env.OLLAMA_MODEL || "llama3.1"].filter(Boolean),
+      active_model: env.OPENAI_MODEL || env.OLLAMA_MODEL || "gpt-5.4-mini",
       providers: {
         openai: { configured: Boolean(env.OPENAI_API_KEY), model: env.OPENAI_MODEL || "gpt-5.4-mini" },
         ollama: { configured: Boolean(env.OLLAMA_BASE_URL), model: env.OLLAMA_MODEL || "llama3.1" }
