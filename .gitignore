@@ -17,3 +17,8 @@ android_admin/.gradle/
 android_admin/local.properties
 android_admin/build/
 android_admin/app/build/
+
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
