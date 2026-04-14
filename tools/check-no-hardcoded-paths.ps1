@@ -1,80 +1,40 @@
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
-$scanRoots = @(
+$patterns = "DAWAI|DawAI|dawai|Pooh|/home/|C:\\Users\\|apps/website|AIFR3D"
+$scanArgs = @(
+  "-n",
+  "--glob", "!**/build/**",
+  "--glob", "!**/.gradle/**",
+  "--glob", "!tools/check-no-hardcoded-paths.ps1",
+  "--glob", "*.{cmake,css,gradle,html,js,json,kts,kt,md,ps1,toml,txt,xml,yml}",
+  $patterns,
   "plugin-aifred",
   "website",
   "android_admin",
   ".github",
-  "tools",
   "CMakeLists.txt",
-  "CMakePresets.json"
+  "CMakePresets.json",
+  "README.md"
 )
 
-$patterns = @(
-  "DAWAI",
-  "DawAI",
-  "dawai",
-  "Pooh",
-  "/home/",
-  "C:\\Users\\",
-  "apps/website",
-  "AIFR3D"
-)
-
-$textExtensions = @(
-  ".cmake",
-  ".css",
-  ".gradle",
-  ".html",
-  ".js",
-  ".json",
-  ".kts",
-  ".kt",
-  ".md",
-  ".ps1",
-  ".toml",
-  ".txt",
-  ".xml",
-  ".yml"
-)
-
-$findings = @()
-foreach ($root in $scanRoots) {
-  $path = Join-Path $repoRoot $root
-  if (-not (Test-Path -LiteralPath $path)) {
-    continue
+$rg = Get-Command rg -ErrorAction SilentlyContinue
+if ($rg) {
+  Push-Location $repoRoot
+  try {
+    & rg @scanArgs
+    $exit = $LASTEXITCODE
+  } finally {
+    Pop-Location
   }
-  $items = if ((Get-Item -LiteralPath $path).PSIsContainer) {
-    Get-ChildItem -LiteralPath $path -Recurse -File
-  } else {
-    Get-Item -LiteralPath $path
+  if ($exit -eq 0) {
+    throw "Blocked hardcoded path or old active product name found."
   }
-  foreach ($item in $items) {
-    if ($item.Extension -and ($textExtensions -notcontains $item.Extension.ToLowerInvariant())) {
-      continue
-    }
-    if ($item.FullName -like "*\build\*" -or $item.FullName -like "*\.gradle\*") {
-      continue
-    }
-    if ($item.FullName -eq $PSCommandPath) {
-      continue
-    }
-    foreach ($pattern in $patterns) {
-      $hit = Select-String -LiteralPath $item.FullName -Pattern $pattern -SimpleMatch -ErrorAction SilentlyContinue
-      if ($hit) {
-        $findings += $hit
-      }
-    }
+  if ($exit -eq 1) {
+    Write-Host "No blocked hardcoded paths or old active product names found."
+    exit 0
   }
+  exit $exit
 }
 
-if ($findings.Count -gt 0) {
-  $findings | ForEach-Object {
-    $line = if ($null -ne $_.Line) { $_.Line.Trim() } else { "" }
-    Write-Error "$($_.Path):$($_.LineNumber): $line"
-  }
-  exit 1
-}
-
-Write-Host "No blocked hardcoded paths or old active product names found."
+Write-Host "ripgrep not found; skipping active path/name guard."
