@@ -1,0 +1,7 @@
+AIFRED Installation
+
+Windows is the first distribution target. Copy the packaged Aifred.vst3 bundle from the release zip into the system VST3 folder, then rescan plugins in FL Studio.
+
+Use a relative website deployment layout. Catalog audio stays under website/assets/audio/catalog, catalog metadata stays under website/assets/data/beat_catalog.json, and backend routes stay under website/functions/api.
+
+Set OPENAI_API_KEY and OPENAI_MODEL for OpenAI chat. Set OLLAMA_BASE_URL and OLLAMA_MODEL for Ollama chat. Do not store API keys in website files.

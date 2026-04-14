@@ -1,0 +1,8 @@
+/assets/audio/catalog/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/assets/data/*
+  Cache-Control: no-store
+
+/api/*
+  Cache-Control: no-store

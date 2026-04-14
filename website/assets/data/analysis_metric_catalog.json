@@ -1,0 +1,323 @@
+{
+  "metrics": {
+    "frequency_balance": {
+      "metric": "frequency_balance",
+      "category": "frequency",
+      "input_type": "object",
+      "inputs": {
+        "sub_energy": "float",
+        "bass_energy": "float",
+        "low_mid_energy": "float",
+        "mid_energy": "float",
+        "high_mid_energy": "float",
+        "presence_energy": "float",
+        "air_energy": "float"
+      },
+      "unit": "percentage",
+      "display_name": "Frequency Balance",
+      "description": "Distribution of energy across the frequency spectrum, indicating tonal balance and potential mixing issues",
+      "reference_targets": {
+        "pop": {
+          "sub": 0.08,
+          "bass": 0.28,
+          "low_mid": 0.18,
+          "mid": 0.22,
+          "high_mid": 0.16,
+          "presence": 0.06,
+          "air": 0.02
+        },
+        "rock": {
+          "sub": 0.06,
+          "bass": 0.26,
+          "low_mid": 0.2,
+          "mid": 0.24,
+          "high_mid": 0.18,
+          "presence": 0.04,
+          "air": 0.02
+        },
+        "edm": {
+          "sub": 0.12,
+          "bass": 0.32,
+          "low_mid": 0.15,
+          "mid": 0.18,
+          "high_mid": 0.15,
+          "presence": 0.06,
+          "air": 0.02
+        },
+        "jazz": {
+          "sub": 0.04,
+          "bass": 0.22,
+          "low_mid": 0.2,
+          "mid": 0.26,
+          "high_mid": 0.2,
+          "presence": 0.06,
+          "air": 0.02
+        }
+      },
+      "classification_rules": [
+        { "band": "sub", "condition": "sub_energy > 0.15", "status": "SUB_EXCESSIVE", "severity": 2, "advisory_key": "freq_sub_excessive" },
+        { "band": "sub", "condition": "sub_energy < 0.03", "status": "SUB_LACKING", "severity": 1, "advisory_key": "freq_sub_lacking" },
+        { "band": "bass", "condition": "bass_energy > 0.35", "status": "BASS_HEAVY", "severity": 2, "advisory_key": "freq_bass_heavy" },
+        { "band": "bass", "condition": "bass_energy < 0.20", "status": "BASS_THIN", "severity": 2, "advisory_key": "freq_bass_thin" },
+        { "band": "low_mid", "condition": "low_mid_energy > 0.25", "status": "MUDDY", "severity": 2, "advisory_key": "freq_muddy" },
+        { "band": "low_mid", "condition": "low_mid_energy < 0.12", "status": "LOW_MID_HOLLOW", "severity": 1, "advisory_key": "freq_low_mid_hollow" },
+        { "band": "mid", "condition": "mid_energy > 0.30", "status": "MID_HEAVY", "severity": 1, "advisory_key": "freq_mid_heavy" },
+        { "band": "mid", "condition": "mid_energy < 0.15", "status": "MID_SCOOPED", "severity": 2, "advisory_key": "freq_mid_scooped" },
+        { "band": "high_mid", "condition": "high_mid_energy > 0.22", "status": "HARSH", "severity": 2, "advisory_key": "freq_harsh" },
+        { "band": "high_mid", "condition": "high_mid_energy < 0.10", "status": "DULL", "severity": 2, "advisory_key": "freq_dull" },
+        { "band": "presence", "condition": "presence_energy > 0.10", "status": "SIBILANT", "severity": 2, "advisory_key": "freq_sibilant" },
+        { "band": "presence", "condition": "presence_energy < 0.03", "status": "DARK", "severity": 1, "advisory_key": "freq_dark" }
+      ],
+      "educational_content": {
+        "sub_bass_20_60": {
+          "why": "Sub-bass provides weight and physical impact. Too much muddies the mix on small speakers; too little sounds thin.",
+          "how": "Use high-pass filters on non-bass instruments (80-100 Hz). Use subtractive EQ on kick/bass. Check on subwoofer AND laptop speakers.",
+          "when_ignore": "Acoustic music, jazz, classical rarely need heavy sub energy."
+        },
+        "bass_60_250": {
+          "why": "Bass frequencies give warmth and power. This is where kick drums and bass guitars live.",
+          "how": "EQ bass and kick to occupy different spaces (use spectrum analyzer). Sidechain compression. High-pass guitars/vocals at 80-100 Hz.",
+          "when_ignore": "Lo-fi aesthetic, vintage recordings, acoustic folk."
+        },
+        "low_mid_250_500": {
+          "why": "The mud zone - too much here makes mixes sound boxy and unclear. But it's also where body lives.",
+          "how": "Surgical cuts at 300-400 Hz on guitars/vocals. Use broad cuts (Q=0.7). Monitor on different speakers.",
+          "when_ignore": "Warm vintage tones, some genres intentionally embrace this warmth."
+        },
+        "mid_500_2k": {
+          "why": "Where vocals and lead instruments live. Critical for clarity and definition.",
+          "how": "Boost presence around 1-2 kHz for vocals. Cut competing instruments in this range. Use automation for emphasis.",
+          "when_ignore": "Metal or rock with a scooped-mid sound is intentional in some productions."
+        },
+        "high_mid_2_6k": {
+          "why": "Presence and clarity. Too much = harsh/fatiguing. Too little = dull/distant.",
+          "how": "Use de-esser on vocals (3-8 kHz). Gentle boost at 2.5 kHz for clarity. High-shelf cut if too bright.",
+          "when_ignore": "Lo-fi/cassette aesthetic. Vintage recordings."
+        },
+        "presence_6_12k": {
+          "why": "Air, sparkle, excitement. This is where cymbal sizzle and vocal breathiness live.",
+          "how": "High-shelf boost +2-3 dB at 8-10 kHz for air. De-ess sibilance at 6-8 kHz. Use saturation for harmonic excitement.",
+          "when_ignore": "Warm/dark productions. Excessive brightness causes fatigue."
+        },
+        "air_12_20k": {
+          "why": "Extreme high frequencies add space and dimension. Many can't hear above 16 kHz.",
+          "how": "Subtle high-shelf boost. Use exciter plugins for harmonic generation. Don't overdo it.",
+          "when_ignore": "Most listeners over 30 cannot hear far above 15 kHz. It is not critical for most genres."
+        }
+      },
+      "related_metrics": [
+        "muddy_detection",
+        "harshness_detection",
+        "tonal_balance_score",
+        "spectral_centroid"
+      ],
+      "mixing_tips": {
+        "muddy_fix": [
+          "Cut 250-500 Hz on guitars, pads, synths",
+          "High-pass filter everything except kick/bass at 80-100 Hz",
+          "Use spectrum analyzer to identify frequency conflicts",
+          "Solo bass and kick together - they should complement, not fight"
+        ],
+        "harshness_fix": [
+          "De-ess vocals at 5-8 kHz",
+          "Use multiband compression on 2-4 kHz",
+          "Check for distortion/clipping in this range",
+          "Reduce cymbal harshness with narrow cuts at 3-4 kHz"
+        ],
+        "thin_fix": [
+          "Boost bass at 80-120 Hz (but check on small speakers)",
+          "Add warmth at 200-300 Hz to key elements",
+          "Use saturation for harmonic richness",
+          "Check you haven't over-high-passed instruments"
+        ]
+      },
+      "examples": {
+        "balanced": [
+          { "track": "Billie Eilish - bad guy", "note": "Deep sub, controlled mids, clear highs" },
+          { "track": "The Weeknd - Blinding Lights", "note": "Vintage-inspired balance with modern bass" }
+        ],
+        "bass_heavy": [
+          { "track": "Travis Scott - SICKO MODE", "note": "Sub-heavy hip-hop mix" },
+          { "track": "Burial - Archangel", "note": "Lo-fi aesthetic with deep bass" }
+        ],
+        "bright": [
+          { "track": "Daft Punk - Get Lucky", "note": "Disco-inspired brightness" },
+          { "track": "Steely Dan - Aja", "note": "Audiophile clarity and air" }
+        ]
+      }
+    },
+    "integrated_loudness": {
+      "metric": "integrated_loudness",
+      "category": "loudness_dynamics",
+      "input_type": "float",
+      "input_name": "lufs_integrated",
+      "unit": "LUFS",
+      "display_name": "Integrated Loudness",
+      "description": "Perceived loudness over the entire track duration, measured in LUFS (Loudness Units relative to Full Scale)",
+      "reference_targets": {
+        "streaming": {
+          "spotify": -14.0,
+          "apple_music": -16.0,
+          "youtube": -13.0,
+          "tidal": -14.0
+        },
+        "broadcast": {
+          "ebu_r128": -23.0,
+          "atsc_a85": -24.0
+        },
+        "mastering": {
+          "cd_loud": -9.0,
+          "cd_dynamic": -12.0,
+          "vinyl": -16.0
+        },
+        "production": {
+          "film_dialogue": -27.0,
+          "classical": -20.0,
+          "jazz": -18.0
+        }
+      },
+      "classification_rules": [
+        { "condition": "lufs_integrated > reference + 4.0", "status": "CRITICALLY_LOUD", "severity": 3, "advisory_key": "loudness_critically_loud", "icon": "🔴" },
+        { "condition": "reference + 1.5 < lufs_integrated <= reference + 4.0", "status": "TOO_LOUD", "severity": 2, "advisory_key": "loudness_too_loud", "icon": "🟠" },
+        { "condition": "reference < lufs_integrated <= reference + 1.5", "status": "SLIGHTLY_LOUD", "severity": 1, "advisory_key": "loudness_slightly_loud", "icon": "🟡" },
+        { "condition": "reference - 1.5 <= lufs_integrated <= reference", "status": "OPTIMAL", "severity": 0, "advisory_key": "loudness_optimal", "icon": "🟢" },
+        { "condition": "reference - 4.0 <= lufs_integrated < reference - 1.5", "status": "TOO_QUIET", "severity": 2, "advisory_key": "loudness_too_quiet", "icon": "🟠" },
+        { "condition": "lufs_integrated < reference - 4.0", "status": "CRITICALLY_QUIET", "severity": 3, "advisory_key": "loudness_critically_quiet", "icon": "🔴" }
+      ],
+      "educational_content": {
+        "why": "Integrated loudness measures perceived volume over the full mix. Streaming normalization means louder is not automatically better.",
+        "how_to_fix_loud": "Reduce limiter threshold, back off makeup gain, inspect bus compression, keep master fader at unity, and A/B against reference tracks.",
+        "how_to_fix_quiet": "Add measured makeup gain with a limiter, keep ceiling around -0.3 dBTP, confirm you are not leaving excessive headroom, and compare RMS with references.",
+        "when_to_ignore": "If you are printing for mastering, working on classical or jazz, or deliberately preserving wider dynamics, do not force a streaming loudness target too early.",
+        "context": "Streaming platforms generally normalize toward the low-to-mid teens LUFS, so crushed masters lose punch and are often turned down anyway."
+      },
+      "related_metrics": [
+        "dynamic_range",
+        "true_peak",
+        "loudness_range",
+        "rms_level"
+      ],
+      "examples": {
+        "modern_pop": [
+          { "track": "Blinding Lights - The Weeknd", "value": -7.8, "note": "Loud but retains transient punch" },
+          { "track": "Levitating - Dua Lipa", "value": -8.2, "note": "Competitive loudness with clarity" }
+        ],
+        "dynamic_reference": [
+          { "track": "Bohemian Rhapsody - Queen (2011 Remaster)", "value": -10.5, "note": "Remaster respects original dynamics" },
+          { "track": "Random Access Memories - Daft Punk", "value": -11.0, "note": "Modern production, classic dynamics" }
+        ],
+        "classical": [
+          { "track": "Symphony No. 9 - Beethoven (Karajan)", "value": -20.0, "note": "Natural orchestral dynamics" }
+        ]
+      }
+    },
+    "dynamic_range": {
+      "metric": "dynamic_range",
+      "category": "loudness_dynamics",
+      "input_type": "float",
+      "input_name": "dr_value",
+      "unit": "dB",
+      "display_name": "Dynamic Range (DR)",
+      "description": "Difference between the loudest and average levels, indicating compression amount and dynamic variety",
+      "reference_targets": {
+        "genres": {
+          "classical": 14.0,
+          "jazz": 12.0,
+          "rock": 8.0,
+          "pop": 7.0,
+          "edm": 5.0,
+          "metal": 6.0
+        }
+      },
+      "classification_rules": [
+        { "condition": "dr_value >= 14.0", "status": "HIGHLY_DYNAMIC", "severity": 0, "advisory_key": "dr_highly_dynamic", "icon": "🎻" },
+        { "condition": "10.0 <= dr_value < 14.0", "status": "DYNAMIC", "severity": 0, "advisory_key": "dr_dynamic", "icon": "🟢" },
+        { "condition": "7.0 <= dr_value < 10.0", "status": "BALANCED", "severity": 0, "advisory_key": "dr_balanced", "icon": "🟢" },
+        { "condition": "5.0 <= dr_value < 7.0", "status": "COMPRESSED", "severity": 1, "advisory_key": "dr_compressed", "icon": "🟡" },
+        { "condition": "3.0 <= dr_value < 5.0", "status": "HEAVILY_COMPRESSED", "severity": 2, "advisory_key": "dr_heavily_compressed", "icon": "🟠" },
+        { "condition": "dr_value < 3.0", "status": "BRICK_WALLED", "severity": 3, "advisory_key": "dr_brick_walled", "icon": "🔴" }
+      ],
+      "educational_content": {
+        "why": "Dynamic range shows how much contrast remains between peaks and the average level. Low DR means heavy compression and a flatter emotional arc.",
+        "how_to_improve": "Back off master limiting, prefer parallel compression, automate section energy, and leave choruses room to open up.",
+        "when_to_ignore": "EDM, some modern metal, radio singles, and hyperpop may intentionally run lower DR than acoustic or orchestral material.",
+        "context": "Streaming normalization changed the value of loud masters. Preserved dynamics now translate better than over-limited loudness."
+      },
+      "related_metrics": [
+        "integrated_loudness",
+        "loudness_range",
+        "crest_factor",
+        "transient_impact"
+      ],
+      "examples": {
+        "high_dr": [
+          { "track": "Kind of Blue - Miles Davis", "value": 13, "note": "Natural jazz dynamics" },
+          { "track": "Abbey Road - The Beatles (2019 Remix)", "value": 11, "note": "Respectful remaster" }
+        ],
+        "balanced": [
+          { "track": "Thriller - Michael Jackson", "value": 9, "note": "Classic 80s punch" },
+          { "track": "Random Access Memories - Daft Punk", "value": 9, "note": "Modern with classic sensibility" }
+        ],
+        "compressed": [
+          { "track": "Get Lucky - Daft Punk", "value": 6, "note": "Radio-ready single" },
+          { "track": "Harlem Shake - Baauer", "value": 5, "note": "EDM standard compression" }
+        ]
+      }
+    },
+    "stereo_width": {
+      "metric": "stereo_width",
+      "category": "stereo",
+      "display_name": "Stereo Width",
+      "description": "How wide the mix feels across the stereo field and how safely it collapses to mono.",
+      "related_metrics": [
+        "phase_correlation",
+        "mono_compatibility",
+        "center_balance",
+        "mid_side_ratio"
+      ],
+      "mixing_tips": {
+        "width_strategy": [
+          "Keep low end mono (< 120 Hz): kick, bass, sub elements",
+          "Center: lead vocals, kick, snare, bass",
+          "Wide: pads, reverbs, background vocals, delays",
+          "Medium-wide: guitars, keys, supporting instruments",
+          "Use correlation meter - keep above -1, ideally above +0.5"
+        ],
+        "common_mistakes": [
+          "Widening everything (creates phase mess and loss of punch)",
+          "Over-using Haas effect (comb filtering)",
+          "Not checking in mono (surprises on club systems)",
+          "Bass frequencies in stereo (loses power)",
+          "Forgetting headphones exaggerate width perception"
+        ],
+        "advanced_techniques": [
+          "Mid-Side processing: boost Side highs, keep Mid lows",
+          "Use stereo imager on bus groups, not every track",
+          "Pan drum overheads vs. close mics for depth",
+          "Automate width: verse narrow, chorus wide",
+          "Use tools like Ozone Imager to visualize"
+        ]
+      },
+      "examples": {
+        "balanced": [
+          { "track": "The Weeknd - Blinding Lights", "width": 75, "note": "Wide enough for excitement, safe for mono" },
+          { "track": "Dua Lipa - Levitating", "width": 80, "note": "Modern pop width standard" }
+        ],
+        "ultra_wide": [
+          { "track": "Billie Eilish - bad guy", "width": 90, "note": "Headphone-optimized production" },
+          { "track": "Flume - Never Be Like You", "width": 95, "note": "Electronic music pushing boundaries" }
+        ],
+        "narrow": [
+          { "track": "The Beatles - Sgt. Pepper (Original)", "width": 55, "note": "1967 stereo technology" },
+          { "track": "Jack White - Sixteen Saltines", "width": 60, "note": "Intentional vintage approach" }
+        ],
+        "reference_approach": [
+          "Start with mono mix to get balance right",
+          "Add width gradually, checking mono compatibility",
+          "Final width should feel natural, not exaggerated",
+          "If it sounds too wide in headphones, it probably is"
+        ]
+      }
+    }
+  }
+}

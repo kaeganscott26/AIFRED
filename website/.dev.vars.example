@@ -1,0 +1,6 @@
+AIFRED_CHAT_PROVIDER=openai
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-5.4-mini
+OLLAMA_BASE_URL=
+OLLAMA_MODEL=llama3.1
+AIFRED_CONTACT_EMAIL=north3rnlight3rofficial@outlook.com

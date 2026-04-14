@@ -1,0 +1,233 @@
+name: Build AIFRED
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  vst3:
+    name: VST3 ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows
+            os: windows-latest
+          - name: macos
+            os: macos-latest
+          - name: ubuntu
+            os: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux JUCE dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libcurl4-openssl-dev libfreetype6-dev libgl1-mesa-dev libwebkit2gtk-4.1-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev ninja-build
+
+      - name: Configure
+        run: cmake -S . -B build/aifred -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build/aifred --config Release --parallel
+
+      - name: Package Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $plugin = Get-ChildItem build/aifred -Recurse -Filter Aifred.vst3 | Where-Object { $_.PSIsContainer } | Select-Object -First 1
+          New-Item -ItemType Directory -Force -Path package/AIFRED-Windows | Out-Null
+          Copy-Item -Recurse -LiteralPath $plugin.FullName -Destination package/AIFRED-Windows/Aifred.vst3
+          @(
+            '$ErrorActionPreference = "Stop"',
+            '$source = Join-Path $PSScriptRoot "Aifred.vst3"',
+            '$target = Join-Path $env:COMMONPROGRAMFILES "VST3\Aifred.vst3"',
+            'New-Item -ItemType Directory -Force -Path (Split-Path $target) | Out-Null',
+            'Copy-Item -Recurse -Force -LiteralPath $source -Destination $target',
+            'Write-Host "AIFRED installed to $target. Rescan plugins in FL Studio."'
+          ) | Set-Content package/AIFRED-Windows/install-aifred.ps1
+          Compress-Archive -Path package/AIFRED-Windows/* -DestinationPath AIFRED-VST3-Windows.zip
+
+      - name: Package macOS installer
+        if: runner.os == 'macOS'
+        run: |
+          PLUGIN="$(find build/aifred -name Aifred.vst3 -type d | head -n 1)"
+          mkdir -p package/AIFRED-macOS
+          cp -R "$PLUGIN" package/AIFRED-macOS/Aifred.vst3
+          cat > package/AIFRED-macOS/install-aifred.command <<'SCRIPT'
+          #!/bin/sh
+          set -eu
+          SRC="$(cd "$(dirname "$0")" && pwd)/Aifred.vst3"
+          DEST="$HOME/Library/Audio/Plug-Ins/VST3/Aifred.vst3"
+          mkdir -p "$(dirname "$DEST")"
+          rm -rf "$DEST"
+          cp -R "$SRC" "$DEST"
+          echo "AIFRED installed to $DEST. Rescan plugins in your DAW."
+          SCRIPT
+          chmod +x package/AIFRED-macOS/install-aifred.command
+          ditto -c -k --keepParent package/AIFRED-macOS AIFRED-VST3-macOS.zip
+
+      - name: Package Ubuntu build artifact
+        if: runner.os == 'Linux'
+        run: |
+          PLUGIN="$(find build/aifred -name Aifred.vst3 -type d | head -n 1)"
+          mkdir -p package/AIFRED-Ubuntu
+          cp -R "$PLUGIN" package/AIFRED-Ubuntu/Aifred.vst3
+          cat > package/AIFRED-Ubuntu/install-aifred.sh <<'SCRIPT'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/Aifred.vst3"
+          DEST="$HOME/.vst3/Aifred.vst3"
+          mkdir -p "$(dirname "$DEST")"
+          rm -rf "$DEST"
+          cp -R "$SRC" "$DEST"
+          echo "AIFRED installed to $DEST. Rescan plugins in your DAW."
+          SCRIPT
+          chmod +x package/AIFRED-Ubuntu/install-aifred.sh
+          tar -czf AIFRED-VST3-Ubuntu.tar.gz -C package AIFRED-Ubuntu
+
+      - name: Upload VST3 package
+        uses: actions/upload-artifact@v4
+        with:
+          name: AIFRED-VST3-${{ matrix.name }}
+          path: |
+            AIFRED-VST3-*.zip
+            AIFRED-VST3-*.tar.gz
+          if-no-files-found: error
+
+  arch-linux:
+    name: VST3 arch-linux
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Arch build dependencies
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm base-devel cmake git ninja alsa-lib curl freetype2 libx11 libxcomposite libxcursor libxext libxinerama libxrandr mesa webkit2gtk-4.1
+
+      - name: Configure
+        run: cmake -S . -B build/aifred -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build/aifred --parallel
+
+      - name: Package Arch installer
+        run: |
+          PLUGIN="$(find build/aifred -name Aifred.vst3 -type d | head -n 1)"
+          mkdir -p package/AIFRED-Arch
+          cp -R "$PLUGIN" package/AIFRED-Arch/Aifred.vst3
+          cat > package/AIFRED-Arch/install-aifred.sh <<'SCRIPT'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/Aifred.vst3"
+          DEST="$HOME/.vst3/Aifred.vst3"
+          mkdir -p "$(dirname "$DEST")"
+          rm -rf "$DEST"
+          cp -R "$SRC" "$DEST"
+          echo "AIFRED installed to $DEST. Rescan plugins in your DAW."
+          SCRIPT
+          chmod +x package/AIFRED-Arch/install-aifred.sh
+          tar -czf AIFRED-VST3-Arch.tar.gz -C package AIFRED-Arch
+
+      - name: Upload Arch package
+        uses: actions/upload-artifact@v4
+        with:
+          name: AIFRED-VST3-arch-linux
+          path: AIFRED-VST3-Arch.tar.gz
+
+  android-admin:
+    name: Android admin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: microsoft
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Build debug APK
+        working-directory: android_admin
+        run: ./gradlew assembleDebug
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AIFRED-Admin-debug-apk
+          path: android_admin/app/build/outputs/apk/debug/app-debug.apk
+
+  website:
+    name: Website checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: JavaScript syntax
+        run: |
+          node --check website/app.js
+          node --check 'website/functions/api/v1/[[path]].js'
+          node --check 'website/functions/api/[[path]].js'
+          node --check tools/serve-website.mjs
+
+      - name: Guard active paths and product names
+        shell: pwsh
+        run: ./tools/check-no-hardcoded-paths.ps1
+
+  release:
+    name: Publish GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    needs: [vst3, arch-linux, android-admin, website]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" release-assets/* \
+            --title "AIFRED ${GITHUB_REF_NAME}" \
+            --notes "AIFRED release packages for Windows VST3, macOS VST3, Arch Linux VST3, Ubuntu validation artifact, and Android admin debug APK."
+
+  deploy-website:
+    name: Deploy Cloudflare Pages
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: [website]
+    env:
+      CLOUDFLARE_API_TOKEN_PRESENT: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Skip when Cloudflare token is missing
+        if: env.CLOUDFLARE_API_TOKEN_PRESENT != 'true'
+        run: echo "Set the CLOUDFLARE_API_TOKEN repository secret to enable Cloudflare Pages deployment."
+
+      - uses: cloudflare/wrangler-action@v3
+        if: env.CLOUDFLARE_API_TOKEN_PRESENT == 'true'
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy website --project-name=aifred-website --branch=main

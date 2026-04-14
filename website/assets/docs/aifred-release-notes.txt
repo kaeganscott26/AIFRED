@@ -1,0 +1,8 @@
+AIFRED Release Notes
+
+Initial build target:
+- Fresh AIFRED VST3 plugin source.
+- Windows-first VST3 packaging for FL Studio scanning.
+- Cloudflare Pages Functions aligned to the website folder.
+- Beat catalog storefront wired to website/assets/audio/catalog and website/assets/data/beat_catalog.json.
+- OpenAI and Ollama chat provider routing through backend environment variables.

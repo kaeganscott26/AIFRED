@@ -1,0 +1,7 @@
+AIFRED System Requirements
+
+Windows: 64-bit Windows 10 or newer, FL Studio or another VST3 host, and a CPU capable of modern C++20 plugin builds.
+
+Build tools: CMake 3.24 or newer, Git, and Visual Studio with the Desktop development with C++ workload.
+
+Backend: Cloudflare Pages Functions for website API routes. OpenAI and Ollama are configured through environment variables.
