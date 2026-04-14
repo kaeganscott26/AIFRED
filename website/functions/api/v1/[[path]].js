@@ -345,6 +345,146 @@ async function handleAdminFileWrite(request, env) {
   return json({ ok: true, path: relPath, commit: payload.commit?.sha || "", message: "website file committed; Pages deploy will follow GitHub integration or workflow" });
 }
 
+async function handleAdminFileList(request, env) {
+  if (!(await verifyAdmin(request, env))) return json({ ok: false, error: "admin session required" }, { status: 401 });
+  if (!env.GITHUB_TOKEN) return json({ ok: false, error: "GITHUB_TOKEN is not configured in Cloudflare Pages" }, { status: 501 });
+  const url = new URL(request.url);
+  const relPath = safeRepoPath(url.searchParams.get("path") || "website");
+  const { repo, branch } = repoConfig(env);
+  const encodedPath = encodeURIComponent(relPath).replace(/%2F/g, "/");
+  const payload = await githubRequest(env, `/repos/${repo}/contents/${encodedPath}?ref=${branch}`);
+  const entries = (Array.isArray(payload) ? payload : [payload]).map((item) => ({
+    name: item.name,
+    path: item.path,
+    type: item.type,
+    size: item.size || 0,
+    sha: item.sha || ""
+  }));
+  return json({ ok: true, path: relPath, entries });
+}
+
+async function handleAdminFileDelete(request, env) {
+  if (!(await verifyAdmin(request, env))) return json({ ok: false, error: "admin session required" }, { status: 401 });
+  const body = await readJson(request);
+  const relPath = safeRepoPath(body.path);
+  if (!relPath.startsWith("website/")) return json({ ok: false, error: "mobile delete is restricted to website/" }, { status: 403 });
+  const { repo, branch } = repoConfig(env);
+  const encodedPath = encodeURIComponent(relPath).replace(/%2F/g, "/");
+  const existing = await githubRequest(env, `/repos/${repo}/contents/${encodedPath}?ref=${branch}`);
+  const payload = await githubRequest(env, `/repos/${repo}/contents/${encodedPath}`, {
+    method: "DELETE",
+    body: JSON.stringify({
+      message: `Delete ${relPath} from AIFRED admin`,
+      branch,
+      sha: existing.sha
+    })
+  });
+  return json({ ok: true, path: relPath, commit: payload.commit?.sha || "" });
+}
+
+function safeUploadName(name) {
+  return String(name || `upload-${crypto.randomUUID()}`)
+    .replace(/\\/g, "/")
+    .split("/")
+    .pop()
+    .replace(/[^A-Za-z0-9._ -]/g, "-")
+    .replace(/\s+/g, "-")
+    .slice(0, 120);
+}
+
+async function fileToBase64(file) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let binary = "";
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return btoa(binary);
+}
+
+async function writeBinaryRepoFile(env, relPath, file, message) {
+  const safePath = safeRepoPath(relPath);
+  const { repo, branch } = repoConfig(env);
+  const encodedPath = encodeURIComponent(safePath).replace(/%2F/g, "/");
+  let sha = "";
+  try {
+    const existing = await githubRequest(env, `/repos/${repo}/contents/${encodedPath}?ref=${branch}`);
+    sha = existing.sha || "";
+  } catch (_) {}
+  const payload = await githubRequest(env, `/repos/${repo}/contents/${encodedPath}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      message,
+      content: await fileToBase64(file),
+      branch,
+      ...(sha ? { sha } : {})
+    })
+  });
+  return { path: safePath, commit: payload.commit?.sha || "" };
+}
+
+async function handleAdminFileUpload(request, env) {
+  if (!(await verifyAdmin(request, env))) return json({ ok: false, error: "admin session required" }, { status: 401 });
+  const form = await request.formData();
+  const file = form.get("file");
+  if (!file || typeof file === "string") return json({ ok: false, error: "file is required" }, { status: 400 });
+  const targetPath = safeRepoPath(form.get("path") || `website/assets/uploads/${safeUploadName(file.name)}`);
+  const written = await writeBinaryRepoFile(env, targetPath, file, `Upload ${targetPath} from AIFRED admin`);
+  return json({ ok: true, stored_path: written.path, commit: written.commit });
+}
+
+async function handleAdminReferenceUpload(request, env) {
+  if (!(await verifyAdmin(request, env))) return json({ ok: false, error: "admin session required" }, { status: 401 });
+  const form = await request.formData();
+  const file = form.get("file");
+  if (!file || typeof file === "string") return json({ ok: false, error: "file is required" }, { status: 400 });
+  const genre = String(form.get("genre") || "reference").replace(/[^A-Za-z0-9._-]/g, "-").toLowerCase();
+  const targetPath = `website/assets/reference_pool/${genre}/${safeUploadName(file.name)}`;
+  const written = await writeBinaryRepoFile(env, targetPath, file, `Upload reference ${targetPath} from AIFRED admin`);
+  return json({ ok: true, stored_path: written.path, commit: written.commit });
+}
+
+async function handleAdminCatalogUpload(request, env) {
+  if (!(await verifyAdmin(request, env))) return json({ ok: false, error: "admin session required" }, { status: 401 });
+  const form = await request.formData();
+  const file = form.get("file");
+  if (!file || typeof file === "string") return json({ ok: false, error: "file is required" }, { status: 400 });
+  const title = String(form.get("title") || file.name || "North3rnLight3r catalog upload").trim();
+  const fileName = safeUploadName(file.name);
+  const audioPath = `website/assets/audio/catalog/${fileName}`;
+  const audioWrite = await writeBinaryRepoFile(env, audioPath, file, `Upload catalog audio ${fileName} from AIFRED admin`);
+  const tracks = await loadCatalog(request);
+  const track = {
+    key: crypto.randomUUID(),
+    title,
+    bpm: String(form.get("bpm") || "").trim(),
+    genre: String(form.get("pack_type") || "North3rnLight3r").trim(),
+    duration_label: "",
+    price: String(form.get("price") || "$19.99").trim(),
+    asset_file_name: fileName,
+    stream_url: `assets/audio/catalog/${fileName}`,
+    artwork_url: "assets/brand/aifred-mascot.jpg",
+    description: String(form.get("description") || "").trim(),
+    key_signature: String(form.get("key") || "").trim(),
+    tempo: String(form.get("tempo") || "").trim()
+  };
+  const { repo, branch } = repoConfig(env);
+  const catalogPath = "website/assets/data/beat_catalog.json";
+  const encodedPath = encodeURIComponent(catalogPath).replace(/%2F/g, "/");
+  let sha = "";
+  try {
+    const existing = await githubRequest(env, `/repos/${repo}/contents/${encodedPath}?ref=${branch}`);
+    sha = existing.sha || "";
+  } catch (_) {}
+  await githubRequest(env, `/repos/${repo}/contents/${encodedPath}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      message: `Add catalog item ${title} from AIFRED admin`,
+      content: utf8ToBase64(JSON.stringify([...tracks, track], null, 2)),
+      branch,
+      ...(sha ? { sha } : {})
+    })
+  });
+  return json({ ok: true, stored_path: audioWrite.path, track, commit: audioWrite.commit });
+}
+
 async function dispatchDeploy(env) {
   const { repo, branch } = repoConfig(env);
   await githubRequest(env, `/repos/${repo}/actions/workflows/build.yml/dispatches`, {
@@ -409,8 +549,11 @@ export async function onRequest({ request, env, params }) {
   if (path === "admin/catalog/list") return json({ ok: true, tracks: await loadCatalog(request) });
   if (path === "admin/files/read" && request.method === "POST") return handleAdminFileRead(request, env);
   if (path === "admin/files/write" && request.method === "POST") return handleAdminFileWrite(request, env);
-  if (path === "admin/files/list") return json({ ok: false, error: "GitHub-backed directory listing is not enabled yet" }, { status: 501 });
-  if (path === "admin/files/delete") return json({ ok: false, error: "Delete is intentionally disabled from mobile admin" }, { status: 403 });
+  if (path === "admin/files/list") return handleAdminFileList(request, env);
+  if (path === "admin/files/delete" && request.method === "POST") return handleAdminFileDelete(request, env);
+  if (path === "admin/files/upload" && request.method === "POST") return handleAdminFileUpload(request, env);
+  if (path === "admin/reference/upload" && request.method === "POST") return handleAdminReferenceUpload(request, env);
+  if (path === "admin/catalog/upload" && request.method === "POST") return handleAdminCatalogUpload(request, env);
   if (path === "admin/inquiries/list") return json({ ok: true, inquiries: [] });
   if (path === "admin/logs/list") return json({ ok: true, logs: [] });
   if (path === "admin/sales/list") return json({ ok: true, sales: [] });

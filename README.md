@@ -1,44 +1,116 @@
 # AIFRED
 
-AIFRED is a fresh Windows-first VST3 and website build for North3rnLight3r. The plugin source in this repo is new JUCE/C++ code, with local reference documents and images used only to shape the product direction, brand language, and asset choices.
+**AIFRED** is the private product repository for the North3rnLight3r VST3, website, beat catalog, Cloudflare backend, and owner-only Android admin app.
 
-## Layout
+The public-facing product is the AIFRED VST3 and North3rnLight3r beat catalog. The source code, admin app, credentials, prompts, backend maps, and deployment controls are private operational assets.
 
-- `plugin-aifred/` contains the AIFRED VST3 source and mascot asset.
-- `website/` contains the storefront, beat catalog assets, and Cloudflare Pages Functions.
-- `android_admin/` contains the renamed AIFRED admin app configuration surface.
-- `.github/workflows/build.yml` builds Windows, macOS, Ubuntu, and Arch Linux targets.
+## Production
 
-## Windows VST3 Build
+- Website: https://www.north3rnlight3r.com
+- Apex domain: https://north3rnlight3r.com
+- Latest release: https://github.com/kaeganscott26/AIFRED/releases/latest
 
-Install Visual Studio with the Desktop development with C++ workload, CMake, Git, and Ninja. From a Visual Studio developer shell:
+## Products
+
+| Product | Purpose | Distribution |
+| --- | --- | --- |
+| AIFRED VST3 | Mix analysis, reference alignment, compare metering, and chat-guided fix output | Release installers for Windows, macOS, and Arch Linux |
+| North3rnLight3r Website | Brand storefront, beat catalog playback, VST sales path, free mix analyzer | Cloudflare Pages custom domain |
+| Android Admin App | Owner-only control panel for chat, catalog uploads, website file control, shell access, and admin operations | Private install only, never public release |
+
+## What AIFRED Measures
+
+AIFRED converts live audio behavior into a compact release-readiness view:
+
+- Tone balance
+- Stereo width and correlation
+- Punch and transient density
+- Loudness and headroom
+- Dynamics and crest factor
+- Reference target alignment
+
+The VST separates **Analyze**, **Reference**, and **Compare** into distinct surfaces. Analyze focuses on the current mix signature and candlestick metering. Reference uses one Halo with a target overlay. Compare uses two independent Halo routes for Mix A and Mix B.
+
+## Repository Map
+
+| Path | Role |
+| --- | --- |
+| `plugin-aifred/` | JUCE/C++ VST3 source |
+| `website/` | Cloudflare Pages site, static catalog, browser analyzer, backend Worker routes |
+| `android_admin/` | Private Android admin app |
+| `tools/` | Packaging, installer, and verification utilities |
+| `.github/workflows/build.yml` | Windows, macOS, Arch Linux, website, and Android validation |
+| `docs/wiki/` | Operational wiki, guides, maps, and troubleshooting |
+
+## Release Targets
+
+The release workflow builds and packages:
+
+- `AIFRED-VST3-Setup.exe` for Windows
+- `AIFRED-VST3-macOS.zip` for macOS
+- `AIFRED-VST3-Arch.tar.gz` for Arch Linux
+
+The Android admin app is validated by CI but is **not uploaded as a public artifact** and is **not attached to GitHub Releases**.
+
+## Build Overview
+
+Windows local build:
 
 ```powershell
-cmake -S . -B build/aifred -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build/aifred --parallel
-./tools/package-aifred.ps1 -BuildRoot build/aifred -Platform windows
+cmake -S . -B build/aifred -DCMAKE_BUILD_TYPE=Release
+cmake --build build/aifred --config Release --parallel
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-aifred.ps1 -BuildRoot build\aifred -OutputDir dist -Platform windows
+dotnet publish tools\AifredWindowsInstaller\AifredWindowsInstaller.csproj -c Release -o dist\installer\windows
 ```
 
-The package script writes `dist/AIFRED-VST3-windows.zip`. Extract it, run `install-aifred.ps1` from PowerShell, then rescan plugins in FL Studio.
+Android local build:
 
-## Website Backend
+```powershell
+$env:JAVA_HOME='C:\Program Files\Microsoft\jdk-17.0.18.8-hotspot'
+$env:ANDROID_HOME=Join-Path $env:LOCALAPPDATA 'Android\Sdk'
+$env:ANDROID_SDK_ROOT=$env:ANDROID_HOME
+$env:Path="$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:ANDROID_HOME\cmdline-tools\latest\bin;$env:Path"
+cd android_admin
+.\gradlew.bat assembleDebug
+```
 
-Cloudflare Pages should use `website/` as the project root. Secrets stay in Cloudflare environment variables:
+## Cloudflare Deployment
 
-- `AIFRED_CHAT_PROVIDER`: `openai` or `ollama`
-- `OPENAI_API_KEY`
-- `OPENAI_MODEL`
-- `OLLAMA_BASE_URL`
-- `OLLAMA_MODEL`
-- `AIFRED_CONTACT_EMAIL`
+Cloudflare Pages serves `website/` with custom domains:
 
-Catalog metadata is read from `website/assets/data/beat_catalog.json`, and beat files are served from `website/assets/audio/catalog/`.
+- `www.north3rnlight3r.com`
+- `north3rnlight3r.com`
 
-## Deployment
+The Pages project can be deployed locally with Wrangler:
 
-The GitHub Actions workflow builds Windows, macOS, Ubuntu, Arch Linux, and the Android admin APK. Pushing `main` runs validation and deploys `website/` to Cloudflare Pages when these GitHub secrets exist:
+```powershell
+npx wrangler pages deploy website --project-name=aifred-website --branch=main
+```
 
-- `CLOUDFLARE_ACCOUNT_ID`
-- `CLOUDFLARE_API_TOKEN`
+GitHub Actions can deploy only when repository secrets contain valid Cloudflare deploy credentials. If credentials are rejected, the build still passes and emits a warning because package builds must not be blocked by Cloudflare auth rotation.
 
-Tagging a release such as `v0.1.0` publishes the installable packages to GitHub Releases. The website Buy AIFRED button sends buyers to PayPal and returns them to the latest release page configured in `website/config.js`.
+## Private Operations
+
+Do not make this repository public while it contains:
+
+- Android admin app source
+- Admin login logic
+- Backend route maps
+- Internal prompts or conversation exports
+- Deployment controls
+- Website source and catalog management code
+
+The production website is public. This repository is not.
+
+## Documentation
+
+Start here:
+
+- [Wiki Home](docs/wiki/Home.md)
+- [User Guide](docs/wiki/User-Guide.md)
+- [Admin App Guide](docs/wiki/Admin-App-Guide.md)
+- [Developer Guide](docs/wiki/Developer-Guide.md)
+- [Backend Map](docs/wiki/Backend-Map.md)
+- [Function Map](docs/wiki/Function-Map.md)
+- [Troubleshooting](docs/wiki/Troubleshooting.md)
+- [Security And Distribution](docs/wiki/Security-And-Distribution.md)

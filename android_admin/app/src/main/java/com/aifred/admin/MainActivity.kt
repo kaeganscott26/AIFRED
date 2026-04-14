@@ -2448,6 +2448,15 @@ class ApiClient(private val baseUrl: String, private val token: String) {
         return "${baseUrl.trimEnd('/')}$path"
     }
 
+    private fun isDirectOllama(): Boolean {
+        val normalized = baseUrl.lowercase().trimEnd('/')
+        return normalized.contains(":11434") || (normalized.contains("ollama") && normalized.endsWith("/api"))
+    }
+
+    private fun isDirectOpenAI(): Boolean {
+        return baseUrl.lowercase().contains("api.openai.com")
+    }
+
     fun connectChat(
         sessionId: String,
         onReady: (String) -> Unit,
@@ -2455,6 +2464,12 @@ class ApiClient(private val baseUrl: String, private val token: String) {
         onIssue: (String) -> Unit,
         onError: (String) -> Unit
     ) {
+        if (isDirectOllama() || isDirectOpenAI()) {
+            onReady(if (isDirectOllama()) "ollama direct" else "openai direct")
+            onError("Direct provider mode uses HTTP chat from Send; WebSocket is only for the website backend.")
+            return
+        }
+
         val wsUrl = baseUrl
             .replace("https://", "wss://")
             .replace("http://", "ws://")
@@ -2528,6 +2543,13 @@ class ApiClient(private val baseUrl: String, private val token: String) {
     }
 
     fun askChat(prompt: String, sessionId: String, model: String = ""): String {
+        if (isDirectOllama()) {
+            return askOllamaDirect(prompt, model)
+        }
+        if (isDirectOpenAI()) {
+            return askOpenAIDirect(prompt, model)
+        }
+
         return try {
             val body = JSONObject()
                 .put("prompt", prompt)
@@ -2562,6 +2584,79 @@ class ApiClient(private val baseUrl: String, private val token: String) {
         }
     }
 
+    private fun askOllamaDirect(prompt: String, model: String): String {
+        return try {
+            val body = JSONObject()
+                .put("model", model.ifBlank { "llama3.1" })
+                .put("stream", false)
+                .put(
+                    "messages",
+                    JSONArray()
+                        .put(JSONObject().put("role", "system").put("content", "You are AIFRED, the North3rnLight3r admin assistant. Be direct, technical, and useful."))
+                        .put(JSONObject().put("role", "user").put("content", prompt))
+                )
+                .toString()
+            val request = Request.Builder()
+                .url("${baseUrl.trimEnd('/')}/api/chat")
+                .addHeader("Content-Type", "application/json")
+                .post(body.toRequestBody("application/json".toMediaType()))
+                .build()
+            client.newCall(request).execute().use { response ->
+                val raw = response.body?.string().orEmpty()
+                val payload = runCatching { JSONObject(raw) }.getOrNull()
+                if (response.isSuccessful && payload != null) {
+                    payload.optJSONObject("message")?.optString("content")
+                        ?.ifBlank { payload.optString("response") }
+                        ?.ifBlank { raw }
+                        ?: raw
+                } else {
+                    payload?.optString("error") ?: raw.ifBlank { "Ollama request failed" }
+                }
+            }
+        } catch (error: Exception) {
+            "Ollama direct error: ${error.message ?: "unknown error"}"
+        }
+    }
+
+    private fun askOpenAIDirect(prompt: String, model: String): String {
+        if (token.isBlank()) {
+            return "OpenAI direct mode requires AIFRED_API_TOKEN to contain an OpenAI API key."
+        }
+        return try {
+            val body = JSONObject()
+                .put("model", model.ifBlank { "gpt-5.2" })
+                .put(
+                    "messages",
+                    JSONArray()
+                        .put(JSONObject().put("role", "system").put("content", "You are AIFRED, the North3rnLight3r admin assistant. Be direct, technical, and useful."))
+                        .put(JSONObject().put("role", "user").put("content", prompt))
+                )
+                .toString()
+            val request = Request.Builder()
+                .url("${baseUrl.trimEnd('/')}/chat/completions")
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Authorization", "Bearer $token")
+                .post(body.toRequestBody("application/json".toMediaType()))
+                .build()
+            client.newCall(request).execute().use { response ->
+                val raw = response.body?.string().orEmpty()
+                val payload = runCatching { JSONObject(raw) }.getOrNull()
+                if (response.isSuccessful && payload != null) {
+                    payload.optJSONArray("choices")
+                        ?.optJSONObject(0)
+                        ?.optJSONObject("message")
+                        ?.optString("content")
+                        ?.ifBlank { raw }
+                        ?: raw
+                } else {
+                    payload?.optJSONObject("error")?.optString("message") ?: raw.ifBlank { "OpenAI request failed" }
+                }
+            }
+        } catch (error: Exception) {
+            "OpenAI direct error: ${error.message ?: "unknown error"}"
+        }
+    }
+
     private fun parseChatSettingsResult(raw: String, responseOk: Boolean): ChatSettingsResult {
         val payload = runCatching { JSONObject(raw.ifEmpty { "{}" }) }.getOrElse { JSONObject() }
         val settings = parseChatSettings(payload.optJSONObject("settings"))
@@ -2575,6 +2670,52 @@ class ApiClient(private val baseUrl: String, private val token: String) {
     }
 
     fun listModels(): ModelCatalog {
+        if (isDirectOllama()) {
+            return try {
+                val request = Request.Builder().url("${baseUrl.trimEnd('/')}/api/tags").build()
+                client.newCall(request).execute().use { response ->
+                    val raw = response.body?.string().orEmpty()
+                    val payload = runCatching { JSONObject(raw.ifEmpty { "{}" }) }.getOrNull()
+                    val items = payload?.optJSONArray("models")
+                    val models = buildList {
+                        if (items != null) {
+                            for (index in 0 until items.length()) {
+                                val name = items.optJSONObject(index)?.optString("name").orEmpty()
+                                if (name.isNotBlank()) add(name)
+                            }
+                        }
+                    }.ifEmpty { listOf("llama3.1") }
+                    ModelCatalog(models, models.first())
+                }
+            } catch (_error: Exception) {
+                ModelCatalog(listOf("llama3.1"), "llama3.1")
+            }
+        }
+        if (isDirectOpenAI()) {
+            return try {
+                val request = Request.Builder()
+                    .url("${baseUrl.trimEnd('/')}/models")
+                    .addHeader("Authorization", "Bearer $token")
+                    .build()
+                client.newCall(request).execute().use { response ->
+                    val raw = response.body?.string().orEmpty()
+                    val payload = runCatching { JSONObject(raw.ifEmpty { "{}" }) }.getOrNull()
+                    val items = payload?.optJSONArray("data")
+                    val models = buildList {
+                        if (items != null) {
+                            for (index in 0 until items.length()) {
+                                val id = items.optJSONObject(index)?.optString("id").orEmpty()
+                                if (id.isNotBlank() && id.startsWith("gpt")) add(id)
+                            }
+                        }
+                    }.ifEmpty { listOf("gpt-5.2") }
+                    ModelCatalog(models, models.first())
+                }
+            } catch (_error: Exception) {
+                ModelCatalog(listOf("gpt-5.2"), "gpt-5.2")
+            }
+        }
+
         return try {
             val request = Request.Builder()
                 .url(endpoint("/api/v1/models/list"))

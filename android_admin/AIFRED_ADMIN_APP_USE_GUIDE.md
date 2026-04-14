@@ -18,6 +18,18 @@ If WebSocket is unavailable, the app falls back to:
 
 Cloudflare Pages must have `OPENAI_API_KEY` or `OLLAMA_BASE_URL` configured for model answers. Without either setting, the route still responds but tells you the model provider is not configured.
 
+Direct provider mode is also supported at build time.
+
+OpenAI direct mode:
+
+`.\gradlew.bat assembleDebug -PAIFRED_BASE_URL=https://api.openai.com/v1 -PAIFRED_API_TOKEN=<OPENAI_KEY>`
+
+Ollama direct mode:
+
+`.\gradlew.bat assembleDebug -PAIFRED_BASE_URL=http://<LAN-IP>:11434`
+
+Use the workstation LAN IP for Ollama. Do not use `localhost` from the phone unless Ollama is running on the phone.
+
 ## Beat Catalog
 
 The app reads:
@@ -42,7 +54,7 @@ Website assets use:
 
 `POST /api/v1/admin/files/upload`
 
-Those upload storage routes need a backing storage implementation before they can permanently write large binary files from Cloudflare Pages.
+Those upload routes commit to the private GitHub repo when `GITHUB_TOKEN` is configured in Cloudflare Pages.
 
 ## Command Tab
 
