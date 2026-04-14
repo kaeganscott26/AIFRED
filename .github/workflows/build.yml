@@ -212,7 +212,12 @@ jobs:
 
       - uses: cloudflare/wrangler-action@v3
         if: env.CLOUDFLARE_API_TOKEN_PRESENT == 'true'
+        continue-on-error: true
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy website --project-name=aifred-website --branch=main
+
+      - name: Deployment note
+        if: env.CLOUDFLARE_API_TOKEN_PRESENT == 'true'
+        run: echo "If Wrangler authentication failed, refresh CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID. Build and package jobs are independent of deployment."
