@@ -32,8 +32,9 @@ Copy-Item -LiteralPath $plugin.FullName -Destination (Join-Path $packagePath "Ai
 @(
   '$ErrorActionPreference = "Stop"',
   '$source = Join-Path $PSScriptRoot "Aifred.vst3"',
-  '$target = Join-Path $env:COMMONPROGRAMFILES "VST3\Aifred.vst3"',
+  '$target = Join-Path $env:LOCALAPPDATA "Programs\Common\VST3\Aifred.vst3"',
   'New-Item -ItemType Directory -Force -Path (Split-Path $target) | Out-Null',
+  'if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }',
   'Copy-Item -Recurse -Force -LiteralPath $source -Destination $target',
   'Write-Host "AIFRED installed to $target. Rescan plugins in FL Studio."'
 ) | Set-Content (Join-Path $packagePath "install-aifred.ps1")
