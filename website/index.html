@@ -145,6 +145,16 @@
           </p>
         </div>
         <form id="chat-form">
+          <div class="api-setup">
+            <select id="chat-provider" aria-label="Model provider">
+              <option value="backend">Website backend</option>
+              <option value="ollama">BYO Ollama</option>
+              <option value="openai">BYO OpenAI</option>
+            </select>
+            <input id="chat-endpoint" type="url" placeholder="Endpoint: http://127.0.0.1:11434 or https://api.openai.com/v1" />
+            <input id="chat-api-key" type="password" placeholder="API key or local proxy token" />
+            <input id="chat-model" type="text" placeholder="Model: llama3.1 or gpt-5.4-mini" />
+          </div>
           <textarea id="chat-input" rows="5" placeholder="Ask about a mix, a beat license, or the AIFRED workflow."></textarea>
           <button class="btn" type="submit">Ask Aifred</button>
         </form>

@@ -1405,11 +1405,11 @@ fun AIFREDAdminApp() {
                                     return@CommandScreen
                                 }
                                 scope.launch {
-                                    status = "saving website file"
+                                    status = "saving and deploying website file"
                                     websiteAdminOutput = withContext(Dispatchers.IO) {
                                         client.adminWriteFile(adminSessionToken, path, websiteFileContent)
                                     }
-                                    status = "saved $path"
+                                    status = "saved $path and requested deploy"
                                 }
                             },
                             onDeletePath = {
@@ -2376,11 +2376,17 @@ fun CommandScreen(
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             Button(onClick = onLoadFile, modifier = Modifier.weight(1f)) { Text("Load File") }
-            Button(onClick = onSaveFile, modifier = Modifier.weight(1f)) { Text("Save File") }
+            Button(onClick = onSaveFile, modifier = Modifier.weight(1f)) { Text("Save + Deploy") }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             Button(onClick = onListDir, modifier = Modifier.weight(1f)) { Text("List Dir") }
             Button(onClick = onDeletePath, modifier = Modifier.weight(1f)) { Text("Delete Path") }
+        }
+        Button(
+            onClick = { onQuick("action:deploy:site") },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Deploy Site Now")
         }
 
         OutlinedTextField(
@@ -2960,10 +2966,6 @@ class ApiClient(private val baseUrl: String, private val token: String) {
 
     fun adminLogin(username: String, password: String): AdminLoginResult {
         val local = localAdminLogin(username, password)
-        if (local.ok) {
-            return local
-        }
-
         return try {
             val body = JSONObject()
                 .put("username", username)
@@ -2994,14 +2996,27 @@ class ApiClient(private val baseUrl: String, private val token: String) {
                 }
 
                 AdminLoginResult(
-                    ok = false,
-                    username = "",
-                    sessionToken = "",
-                    message = payload?.optString("error", "login failed") ?: "login failed"
+                    ok = local.ok,
+                    username = local.username,
+                    sessionToken = local.sessionToken,
+                    message = if (local.ok) {
+                        "admin offline; website control requires online login"
+                    } else {
+                        payload?.optString("error", "login failed") ?: "login failed"
+                    }
                 )
             }
         } catch (error: Exception) {
-            local.copy(message = "login network error: ${error.message ?: "unknown error"}")
+            if (local.ok) {
+                local.copy(message = "admin offline; backend unreachable: ${error.message ?: "unknown error"}")
+            } else {
+                AdminLoginResult(
+                    ok = false,
+                    username = "",
+                    sessionToken = "",
+                    message = "login network error: ${error.message ?: "unknown error"}"
+                )
+            }
         }
     }
 
@@ -3102,7 +3117,7 @@ class ApiClient(private val baseUrl: String, private val token: String) {
         val (_ok, rendered) = adminJsonPost(
             adminSessionToken,
             "/api/v1/admin/files/write",
-            JSONObject().put("path", relPath).put("content", content)
+            JSONObject().put("path", relPath).put("content", content).put("deploy", true)
         )
         return rendered
     }

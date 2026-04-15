@@ -3,6 +3,7 @@
 #include "HaloState.h"
 
 #include <juce_audio_basics/juce_audio_basics.h>
+#include <array>
 
 namespace aifred {
 
@@ -29,14 +30,32 @@ private:
     float candleClose = 0.0f;
   };
 
+  struct CandleFrame {
+    float open = 0.0f;
+    float high = 0.0f;
+    float low = 0.0f;
+    float close = 0.0f;
+    bool active = false;
+  };
+
   FeatureFrame live_;
   FeatureFrame smoothed_;
+  std::array<CandleFrame, 10> sessionCandles_ {};
+  std::array<CandleFrame, 10> minuteCandles_ {};
   double sampleRate_ = 44100.0;
   float smoothing_ = 0.92f;
+  double sessionWindowSamples_ = 0.0;
+  double minuteWindowSamples_ = 0.0;
+  int sessionCandleWrite_ = 0;
+  int minuteCandleWrite_ = 0;
+  int sessionCandleCount_ = 0;
+  int minuteCandleCount_ = 0;
 
   static float linearToDb(float value);
   static float deviationOutsideCorridor(float value, float target, float tolerance, float criticalRange);
   static DomainAlignment makeDomain(float error01, float primary, float secondary, std::string summary, float confidenceSeed);
+  void updateCandle(CandleFrame& candle, float value);
+  void commitCandle(std::array<CandleFrame, 10>& candles, int& writeIndex, int& count);
   HaloState buildHaloState() const;
 };
 

@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <array>
 
 namespace aifred {
 
@@ -34,6 +35,16 @@ struct DspMetrics {
   float candleHigh = 0.0f;
   float candleLow = 0.0f;
   float candleClose = 0.0f;
+  std::array<float, 10> sessionCandleOpen {};
+  std::array<float, 10> sessionCandleHigh {};
+  std::array<float, 10> sessionCandleLow {};
+  std::array<float, 10> sessionCandleClose {};
+  std::array<float, 10> minuteCandleOpen {};
+  std::array<float, 10> minuteCandleHigh {};
+  std::array<float, 10> minuteCandleLow {};
+  std::array<float, 10> minuteCandleClose {};
+  int sessionCandleCount = 0;
+  int minuteCandleCount = 0;
 };
 
 struct ReferenceTarget {

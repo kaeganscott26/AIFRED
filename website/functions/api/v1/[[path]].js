@@ -73,18 +73,18 @@ async function loadCatalog(request) {
 
 function proGate(metrics) {
   const checks = [
-    ["tone_balance", metrics.tone_balance >= 72 && metrics.tone_balance <= 96, "Tone balance target: 72-96"],
-    ["integrated_lufs", metrics.integrated_lufs >= -14.5 && metrics.integrated_lufs <= -8.0, "Loudness target: -14.5 to -8 LUFS"],
-    ["peak_dbfs", metrics.peak_dbfs <= -0.8, "Peak target: below -0.8 dBFS"],
-    ["crest_factor_db", metrics.crest_factor_db >= 6.0 && metrics.crest_factor_db <= 14.0, "Dynamics target: 6-14 dB crest"],
-    ["stereo_width", metrics.stereo_width >= 0.28 && metrics.stereo_width <= 0.92, "Stereo width target: 0.28-0.92"],
-    ["low_end_control", metrics.low_end_control >= 66, "Low-end control target: 66+"],
-    ["harshness_control", metrics.harshness_control >= 62, "Harshness control target: 62+"]
+    ["tone_balance", metrics.tone_balance >= 62 && metrics.tone_balance <= 98, "Tone balance target: 62-98"],
+    ["integrated_lufs", metrics.integrated_lufs >= -19.0 && metrics.integrated_lufs <= -6.5, "Loudness target: -19 to -6.5 LUFS"],
+    ["peak_dbfs", metrics.peak_dbfs <= -0.2, "Peak target: below -0.2 dBFS"],
+    ["crest_factor_db", metrics.crest_factor_db >= 4.5 && metrics.crest_factor_db <= 18.0, "Dynamics target: 4.5-18 dB crest"],
+    ["stereo_width", metrics.stereo_width >= 0.18 && metrics.stereo_width <= 0.98, "Stereo width target: 0.18-0.98"],
+    ["low_end_control", metrics.low_end_control >= 54, "Low-end control target: 54+"],
+    ["harshness_control", metrics.harshness_control >= 52, "Harshness control target: 52+"]
   ];
   const passed = checks.filter(([, ok]) => ok).length;
   const score = Math.round((passed / checks.length) * 100);
   return {
-    accepted: score >= 86,
+    accepted: score >= 72,
     score,
     checks: checks.map(([id, ok, target]) => ({ id, ok, target }))
   };
@@ -329,6 +329,7 @@ async function handleAdminFileWrite(request, env) {
   const body = await readJson(request);
   const relPath = safeRepoPath(body.path);
   const content = String(body.content || "");
+  const shouldDeploy = body.deploy !== false;
   const { repo, branch } = repoConfig(env);
   const encodedPath = encodeURIComponent(relPath).replace(/%2F/g, "/");
   let sha = "";
@@ -345,7 +346,17 @@ async function handleAdminFileWrite(request, env) {
       ...(sha ? { sha } : {})
     })
   });
-  return json({ ok: true, path: relPath, commit: payload.commit?.sha || "", message: "website file committed; Pages deploy will follow GitHub integration or workflow" });
+  let deploy = "";
+  if (shouldDeploy) {
+    deploy = await dispatchDeploy(env);
+  }
+  return json({
+    ok: true,
+    path: relPath,
+    commit: payload.commit?.sha || "",
+    deploy_dispatched: Boolean(deploy),
+    message: deploy || "website file committed; run deploy:site to publish it"
+  });
 }
 
 async function handleAdminFileList(request, env) {

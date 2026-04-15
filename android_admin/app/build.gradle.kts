@@ -21,8 +21,8 @@ android {
         applicationId = "com.aifred.admin"
         minSdk = 29
         targetSdk = 35
-        versionCode = 224
-        versionName = "2.2.4"
+        versionCode = 230
+        versionName = "2.3.0"
 
         val configuredBaseUrl = (project.findProperty("AIFRED_BASE_URL") as String?)
             ?.trim()

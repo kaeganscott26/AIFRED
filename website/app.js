@@ -15,6 +15,10 @@ const serviceList = document.getElementById("service-list");
 const chatForm = document.getElementById("chat-form");
 const chatInput = document.getElementById("chat-input");
 const chatOutput = document.getElementById("chat-output");
+const chatProvider = document.getElementById("chat-provider");
+const chatEndpoint = document.getElementById("chat-endpoint");
+const chatApiKey = document.getElementById("chat-api-key");
+const chatModel = document.getElementById("chat-model");
 const contactForm = document.getElementById("contact-form");
 const contactStatus = document.getElementById("contact-status");
 const year = document.getElementById("year");
@@ -131,8 +135,52 @@ function renderServices() {
 }
 
 async function askAifred(message) {
+  const provider = chatProvider?.value || "backend";
+  const endpoint = String(chatEndpoint?.value || "").replace(/\/+$/, "");
+  const apiKey = String(chatApiKey?.value || "").trim();
+  const model = String(chatModel?.value || (provider === "openai" ? "gpt-5.4-mini" : "llama3.1")).trim();
   chatOutput.textContent = "Aifred is checking the configured model route...";
   try {
+    if (provider === "ollama") {
+      if (!endpoint) throw new Error("Enter an Ollama endpoint.");
+      const response = await fetch(`${endpoint}/api/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {})
+        },
+        body: JSON.stringify({
+          model,
+          stream: false,
+          messages: [
+            { role: "system", content: "You are AIFRED for North3rnLight3r. Return concise mix decisions and a fix list." },
+            { role: "user", content: message }
+          ]
+        })
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Ollama request failed");
+      chatOutput.textContent = `[ollama:${model}]\n${payload.message?.content || payload.response || "No text returned."}`;
+      return;
+    }
+    if (provider === "openai") {
+      if (!endpoint || !apiKey) throw new Error("Enter an OpenAI endpoint and API key.");
+      const response = await fetch(`${endpoint}/responses`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model,
+          input: [
+            { role: "system", content: "You are AIFRED for North3rnLight3r. Return concise mix decisions and a fix list." },
+            { role: "user", content: message }
+          ]
+        })
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error?.message || "OpenAI request failed");
+      chatOutput.textContent = `[openai:${model}]\n${payload.output_text || "No text returned."}`;
+      return;
+    }
     const response = await fetch(apiUrl("/api/v1/chat/ask"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },

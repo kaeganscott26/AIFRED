@@ -27,6 +27,14 @@ void AnalysisEngine::prepare(double sampleRate) {
 void AnalysisEngine::reset() {
   live_ = {};
   smoothed_ = {};
+  sessionCandles_ = {};
+  minuteCandles_ = {};
+  sessionWindowSamples_ = 0.0;
+  minuteWindowSamples_ = 0.0;
+  sessionCandleWrite_ = 0;
+  minuteCandleWrite_ = 0;
+  sessionCandleCount_ = 0;
+  minuteCandleCount_ = 0;
 }
 
 float AnalysisEngine::linearToDb(float value) {
@@ -49,6 +57,28 @@ DomainAlignment AnalysisEngine::makeDomain(float error01, float primary, float s
   domain.rawSecondaryMetric = secondary;
   domain.summary = std::move(summary);
   return domain;
+}
+
+void AnalysisEngine::updateCandle(CandleFrame& candle, float value) {
+  value = clamp01(value);
+  if (!candle.active) {
+    candle.open = value;
+    candle.high = value;
+    candle.low = value;
+    candle.close = value;
+    candle.active = true;
+    return;
+  }
+  candle.high = std::max(candle.high, value);
+  candle.low = std::min(candle.low, value);
+  candle.close = value;
+}
+
+void AnalysisEngine::commitCandle(std::array<CandleFrame, 10>& candles, int& writeIndex, int& count) {
+  auto& candle = candles[static_cast<size_t>(writeIndex)];
+  candle.active = false;
+  writeIndex = (writeIndex + 1) % static_cast<int>(candles.size());
+  count = std::min(static_cast<int>(candles.size()), count + 1);
 }
 
 void AnalysisEngine::pushAudioBlock(const juce::AudioBuffer<float>& buffer) {
@@ -128,6 +158,19 @@ void AnalysisEngine::pushAudioBlock(const juce::AudioBuffer<float>& buffer) {
   smoothed_.candleHigh = smooth(smoothed_.candleHigh, live_.candleHigh, amount);
   smoothed_.candleLow = smooth(smoothed_.candleLow, live_.candleLow, amount);
   smoothed_.candleClose = smooth(smoothed_.candleClose, live_.candleClose, amount);
+
+  updateCandle(sessionCandles_[static_cast<size_t>(sessionCandleWrite_)], live_.candleClose);
+  updateCandle(minuteCandles_[static_cast<size_t>(minuteCandleWrite_)], live_.candleClose);
+  sessionWindowSamples_ += samples;
+  minuteWindowSamples_ += samples;
+  if (sessionWindowSamples_ >= sampleRate_ * 0.75) {
+    sessionWindowSamples_ = 0.0;
+    commitCandle(sessionCandles_, sessionCandleWrite_, sessionCandleCount_);
+  }
+  if (minuteWindowSamples_ >= sampleRate_ * 60.0) {
+    minuteWindowSamples_ = 0.0;
+    commitCandle(minuteCandles_, minuteCandleWrite_, minuteCandleCount_);
+  }
 }
 
 HaloState AnalysisEngine::snapshot() const {
@@ -151,13 +194,29 @@ HaloState AnalysisEngine::buildHaloState() const {
   state.metrics.candleHigh = smoothed_.candleHigh;
   state.metrics.candleLow = smoothed_.candleLow;
   state.metrics.candleClose = smoothed_.candleClose;
+  state.metrics.sessionCandleCount = sessionCandleCount_;
+  state.metrics.minuteCandleCount = minuteCandleCount_;
+  for (int i = 0; i < 10; ++i) {
+    const auto sessionIndex = (sessionCandleWrite_ + i) % 10;
+    const auto minuteIndex = (minuteCandleWrite_ + i) % 10;
+    const auto& s = sessionCandles_[static_cast<size_t>(sessionIndex)];
+    const auto& m = minuteCandles_[static_cast<size_t>(minuteIndex)];
+    state.metrics.sessionCandleOpen[static_cast<size_t>(i)] = s.open;
+    state.metrics.sessionCandleHigh[static_cast<size_t>(i)] = s.high;
+    state.metrics.sessionCandleLow[static_cast<size_t>(i)] = s.low;
+    state.metrics.sessionCandleClose[static_cast<size_t>(i)] = s.close;
+    state.metrics.minuteCandleOpen[static_cast<size_t>(i)] = m.open;
+    state.metrics.minuteCandleHigh[static_cast<size_t>(i)] = m.high;
+    state.metrics.minuteCandleLow[static_cast<size_t>(i)] = m.low;
+    state.metrics.minuteCandleClose[static_cast<size_t>(i)] = m.close;
+  }
 
-  const auto toneError = deviationOutsideCorridor(smoothed_.spectralTilt, 0.48f, 0.16f, 0.36f);
-  const auto loudnessError = 0.55f * deviationOutsideCorridor(smoothed_.rmsDb, state.reference.loudnessDb, 5.0f, 18.0f)
-                           + 0.45f * deviationOutsideCorridor(smoothed_.peakDb, -1.0f, 1.5f, 10.0f);
-  const auto dynamicsError = 0.58f * deviationOutsideCorridor(smoothed_.crestDb, state.reference.crestDb, 4.0f, 12.0f)
-                           + 0.42f * deviationOutsideCorridor(smoothed_.transientDensity, 0.42f, 0.25f, 0.65f);
-  const auto stereoWidthError = deviationOutsideCorridor(smoothed_.stereoWidth, 0.52f, 0.24f, 0.5f);
+  const auto toneError = deviationOutsideCorridor(smoothed_.spectralTilt, 0.48f, 0.22f, 0.46f);
+  const auto loudnessError = 0.55f * deviationOutsideCorridor(smoothed_.rmsDb, state.reference.loudnessDb, 8.0f, 24.0f)
+                           + 0.45f * deviationOutsideCorridor(smoothed_.peakDb, -1.0f, 2.5f, 12.0f);
+  const auto dynamicsError = 0.58f * deviationOutsideCorridor(smoothed_.crestDb, state.reference.crestDb, 6.0f, 16.0f)
+                           + 0.42f * deviationOutsideCorridor(smoothed_.transientDensity, 0.42f, 0.34f, 0.78f);
+  const auto stereoWidthError = deviationOutsideCorridor(smoothed_.stereoWidth, 0.52f, 0.32f, 0.62f);
   const auto phaseError = smoothed_.correlation < 0.0f ? clamp01(-smoothed_.correlation) : 0.0f;
   const auto stereoError = 0.72f * stereoWidthError + 0.28f * phaseError;
 

@@ -22,6 +22,7 @@ private:
   void drawHalo(juce::Graphics&, juce::Rectangle<int>, const HaloState&, const char* title, bool referenceOverlay);
   void drawDomainCard(juce::Graphics&, juce::Rectangle<int>, const char*, const DomainAlignment&);
   void drawCandles(juce::Graphics&, juce::Rectangle<int>, const HaloState&);
+  void drawCandleStrip(juce::Graphics&, juce::Rectangle<int>, const HaloState&, bool minuteView);
   void drawChatPanel(juce::Graphics&, juce::Rectangle<int>);
   void drawCompare(juce::Graphics&, juce::Rectangle<int>);
   void drawMixSignature(juce::Graphics&, juce::Rectangle<int>, const HaloState&);
@@ -33,11 +34,23 @@ private:
   juce::TextButton compareButton_ {"COMPARE"};
   juce::TextButton optionsButton_ {"OPTIONS"};
   juce::TextButton tutorialButton_ {"TUTORIAL"};
+  juce::TextButton askAiButton_ {"ASK AI"};
+  juce::TextButton saveApiButton_ {"SAVE API"};
+  juce::TextEditor chatInput_;
+  juce::TextEditor apiEndpoint_;
+  juce::TextEditor apiKey_;
+  juce::Label fixList_;
+  juce::ComboBox themeMenu_;
+  juce::ComboBox layoutMenu_;
+  juce::Slider gateSlider_;
   juce::Image mascot_;
   HaloState state_;
   HaloState compareState_;
+  juce::String fixListText_ = "Fix list appears here after Ask AI.";
+  juce::String apiStatus_ = "BYO API: local Ollama default. OpenAI/Ollama endpoint can be entered in Options.";
   bool showTutorial_ = true;
   bool showOptions_ = false;
+  bool splashDismissedThisEditor_ = false;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AifredAudioProcessorEditor)
 };
