@@ -73,7 +73,7 @@ The APK is private and should stay local.
 ## Website Deploy
 
 ```powershell
-npx wrangler pages deploy website --project-name=aifred-website --branch=main
+npx wrangler pages deploy website --project-name=north3rnlight3r --branch=main
 ```
 
 Production must resolve through the custom domains:
@@ -95,4 +95,3 @@ The workflow validates:
 - Hardcoded path guard
 
 Release tags publish only VST packages. The Android admin APK is not released.
-

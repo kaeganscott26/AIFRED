@@ -35,6 +35,10 @@ void AnalysisEngine::reset() {
   minuteCandleWrite_ = 0;
   sessionCandleCount_ = 0;
   minuteCandleCount_ = 0;
+  hpLeft_ = 0.0f;
+  hpRight_ = 0.0f;
+  hpPrevLeft_ = 0.0f;
+  hpPrevRight_ = 0.0f;
 }
 
 float AnalysisEngine::linearToDb(float value) {
@@ -90,9 +94,11 @@ void AnalysisEngine::pushAudioBlock(const juce::AudioBuffer<float>& buffer) {
   double peak = 0.0;
   double leftEnergy = 0.0;
   double rightEnergy = 0.0;
+  double hpLeftEnergy = 0.0;
+  double hpRightEnergy = 0.0;
   double midEnergy = 0.0;
   double sideEnergy = 0.0;
-  double corrNum = 0.0;
+  double hpCorrNum = 0.0;
   double transient = 0.0;
   double lowMotion = 0.0;
   double highMotion = 0.0;
@@ -107,19 +113,31 @@ void AnalysisEngine::pushAudioBlock(const juce::AudioBuffer<float>& buffer) {
 
   const auto* left = buffer.getReadPointer(0);
   const auto* right = channels > 1 ? buffer.getReadPointer(1) : left;
+  const auto hpCutoff = 150.0f;
+  const auto rc = 1.0f / (juce::MathConstants<float>::twoPi * hpCutoff);
+  const auto dt = 1.0f / static_cast<float>(std::max(sampleRate_, 1.0));
+  const auto hpAlpha = rc / (rc + dt);
 
   for (int i = 0; i < samples; ++i) {
     const auto l = left[i];
     const auto r = right[i];
+    const auto hpL = hpAlpha * (hpLeft_ + l - hpPrevLeft_);
+    const auto hpR = hpAlpha * (hpRight_ + r - hpPrevRight_);
+    hpPrevLeft_ = l;
+    hpPrevRight_ = r;
+    hpLeft_ = hpL;
+    hpRight_ = hpR;
     const auto mono = 0.5f * (l + r);
     const auto side = 0.5f * (l - r);
     const auto monoDelta = mono - prevMono;
     sumSquares += 0.5 * (static_cast<double>(l) * l + static_cast<double>(r) * r);
     leftEnergy += static_cast<double>(l) * l;
     rightEnergy += static_cast<double>(r) * r;
+    hpLeftEnergy += static_cast<double>(hpL) * hpL;
+    hpRightEnergy += static_cast<double>(hpR) * hpR;
     midEnergy += static_cast<double>(mono) * mono;
     sideEnergy += static_cast<double>(side) * side;
-    corrNum += static_cast<double>(l) * r;
+    hpCorrNum += static_cast<double>(hpL) * hpR;
     peak = std::max({peak, std::abs(static_cast<double>(l)), std::abs(static_cast<double>(r))});
     transient += std::abs(monoDelta);
     prevMono = mono;
@@ -150,10 +168,10 @@ void AnalysisEngine::pushAudioBlock(const juce::AudioBuffer<float>& buffer) {
 
   const auto sampleCount = std::max(samples, 1);
   const auto rms = safeSqrt(static_cast<float>(sumSquares / sampleCount));
-  const auto leftRms = safeSqrt(static_cast<float>(leftEnergy / sampleCount));
-  const auto rightRms = safeSqrt(static_cast<float>(rightEnergy / sampleCount));
+  const auto leftRms = safeSqrt(static_cast<float>((hpLeftEnergy > 0.0000001 ? hpLeftEnergy : leftEnergy) / sampleCount));
+  const auto rightRms = safeSqrt(static_cast<float>((hpRightEnergy > 0.0000001 ? hpRightEnergy : rightEnergy) / sampleCount));
   const auto denom = std::max(leftRms * rightRms * static_cast<float>(sampleCount), 0.000001f);
-  const auto correlation = std::clamp(static_cast<float>(corrNum) / denom, -1.0f, 1.0f);
+  const auto correlation = std::clamp(static_cast<float>(hpCorrNum) / denom, -1.0f, 1.0f);
   const auto width = clamp01(safeSqrt(static_cast<float>(sideEnergy / std::max(midEnergy + sideEnergy, 0.000001))));
   const auto crest = linearToDb(static_cast<float>(peak)) - linearToDb(rms);
   const auto tilt = clamp01(static_cast<float>(highMotion / std::max(lowMotion + highMotion, 0.000001)));

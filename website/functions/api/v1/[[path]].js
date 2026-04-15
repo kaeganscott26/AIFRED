@@ -94,37 +94,37 @@ function proGate(metrics) {
   const checks = [
     {
       id: "integrated_lufs",
-      score: bandScore(metrics.integrated_lufs, -14.0, -9.0, -18.0, -6.5),
-      target: "Loudness pro center: -14 to -9 LUFS; acceptable: -18 to -6.5 LUFS"
+      score: bandScore(metrics.integrated_lufs, -14.0, -9.0, -20.0, -5.5),
+      target: "Loudness pro center: -14 to -9 LUFS; acceptable review lane: -20 to -5.5 LUFS"
     },
     {
       id: "peak_dbfs",
-      score: ceilingScore(metrics.peak_dbfs, -1.0, 0.0),
-      target: "Peak ceiling: -1 dBFS target, accepted up to 0 dBFS when not clipping"
+      score: ceilingScore(metrics.peak_dbfs, -0.7, 0.05),
+      target: "Peak ceiling: around -1 dBFS target, accepted to 0 dBFS when not clipping"
     },
     {
       id: "tone_balance",
-      score: bandScore(metrics.tone_balance, 58, 96, 38, 100),
-      target: "Tone balance: filled frequency range, broad musical tolerance"
+      score: bandScore(metrics.tone_balance, 42, 100, 18, 100),
+      target: "Tone balance: accepts genre-shaped records; rejects only clearly hollow or broken ranges"
     },
     {
       id: "crest_factor_db",
-      score: bandScore(metrics.crest_factor_db, 6.0, 14.5, 3.5, 20.0),
-      target: "Dynamics: 6-14.5 dB crest center; small crest differences are not hard rejects"
+      score: bandScore(metrics.crest_factor_db, 4.0, 17.5, 1.5, 24.0),
+      target: "Dynamics: wide crest range; small differences like 10.4 to 7.3 are not rejected"
     },
     {
       id: "stereo_width",
-      score: bandScore(metrics.stereo_width, 0.22, 0.92, 0.08, 1.0),
-      target: "Stereo width: wide acceptance with mono-safety protection"
+      score: bandScore(metrics.stereo_width, 0.12, 1.0, 0.0, 1.0),
+      target: "Stereo width: broad acceptance; mono-safe and wide records can both pass"
     },
     {
       id: "low_end_control",
-      score: floorScore(metrics.low_end_control, 48, 22),
+      score: floorScore(metrics.low_end_control, 30, 8),
       target: "Low-end control: reject only severe mud, not normal genre weight"
     },
     {
       id: "harshness_control",
-      score: floorScore(metrics.harshness_control, 46, 18),
+      score: floorScore(metrics.harshness_control, 28, 8),
       target: "Harshness control: reject only clearly painful upper-mid balance"
     }
   ];
@@ -138,11 +138,15 @@ function proGate(metrics) {
     harshness_control: 0.07
   };
   const score = Math.round(checks.reduce((sum, check) => sum + check.score * (weights[check.id] || 0), 0));
-  const clipping = metrics.peak_dbfs > 0.0;
+  const clipping = metrics.peak_dbfs > 0.05;
+  const proLoudnessLane = metrics.integrated_lufs >= -15.5 && metrics.integrated_lufs <= -7.0;
+  const proPeakLane = metrics.peak_dbfs <= 0.0;
+  const noSevereToneFailure = metrics.tone_balance >= 18 && metrics.low_end_control >= 8 && metrics.harshness_control >= 8;
+  const essentialPass = proLoudnessLane && proPeakLane && noSevereToneFailure;
   return {
-    accepted: !clipping && score >= 58,
+    accepted: !clipping && (score >= 42 || essentialPass),
     score,
-    checks: checks.map((check) => ({ id: check.id, ok: check.score >= 35, score: check.score, target: check.target }))
+    checks: checks.map((check) => ({ id: check.id, ok: check.score >= 20, score: check.score, target: check.target }))
   };
 }
 

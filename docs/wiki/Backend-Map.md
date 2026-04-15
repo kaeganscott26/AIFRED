@@ -50,6 +50,20 @@ The backend is a Cloudflare Pages Worker mounted from `website/_worker.js`.
 | `POST` | `/api/v1/admin/sales/record` | Record PayPal sale metadata |
 | `POST` | `/api/v1/admin/chat/settings/save` | Save chat settings payload |
 
+## Analyzer Gate
+
+The browser computes upload metrics locally, then submits metadata to `/api/v1/analysis/submit`.
+
+The backend gate now treats -14 to -9 LUFS as the pro center lane and accepts a wider review lane so commercial references are not rejected over tiny audible differences. Peak is still protected: material above 0.05 dBFS is treated as clipping and is rejected.
+
+The score combines loudness, peak, tone balance, crest factor, stereo width, low-end control, and harshness control. A mix can pass through either a broad weighted score or the essential pro lane:
+
+- Integrated loudness between -15.5 and -7.0 LUFS.
+- Peak at or below 0.0 dBFS.
+- No severe tone, low-end, or harshness failure.
+
+Accepted metadata is persisted only when the optional `AIFRED_REFERENCE_POOL` KV binding exists. Otherwise the API reports `accepted-no-binding` so the site remains usable while Cloudflare bindings are being configured.
+
 ## Required Secrets And Bindings
 
 Cloudflare Pages:
@@ -72,4 +86,3 @@ GitHub Actions:
 - `CLOUDFLARE_API_TOKEN`
 
 If Cloudflare credentials reject in CI, the workflow emits a warning and build validation continues.
-

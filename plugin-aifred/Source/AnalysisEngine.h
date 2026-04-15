@@ -51,6 +51,10 @@ private:
   int minuteCandleWrite_ = 0;
   int sessionCandleCount_ = 0;
   int minuteCandleCount_ = 0;
+  float hpLeft_ = 0.0f;
+  float hpRight_ = 0.0f;
+  float hpPrevLeft_ = 0.0f;
+  float hpPrevRight_ = 0.0f;
 
   static float linearToDb(float value);
   static float deviationOutsideCorridor(float value, float target, float tolerance, float criticalRange);

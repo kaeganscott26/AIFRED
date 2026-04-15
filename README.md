@@ -31,6 +31,16 @@ AIFRED converts live audio behavior into a compact release-readiness view:
 
 The VST separates **Analyze**, **Reference**, and **Compare** into distinct surfaces. Analyze focuses on the current mix signature and candlestick metering. Reference uses one Halo with a target overlay. Compare uses two independent Halo routes for Mix A and Mix B.
 
+Current metering surface:
+
+- Dark neon blue contrast theme with cyan, green, and violet meter accents
+- 10-stick session candlestick meter and 10-minute history meter
+- Spectrometer with labeled frequency lanes
+- Correlation meter filtered above 150 Hz so bass energy does not distort the phase read
+- Compare-mode analog-style match VU between the two Halos
+- Chat input with Ask AI output routed into the fix list
+- Options for theme, layout focus, reference gate sensitivity, and BYO OpenAI/Ollama endpoint setup
+
 ## Repository Map
 
 | Path | Role |
@@ -84,7 +94,7 @@ Cloudflare Pages serves `website/` with custom domains:
 The Pages project can be deployed locally with Wrangler:
 
 ```powershell
-npx wrangler pages deploy website --project-name=aifred-website --branch=main
+npx wrangler pages deploy website --project-name=north3rnlight3r --branch=main
 ```
 
 GitHub Actions can deploy only when repository secrets contain valid Cloudflare deploy credentials. If credentials are rejected, the build still passes and emits a warning because package builds must not be blocked by Cloudflare auth rotation.

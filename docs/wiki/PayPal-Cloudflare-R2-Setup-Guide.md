@@ -83,14 +83,14 @@ npx wrangler pages project list
 Expected result:
 
 - Wrangler should list Cloudflare Pages projects.
-- You should see `aifred-website`.
+- You should see `north3rnlight3r`.
 - If you get authentication error `9106`, the token is wrong.
 - If you get permission denied, the token is missing `Account -> Cloudflare Pages -> Edit`.
 
 Then test the actual deploy command:
 
 ```powershell
-npx wrangler pages deploy website --project-name=aifred-website --branch=main --commit-dirty=true
+npx wrangler pages deploy website --project-name=north3rnlight3r --branch=main --commit-dirty=true
 ```
 
 Expected result:
@@ -206,7 +206,7 @@ npx wrangler pages project list
 Then configure the Pages project in the Cloudflare dashboard:
 
 1. Go to `Workers & Pages`.
-2. Open `aifred-website`.
+2. Open `north3rnlight3r`.
 3. Go to `Settings`.
 4. Go to `Functions`.
 5. Add an R2 bucket binding.
@@ -265,7 +265,7 @@ The Client ID can be used by the browser. The Secret must only live in Cloudflar
 In Cloudflare dashboard:
 
 1. Go to `Workers & Pages`.
-2. Open `aifred-website`.
+2. Open `north3rnlight3r`.
 3. Go to `Settings`.
 4. Go to `Environment variables`.
 5. Add these production variables:
@@ -529,4 +529,3 @@ GitHub private repo
   -> public-facing website deploys through Cloudflare
   -> paid downloads served from R2 after PayPal capture
 ```
-

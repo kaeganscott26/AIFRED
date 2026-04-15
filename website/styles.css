@@ -152,7 +152,8 @@ section { padding: 22px; }
 }
 
 .actions,
-.section-head {
+.section-head,
+.catalog-controls {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -192,6 +193,10 @@ section { padding: 22px; }
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 14px;
+}
+
+.catalog-grid[hidden] {
+  display: none;
 }
 
 .feature-grid article,

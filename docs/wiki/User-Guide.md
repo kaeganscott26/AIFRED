@@ -9,6 +9,8 @@ The public site lives at:
 
 The website sells the AIFRED VST3 and North3rnLight3r beat catalog. Visitors can preview catalog audio, license beats through PayPal links, download VST release packages, and run the free mix analyzer.
 
+The public visual system uses the approved North3rnLight3r banner and album-art assets from `website/assets/showcase/`. Concept VST mockups are not part of the live storefront.
+
 ## Beat Catalog
 
 The catalog player reads metadata from:
@@ -20,6 +22,10 @@ Audio files are served from:
 `website/assets/audio/catalog/`
 
 Each catalog item should include a title, genre, BPM, price, stream URL or asset filename, and artwork URL. The public player falls back to the AIFRED mascot if artwork is missing.
+
+The catalog grid is collapsible. The audio player remains visible, but browser download controls are disabled with `controlsList="nodownload"` so the catalog can be previewed without exposing a direct download button in the player UI.
+
+While catalog audio plays, the analyzer canvas runs as a live visualizer. Uploaded-track analysis still draws a still-frame diagnostic after decoding the uploaded file.
 
 ## Free Mix Analyzer
 
@@ -40,6 +46,8 @@ Measured metadata includes:
 - Spectral centroid
 
 If the uploaded mix lands inside the professional target range, metadata can enter the reference pool. If it misses the target, metadata is disposed. Audio is not required to be persisted for the public gate.
+
+The current gate is intentionally broad. The center loudness lane is -14 to -9 LUFS with a near -1 dBFS ceiling, but the backend accepts a wider review lane for real released records and rejects only hard failures such as clipping or obviously broken tone-control scores.
 
 ## AIFRED VST3
 
@@ -64,6 +72,15 @@ Compare:
 - Two independent Halo views.
 - Mix A and Mix B have separate DSP routes.
 - Comparison bars show tone, width, punch, loudness, and dynamics differences.
+- A center analog-style match VU shows how close Mix A is to Mix B.
+
+Metering notes:
+
+- The spectrometer is labeled by frequency lane.
+- Loudness and peak read in LUFS estimate and dBFS.
+- Crest reads in dB.
+- Correlation reads as a -1 to +1 value after a 150 Hz high-pass so bass energy does not dominate the phase read.
+- The chat module writes Ask AI output into the fix list and includes an educational mix section directly in the VST text output.
 
 ## Install Paths
 
@@ -82,4 +99,3 @@ macOS user VST3:
 Arch Linux user VST3:
 
 `~/.vst3/Aifred.vst3`
-

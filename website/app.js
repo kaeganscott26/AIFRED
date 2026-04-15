@@ -8,6 +8,7 @@ const PRODUCT_PRICE = String(config.productPrice || "$149.99").trim();
 
 const catalogList = document.getElementById("catalog-list");
 const catalogRefresh = document.getElementById("catalog-refresh");
+const catalogToggle = document.getElementById("catalog-toggle");
 const audioPlayer = document.getElementById("audio-player");
 const nowTitle = document.getElementById("now-title");
 const nowMeta = document.getElementById("now-meta");
@@ -35,6 +36,11 @@ const analysisResult = document.getElementById("analysis-result");
 
 let tracks = [];
 let currentAnalysis = null;
+let catalogOpen = true;
+let audioContext = null;
+let audioAnalyser = null;
+let audioSource = null;
+let visualizerFrame = 0;
 
 function apiUrl(path) {
   const safePath = path.startsWith("/") ? path : `/${path}`;
@@ -108,14 +114,22 @@ function renderCatalog() {
       event.currentTarget.src = DEFAULT_ART;
     });
     card.querySelector("button").addEventListener("click", () => {
+      audioPlayer.crossOrigin = "anonymous";
       audioPlayer.src = trackUrl(track);
-      audioPlayer.play().catch(() => {});
+      audioPlayer.play().then(startCatalogVisualizer).catch(() => {});
       nowTitle.textContent = title;
       nowMeta.textContent = `${bpm} · ${genre}`;
     });
     card.querySelector("a").href = paypalUrl(title, price);
     catalogList.appendChild(card);
   });
+}
+
+function setCatalogOpen(open) {
+  catalogOpen = open;
+  catalogList.hidden = !catalogOpen;
+  catalogToggle.textContent = catalogOpen ? "Hide catalog" : "Show catalog";
+  catalogToggle.setAttribute("aria-expanded", String(catalogOpen));
 }
 
 function renderServices() {
@@ -288,6 +302,74 @@ function drawSpectrum(buffer) {
   ctx.stroke();
 }
 
+function setupCatalogAudio() {
+  if (audioAnalyser) return true;
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return false;
+  audioContext = audioContext || new AudioContextClass();
+  audioSource = audioSource || audioContext.createMediaElementSource(audioPlayer);
+  audioAnalyser = audioContext.createAnalyser();
+  audioAnalyser.fftSize = 2048;
+  audioAnalyser.smoothingTimeConstant = 0.74;
+  audioSource.connect(audioAnalyser);
+  audioAnalyser.connect(audioContext.destination);
+  return true;
+}
+
+function drawCatalogVisualizer() {
+  if (!audioAnalyser || audioPlayer.paused || audioPlayer.ended) {
+    visualizerFrame = 0;
+    return;
+  }
+  const canvas = spectralCanvas;
+  const ctx = canvas.getContext("2d");
+  const width = canvas.width;
+  const height = canvas.height;
+  const bins = new Uint8Array(audioAnalyser.frequencyBinCount);
+  const wave = new Uint8Array(audioAnalyser.fftSize);
+  audioAnalyser.getByteFrequencyData(bins);
+  audioAnalyser.getByteTimeDomainData(wave);
+
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = "#02060b";
+  ctx.fillRect(0, 0, width, height);
+
+  const columns = 96;
+  const step = Math.max(1, Math.floor(bins.length / columns));
+  const columnWidth = width / columns;
+  for (let x = 0; x < columns; x += 1) {
+    let sum = 0;
+    for (let i = 0; i < step; i += 1) sum += bins[x * step + i] || 0;
+    const energy = sum / (step * 255);
+    const bar = Math.max(3, energy * height * 0.92);
+    const hue = 184 - Math.round(energy * 92);
+    ctx.fillStyle = `hsl(${hue} 96% ${44 + Math.round(energy * 28)}%)`;
+    ctx.fillRect(x * columnWidth + 1, height - bar, Math.max(1, columnWidth - 2), bar);
+  }
+
+  ctx.strokeStyle = "rgba(140,255,69,0.9)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i < wave.length; i += 1) {
+    const x = (i / (wave.length - 1)) * width;
+    const y = height * 0.5 + ((wave[i] - 128) / 128) * height * 0.32;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  ctx.fillStyle = "rgba(232,251,255,0.82)";
+  ctx.font = "700 14px Space Grotesk, sans-serif";
+  ctx.fillText("LIVE CATALOG VISUALIZER", 18, 28);
+  visualizerFrame = requestAnimationFrame(drawCatalogVisualizer);
+}
+
+function startCatalogVisualizer() {
+  if (!setupCatalogAudio()) return;
+  audioContext.resume().catch(() => {});
+  if (!visualizerFrame) visualizerFrame = requestAnimationFrame(drawCatalogVisualizer);
+}
+
 function analyzeAudioBuffer(buffer, fileName) {
   const left = buffer.getChannelData(0);
   const right = buffer.numberOfChannels > 1 ? buffer.getChannelData(1) : left;
@@ -417,7 +499,11 @@ async function submitAnalysisGate() {
 }
 
 year.textContent = new Date().getFullYear();
+audioPlayer.setAttribute("controlsList", "nodownload noplaybackrate");
+audioPlayer.addEventListener("contextmenu", (event) => event.preventDefault());
+audioPlayer.addEventListener("play", startCatalogVisualizer);
 catalogRefresh.addEventListener("click", loadCatalog);
+catalogToggle.addEventListener("click", () => setCatalogOpen(!catalogOpen));
 analysisUpload.addEventListener("change", (event) => handleAnalysisFile(event.target.files?.[0]));
 analysisSubmit.addEventListener("click", submitAnalysisGate);
 renderReleaseActions();

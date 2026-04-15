@@ -17,3 +17,5 @@ android_admin/.gradle/
 android_admin/local.properties
 android_admin/build/
 android_admin/app/build/
+tools/**/bin/
+tools/**/obj/

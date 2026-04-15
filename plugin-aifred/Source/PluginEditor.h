@@ -25,6 +25,7 @@ private:
   void drawCandleStrip(juce::Graphics&, juce::Rectangle<int>, const HaloState&, bool minuteView);
   void drawChatPanel(juce::Graphics&, juce::Rectangle<int>);
   void drawCompare(juce::Graphics&, juce::Rectangle<int>);
+  void drawCompareVu(juce::Graphics&, juce::Rectangle<int>, const HaloState&, const HaloState&);
   void drawMixSignature(juce::Graphics&, juce::Rectangle<int>, const HaloState&);
   void drawSpectrumMeter(juce::Graphics&, juce::Rectangle<int>, const HaloState&);
   void drawCorrelationMeter(juce::Graphics&, juce::Rectangle<int>, const HaloState&);

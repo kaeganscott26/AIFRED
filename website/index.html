@@ -43,7 +43,7 @@
           </div>
         </div>
         <div class="hero-art">
-          <img src="assets/brand/north3rnlight3r-brand.jpg" alt="North3rnLight3r brand art" />
+          <img src="assets/showcase/banner-01.jpg" alt="North3rnLight3r catalog banner art" />
         </div>
       </section>
 
@@ -85,11 +85,13 @@
           </div>
         </div>
         <div class="showcase-grid">
-          <img src="assets/showcase/aifred-vst-analysis-concept.png" alt="AIFRED analysis mode concept" />
-          <img src="assets/showcase/aifred-vst-reference-concept.png" alt="AIFRED reference mode concept" />
-          <img src="assets/showcase/aifred-vst-compare-concept.jpg" alt="AIFRED compare mode concept" />
-          <img src="assets/showcase/look-feel-01.jpg" alt="North3rnLight3r website visual reference" />
-          <img src="assets/showcase/album-art-01.jpg" alt="North3rnLight3r album art" />
+          <img src="assets/showcase/banner-02.jpg" alt="North3rnLight3r banner art" />
+          <img src="assets/showcase/banner-03.jpg" alt="North3rnLight3r banner art" />
+          <img src="assets/showcase/banner-04.jpg" alt="North3rnLight3r banner art" />
+          <img src="assets/showcase/banner-05.jpg" alt="North3rnLight3r banner art" />
+          <img src="assets/showcase/banner-07.jpg" alt="North3rnLight3r banner art" />
+          <img src="assets/showcase/banner-08.jpg" alt="North3rnLight3r banner art" />
+          <img src="assets/showcase/album-art-02.jpg" alt="North3rnLight3r album artwork" />
           <img src="assets/showcase/banner-01.jpg" alt="North3rnLight3r banner art" />
         </div>
       </section>
@@ -132,7 +134,10 @@
             <h2>Preview the catalog. License the record-ready ideas.</h2>
             <p>The player uses the audio already packaged with this site. No dead buttons, no ghost catalog.</p>
           </div>
-          <button class="btn ghost" id="catalog-refresh" type="button">Refresh catalog</button>
+          <div class="catalog-controls">
+            <button class="btn ghost" id="catalog-toggle" type="button" aria-expanded="true" aria-controls="catalog-list">Hide catalog</button>
+            <button class="btn ghost" id="catalog-refresh" type="button">Refresh catalog</button>
+          </div>
         </div>
         <div class="player">
           <div>
@@ -140,7 +145,7 @@
             <h3 id="now-title">Select a beat</h3>
             <p id="now-meta">BPM and style will appear here.</p>
           </div>
-          <audio id="audio-player" controls preload="metadata"></audio>
+          <audio id="audio-player" controls controlsList="nodownload noplaybackrate" preload="metadata"></audio>
         </div>
         <div id="catalog-list" class="catalog-grid" aria-live="polite"></div>
       </section>

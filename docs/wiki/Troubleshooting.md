@@ -26,7 +26,7 @@ Expected JSON:
 If `/api/v1/health` returns HTML, the Pages Worker did not deploy. Confirm `website/_worker.js` exists and redeploy:
 
 ```powershell
-npx wrangler pages deploy website --project-name=aifred-website --branch=main
+npx wrangler pages deploy website --project-name=north3rnlight3r --branch=main
 ```
 
 ## GitHub Actions Cloudflare Deploy Warning
@@ -92,4 +92,3 @@ http://192.168.x.x:11434
 ```
 
 Ollama must listen on a network interface reachable from the phone, and Windows Firewall must allow the connection.
-
