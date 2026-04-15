@@ -26,6 +26,8 @@ private:
   void drawChatPanel(juce::Graphics&, juce::Rectangle<int>);
   void drawCompare(juce::Graphics&, juce::Rectangle<int>);
   void drawMixSignature(juce::Graphics&, juce::Rectangle<int>, const HaloState&);
+  void drawSpectrumMeter(juce::Graphics&, juce::Rectangle<int>, const HaloState&);
+  void drawCorrelationMeter(juce::Graphics&, juce::Rectangle<int>, const HaloState&);
 
   AifredAudioProcessor& processor_;
   AifredLookAndFeel lookAndFeel_;

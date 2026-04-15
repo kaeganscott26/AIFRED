@@ -14,6 +14,12 @@ juce::Colour accentForMode(AnalysisMode mode) {
   return Colours::cyan;
 }
 
+juce::Colour accentForTheme(int themeId, AnalysisMode mode) {
+  if (themeId == 2) return Colours::green;
+  if (themeId == 3) return Colours::violet;
+  return accentForMode(mode);
+}
+
 juce::Colour colourForAlignment(float alignment) {
   if (alignment >= 0.80f) return Colours::green;
   if (alignment >= 0.60f) return Colours::cyan;
@@ -165,7 +171,7 @@ void AifredAudioProcessorEditor::timerCallback() {
 void AifredAudioProcessorEditor::paint(juce::Graphics& g) {
   auto bounds = getLocalBounds();
   const auto mode = processor_.getMode();
-  auto accent = accentForMode(mode);
+  auto accent = accentForTheme(themeMenu_.getSelectedId(), mode);
 
   g.fillAll(juce::Colour(0xff02060b));
   g.setGradientFill(juce::ColourGradient(juce::Colour(0xff07111d), 0, 0,
@@ -187,11 +193,16 @@ void AifredAudioProcessorEditor::paint(juce::Graphics& g) {
   if (mode == AnalysisMode::Compare) {
     drawCompare(g, main);
   } else {
-    auto left = main.removeFromLeft(juce::roundToInt(main.getWidth() * 0.32f));
-    auto right = main.removeFromRight(juce::roundToInt(main.getWidth() * 0.28f));
+    const auto layoutId = layoutMenu_.getSelectedId();
+    const auto leftFraction = layoutId == 2 ? 0.38f : (layoutId == 3 ? 0.24f : 0.32f);
+    const auto rightFraction = layoutId == 3 ? 0.36f : 0.28f;
+    auto left = main.removeFromLeft(juce::roundToInt(main.getWidth() * leftFraction));
+    auto right = main.removeFromRight(juce::roundToInt(main.getWidth() * rightFraction));
     auto center = main.reduced(14, 0);
 
-    drawMixSignature(g, left.removeFromTop(240).reduced(0, 0), state_);
+    drawMixSignature(g, left.removeFromTop(210).reduced(0, 0), state_);
+    drawSpectrumMeter(g, left.removeFromTop(134).reduced(0, 10), state_);
+    drawCorrelationMeter(g, left.removeFromTop(74).reduced(0, 10), state_);
     drawCandles(g, left.reduced(0, 12), state_);
     drawHalo(g, center.reduced(0, 10), state_, mode == AnalysisMode::Reference ? "REFERENCE HALO" : "ANALYZE HALO", mode == AnalysisMode::Reference);
 
@@ -298,7 +309,7 @@ void AifredAudioProcessorEditor::drawHeader(juce::Graphics& g, juce::Rectangle<i
   auto info = bounds.removeFromRight(260).reduced(8, 13);
   g.setFont(juce::FontOptions(11.5f));
   g.setColour(Colours::muted);
-  g.drawFittedText("Splash and tutorial open every launch. Preferences: neon theme, GUI quality, latency view, GPU preference.", info, juce::Justification::centredRight, 3);
+  g.drawFittedText("Tutorial appears once per editor session. Preferences: neon theme, layout focus, meter gate, API endpoint, and GPU preference note.", info, juce::Justification::centredRight, 3);
 }
 
 void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int> bounds, const HaloState& state, const char* title, bool referenceOverlay) {
@@ -306,13 +317,14 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
   auto area = bounds.reduced(28).toFloat();
   auto centre = area.getCentre();
   const auto radius = std::min(area.getWidth(), area.getHeight()) * 0.36f;
-  auto accent = accentForMode(processor_.getMode());
-  const auto pulse = 0.72f + 0.20f * std::sin(static_cast<float>(juce::Time::getMillisecondCounterHiRes()) * 0.0045f);
+  auto accent = accentForTheme(themeMenu_.getSelectedId(), processor_.getMode());
+  const auto dynamicPulse = clamp01(0.28f * state.metrics.loudness01 + 0.26f * state.metrics.width01 + 0.20f * state.metrics.punch01 + 0.18f * (1.0f - std::abs(state.metrics.crestDb - 11.0f) / 18.0f));
+  const auto pulse = 0.78f + dynamicPulse * 0.18f + 0.035f * std::sin(static_cast<float>(juce::Time::getMillisecondCounterHiRes()) * 0.0065f);
 
   g.setColour(accent.withAlpha(0.10f));
   g.fillEllipse(centre.x - radius, centre.y - radius, radius * 2.0f, radius * 2.0f);
   g.setColour(accent.withAlpha(0.10f));
-  g.drawEllipse(centre.x - radius * pulse, centre.y - radius * pulse, radius * 2.0f * pulse, radius * 2.0f * pulse, 3.0f);
+  g.drawEllipse(centre.x - radius * pulse, centre.y - radius * pulse, radius * 2.0f * pulse, radius * 2.0f * pulse, 3.0f + 3.0f * state.metrics.width01);
 
   const std::array<float, 4> values {state.metrics.tone01, state.metrics.width01, state.metrics.punch01, state.metrics.loudness01};
   const std::array<juce::Colour, 4> colours {Colours::cyan, Colours::green, Colours::yellow, Colours::violet};
@@ -497,6 +509,25 @@ void AifredAudioProcessorEditor::drawMixSignature(juce::Graphics& g, juce::Recta
   g.setColour(Colours::line.withAlpha(0.6f));
   g.drawRoundedRectangle(graph, 8.0f, 1.0f);
   auto centre = graph.getCentre();
+  juce::Path referencePath;
+  const std::array<float, 4> referenceValues {
+    state.reference.tone01,
+    state.reference.width01,
+    state.reference.punch01,
+    clamp01((state.reference.loudnessDb + 24.0f) / 18.0f)
+  };
+  for (int i = 0; i < 4; ++i) {
+    const auto angle = juce::MathConstants<float>::twoPi * static_cast<float>(i) / 4.0f - juce::MathConstants<float>::halfPi;
+    const auto radius = std::min(graph.getWidth(), graph.getHeight()) * 0.42f * referenceValues[static_cast<size_t>(i)];
+    const auto point = juce::Point<float>(centre.x + std::cos(angle) * radius, centre.y + std::sin(angle) * radius);
+    if (i == 0) referencePath.startNewSubPath(point); else referencePath.lineTo(point);
+  }
+  referencePath.closeSubPath();
+  g.setColour(Colours::violet.withAlpha(0.13f));
+  g.fillPath(referencePath);
+  g.setColour(Colours::green.withAlpha(0.56f));
+  g.strokePath(referencePath, juce::PathStrokeType(1.6f));
+
   juce::Path path;
   for (int i = 0; i < 4; ++i) {
     const auto angle = juce::MathConstants<float>::twoPi * static_cast<float>(i) / 4.0f - juce::MathConstants<float>::halfPi;
@@ -512,6 +543,53 @@ void AifredAudioProcessorEditor::drawMixSignature(juce::Graphics& g, juce::Recta
   g.fillPath(path);
   g.setColour(Colours::cyan.withAlpha(0.92f));
   g.strokePath(path, juce::PathStrokeType(2.0f));
+  g.setFont(juce::FontOptions(10.5f));
+  g.setColour(Colours::muted);
+  g.drawText("Aurora underlay = pro reference signature", graph.toNearestInt().removeFromBottom(18), juce::Justification::centred);
+}
+
+void AifredAudioProcessorEditor::drawSpectrumMeter(juce::Graphics& g, juce::Rectangle<int> bounds, const HaloState& state) {
+  drawPanel(g, bounds.toFloat(), 8.0f);
+  auto inner = bounds.reduced(14, 10);
+  g.setFont(juce::FontOptions(15.0f, juce::Font::bold));
+  g.setColour(Colours::ink);
+  g.drawText("SPECTROMETER", inner.removeFromTop(24), juce::Justification::centredLeft);
+  auto plot = inner.reduced(0, 4).toFloat();
+  const std::array<const char*, 8> labels {"SUB", "LOW", "BODY", "MID", "PRES", "AIR", "SIDE", "EDGE"};
+  const auto barWidth = plot.getWidth() / static_cast<float>(labels.size());
+  for (size_t i = 0; i < labels.size(); ++i) {
+    const auto value = clamp01(state.metrics.spectrumBands[i]);
+    auto slot = juce::Rectangle<float>(plot.getX() + static_cast<float>(i) * barWidth + 3.0f, plot.getY(), barWidth - 6.0f, plot.getHeight() - 18.0f);
+    g.setColour(Colours::line.withAlpha(0.42f));
+    g.fillRoundedRectangle(slot, 4.0f);
+    auto fill = slot.withTrimmedTop(slot.getHeight() * (1.0f - value));
+    const auto colour = i < 2 ? Colours::green : (i < 5 ? Colours::cyan : (i == 6 ? Colours::violet : Colours::yellow));
+    g.setColour(colour.withAlpha(0.86f));
+    g.fillRoundedRectangle(fill, 4.0f);
+    g.setFont(juce::FontOptions(8.5f, juce::Font::bold));
+    g.setColour(Colours::muted);
+    g.drawText(labels[i], juce::Rectangle<float>(slot.getX() - 2.0f, plot.getBottom() - 16.0f, slot.getWidth() + 4.0f, 14.0f).toNearestInt(), juce::Justification::centred);
+  }
+}
+
+void AifredAudioProcessorEditor::drawCorrelationMeter(juce::Graphics& g, juce::Rectangle<int> bounds, const HaloState& state) {
+  drawPanel(g, bounds.toFloat(), 8.0f);
+  auto inner = bounds.reduced(14, 10);
+  g.setFont(juce::FontOptions(15.0f, juce::Font::bold));
+  g.setColour(Colours::ink);
+  g.drawText("CORRELATION", inner.removeFromTop(22), juce::Justification::centredLeft);
+  auto meter = inner.removeFromTop(18).toFloat();
+  g.setColour(Colours::line.withAlpha(0.48f));
+  g.fillRoundedRectangle(meter, 6.0f);
+  const auto zeroX = meter.getX() + meter.getWidth() * 0.5f;
+  const auto valueX = meter.getX() + meter.getWidth() * clamp01((state.metrics.correlation + 1.0f) * 0.5f);
+  g.setColour(state.metrics.correlation < 0.0f ? Colours::red : Colours::green);
+  g.fillRoundedRectangle(juce::Rectangle<float>(std::min(zeroX, valueX), meter.getY(), std::abs(valueX - zeroX), meter.getHeight()), 6.0f);
+  g.setColour(Colours::cyan.withAlpha(0.9f));
+  g.drawVerticalLine(juce::roundToInt(valueX), meter.getY() - 3.0f, meter.getBottom() + 3.0f);
+  g.setFont(juce::FontOptions(11.0f));
+  g.setColour(Colours::muted);
+  g.drawText("-1 phase risk        0 mono-safe        +1 locked", inner.removeFromTop(18), juce::Justification::centred);
 }
 
 } // namespace aifred

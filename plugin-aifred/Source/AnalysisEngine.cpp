@@ -98,6 +98,12 @@ void AnalysisEngine::pushAudioBlock(const juce::AudioBuffer<float>& buffer) {
   double highMotion = 0.0;
   float prevMono = 0.0f;
   float slowMono = 0.0f;
+  float lp0 = 0.0f;
+  float lp1 = 0.0f;
+  float lp2 = 0.0f;
+  float lp3 = 0.0f;
+  float lp4 = 0.0f;
+  std::array<double, 8> spectrum {};
 
   const auto* left = buffer.getReadPointer(0);
   const auto* right = channels > 1 ? buffer.getReadPointer(1) : left;
@@ -107,6 +113,7 @@ void AnalysisEngine::pushAudioBlock(const juce::AudioBuffer<float>& buffer) {
     const auto r = right[i];
     const auto mono = 0.5f * (l + r);
     const auto side = 0.5f * (l - r);
+    const auto monoDelta = mono - prevMono;
     sumSquares += 0.5 * (static_cast<double>(l) * l + static_cast<double>(r) * r);
     leftEnergy += static_cast<double>(l) * l;
     rightEnergy += static_cast<double>(r) * r;
@@ -114,12 +121,31 @@ void AnalysisEngine::pushAudioBlock(const juce::AudioBuffer<float>& buffer) {
     sideEnergy += static_cast<double>(side) * side;
     corrNum += static_cast<double>(l) * r;
     peak = std::max({peak, std::abs(static_cast<double>(l)), std::abs(static_cast<double>(r))});
-    transient += std::abs(mono - prevMono);
+    transient += std::abs(monoDelta);
     prevMono = mono;
 
     slowMono = 0.985f * slowMono + 0.015f * mono;
     lowMotion += std::abs(slowMono);
     highMotion += std::abs(mono - slowMono);
+
+    lp0 += 0.0025f * (mono - lp0);
+    lp1 += 0.0075f * (mono - lp1);
+    lp2 += 0.0220f * (mono - lp2);
+    lp3 += 0.0640f * (mono - lp3);
+    lp4 += 0.1600f * (mono - lp4);
+    const std::array<float, 8> bands {
+      lp0,
+      lp1 - lp0,
+      lp2 - lp1,
+      lp3 - lp2,
+      lp4 - lp3,
+      mono - lp4,
+      side,
+      monoDelta
+    };
+    for (size_t band = 0; band < bands.size(); ++band) {
+      spectrum[band] += static_cast<double>(bands[band]) * bands[band];
+    }
   }
 
   const auto sampleCount = std::max(samples, 1);
@@ -139,6 +165,12 @@ void AnalysisEngine::pushAudioBlock(const juce::AudioBuffer<float>& buffer) {
   live_.correlation = correlation;
   live_.spectralTilt = tilt;
   live_.transientDensity = clamp01(static_cast<float>(transient / sampleCount) * 9.0f);
+  double spectrumSum = 0.000001;
+  for (const auto band : spectrum) spectrumSum += safeSqrt(static_cast<float>(band / sampleCount));
+  for (size_t band = 0; band < live_.spectrumBands.size(); ++band) {
+    const auto energy = safeSqrt(static_cast<float>(spectrum[band] / sampleCount));
+    live_.spectrumBands[band] = clamp01(static_cast<float>(energy / spectrumSum) * 3.35f);
+  }
   live_.signal01 = clamp01((live_.rmsDb + 60.0f) / 48.0f);
   live_.candleOpen = clamp01((smoothed_.rmsDb + 42.0f) / 34.0f);
   live_.candleClose = toLoudness01(live_.rmsDb);
@@ -153,6 +185,9 @@ void AnalysisEngine::pushAudioBlock(const juce::AudioBuffer<float>& buffer) {
   smoothed_.correlation = smooth(smoothed_.correlation, live_.correlation, amount);
   smoothed_.spectralTilt = smooth(smoothed_.spectralTilt, live_.spectralTilt, amount);
   smoothed_.transientDensity = smooth(smoothed_.transientDensity, live_.transientDensity, amount);
+  for (size_t band = 0; band < smoothed_.spectrumBands.size(); ++band) {
+    smoothed_.spectrumBands[band] = smooth(smoothed_.spectrumBands[band], live_.spectrumBands[band], amount);
+  }
   smoothed_.signal01 = smooth(smoothed_.signal01, live_.signal01, amount);
   smoothed_.candleOpen = smooth(smoothed_.candleOpen, live_.candleOpen, amount);
   smoothed_.candleHigh = smooth(smoothed_.candleHigh, live_.candleHigh, amount);
@@ -190,6 +225,7 @@ HaloState AnalysisEngine::buildHaloState() const {
   state.metrics.crestDb = smoothed_.crestDb;
   state.metrics.correlation = smoothed_.correlation;
   state.metrics.transientDensity = smoothed_.transientDensity;
+  state.metrics.spectrumBands = smoothed_.spectrumBands;
   state.metrics.candleOpen = smoothed_.candleOpen;
   state.metrics.candleHigh = smoothed_.candleHigh;
   state.metrics.candleLow = smoothed_.candleLow;
@@ -211,12 +247,12 @@ HaloState AnalysisEngine::buildHaloState() const {
     state.metrics.minuteCandleClose[static_cast<size_t>(i)] = m.close;
   }
 
-  const auto toneError = deviationOutsideCorridor(smoothed_.spectralTilt, 0.48f, 0.22f, 0.46f);
-  const auto loudnessError = 0.55f * deviationOutsideCorridor(smoothed_.rmsDb, state.reference.loudnessDb, 8.0f, 24.0f)
-                           + 0.45f * deviationOutsideCorridor(smoothed_.peakDb, -1.0f, 2.5f, 12.0f);
-  const auto dynamicsError = 0.58f * deviationOutsideCorridor(smoothed_.crestDb, state.reference.crestDb, 6.0f, 16.0f)
-                           + 0.42f * deviationOutsideCorridor(smoothed_.transientDensity, 0.42f, 0.34f, 0.78f);
-  const auto stereoWidthError = deviationOutsideCorridor(smoothed_.stereoWidth, 0.52f, 0.32f, 0.62f);
+  const auto toneError = deviationOutsideCorridor(smoothed_.spectralTilt, 0.48f, 0.30f, 0.56f);
+  const auto loudnessError = 0.58f * deviationOutsideCorridor(smoothed_.rmsDb, state.reference.loudnessDb, 4.5f, 16.0f)
+                           + 0.42f * deviationOutsideCorridor(smoothed_.peakDb, -1.0f, 1.2f, 8.0f);
+  const auto dynamicsError = 0.58f * deviationOutsideCorridor(smoothed_.crestDb, state.reference.crestDb, 4.6f, 17.0f)
+                           + 0.42f * deviationOutsideCorridor(smoothed_.transientDensity, 0.42f, 0.42f, 0.86f);
+  const auto stereoWidthError = deviationOutsideCorridor(smoothed_.stereoWidth, 0.52f, 0.42f, 0.74f);
   const auto phaseError = smoothed_.correlation < 0.0f ? clamp01(-smoothed_.correlation) : 0.0f;
   const auto stereoError = 0.72f * stereoWidthError + 0.28f * phaseError;
 

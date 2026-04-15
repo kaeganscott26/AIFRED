@@ -2605,6 +2605,11 @@ class ApiClient(private val baseUrl: String, private val token: String) {
             val request = Request.Builder()
                 .url("${baseUrl.trimEnd('/')}/api/chat")
                 .addHeader("Content-Type", "application/json")
+                .apply {
+                    if (token.isNotBlank()) {
+                        addHeader("Authorization", "Bearer $token")
+                    }
+                }
                 .post(body.toRequestBody("application/json".toMediaType()))
                 .build()
             client.newCall(request).execute().use { response ->

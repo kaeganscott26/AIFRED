@@ -31,6 +31,7 @@ struct DspMetrics {
   float crestDb = 0.0f;
   float correlation = 1.0f;
   float transientDensity = 0.0f;
+  std::array<float, 8> spectrumBands {};
   float candleOpen = 0.0f;
   float candleHigh = 0.0f;
   float candleLow = 0.0f;
@@ -51,8 +52,8 @@ struct ReferenceTarget {
   float tone01 = 0.48f;
   float width01 = 0.52f;
   float punch01 = 0.58f;
-  float loudnessDb = -17.32f;
-  float crestDb = 15.25f;
+  float loudnessDb = -11.5f;
+  float crestDb = 10.4f;
   int poolSize = 25;
   std::string label = "PRO 25x6";
 };

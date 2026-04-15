@@ -328,9 +328,9 @@ function analyzeAudioBuffer(buffer, fileName) {
   const transient = diffEnergy / Math.max(1, count);
   const brightness = clamp(highEnergy / Math.max(0.000001, lowEnergy + highEnergy), 0, 1);
   const integratedLufs = rmsDb - 0.7;
-  const lowEndControl = clamp(100 - Math.abs(brightness - 0.34) * 170 - Math.max(0, width - 0.85) * 60, 0, 100);
-  const harshnessControl = clamp(100 - Math.max(0, brightness - 0.62) * 180 - Math.max(0, peakDb + 0.8) * 12, 0, 100);
-  const toneBalance = clamp(100 - Math.abs(brightness - 0.46) * 125, 0, 100);
+  const lowEndControl = clamp(100 - Math.abs(brightness - 0.34) * 115 - Math.max(0, width - 0.92) * 34, 0, 100);
+  const harshnessControl = clamp(100 - Math.max(0, brightness - 0.70) * 125 - Math.max(0, peakDb + 0.1) * 18, 0, 100);
+  const toneBalance = clamp(100 - Math.abs(brightness - 0.46) * 82, 0, 100);
 
   return {
     file_name: fileName,
@@ -406,7 +406,7 @@ async function submitAnalysisGate() {
       payload.accepted ? "PASSED: metadata accepted for the AIFRED reference pool." : "NOT PASSED: metadata disposed.",
       `Score: ${payload.score}/100`,
       `Persistence: ${payload.persistence}`,
-      ...payload.checks.map((check) => `${check.ok ? "PASS" : "MISS"} ${check.target}`)
+      ...payload.checks.map((check) => `${check.ok ? "PASS" : "WATCH"} ${check.score}/100 ${check.target}`)
     ];
     analysisResult.textContent = lines.join("\n");
   } catch (error) {

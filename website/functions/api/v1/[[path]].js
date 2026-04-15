@@ -71,22 +71,78 @@ async function loadCatalog(request) {
   return Array.isArray(tracks) ? tracks : [];
 }
 
+function bandScore(value, idealMin, idealMax, acceptMin, acceptMax) {
+  if (value >= idealMin && value <= idealMax) return 100;
+  if (value < acceptMin || value > acceptMax) return 0;
+  if (value < idealMin) return Math.round(((value - acceptMin) / Math.max(0.0001, idealMin - acceptMin)) * 100);
+  return Math.round(((acceptMax - value) / Math.max(0.0001, acceptMax - idealMax)) * 100);
+}
+
+function floorScore(value, idealMin, acceptMin) {
+  if (value >= idealMin) return 100;
+  if (value <= acceptMin) return 0;
+  return Math.round(((value - acceptMin) / Math.max(0.0001, idealMin - acceptMin)) * 100);
+}
+
+function ceilingScore(value, idealMax, acceptMax) {
+  if (value <= idealMax) return 100;
+  if (value > acceptMax) return 0;
+  return Math.round(((acceptMax - value) / Math.max(0.0001, acceptMax - idealMax)) * 100);
+}
+
 function proGate(metrics) {
   const checks = [
-    ["tone_balance", metrics.tone_balance >= 62 && metrics.tone_balance <= 98, "Tone balance target: 62-98"],
-    ["integrated_lufs", metrics.integrated_lufs >= -19.0 && metrics.integrated_lufs <= -6.5, "Loudness target: -19 to -6.5 LUFS"],
-    ["peak_dbfs", metrics.peak_dbfs <= -0.2, "Peak target: below -0.2 dBFS"],
-    ["crest_factor_db", metrics.crest_factor_db >= 4.5 && metrics.crest_factor_db <= 18.0, "Dynamics target: 4.5-18 dB crest"],
-    ["stereo_width", metrics.stereo_width >= 0.18 && metrics.stereo_width <= 0.98, "Stereo width target: 0.18-0.98"],
-    ["low_end_control", metrics.low_end_control >= 54, "Low-end control target: 54+"],
-    ["harshness_control", metrics.harshness_control >= 52, "Harshness control target: 52+"]
+    {
+      id: "integrated_lufs",
+      score: bandScore(metrics.integrated_lufs, -14.0, -9.0, -18.0, -6.5),
+      target: "Loudness pro center: -14 to -9 LUFS; acceptable: -18 to -6.5 LUFS"
+    },
+    {
+      id: "peak_dbfs",
+      score: ceilingScore(metrics.peak_dbfs, -1.0, 0.0),
+      target: "Peak ceiling: -1 dBFS target, accepted up to 0 dBFS when not clipping"
+    },
+    {
+      id: "tone_balance",
+      score: bandScore(metrics.tone_balance, 58, 96, 38, 100),
+      target: "Tone balance: filled frequency range, broad musical tolerance"
+    },
+    {
+      id: "crest_factor_db",
+      score: bandScore(metrics.crest_factor_db, 6.0, 14.5, 3.5, 20.0),
+      target: "Dynamics: 6-14.5 dB crest center; small crest differences are not hard rejects"
+    },
+    {
+      id: "stereo_width",
+      score: bandScore(metrics.stereo_width, 0.22, 0.92, 0.08, 1.0),
+      target: "Stereo width: wide acceptance with mono-safety protection"
+    },
+    {
+      id: "low_end_control",
+      score: floorScore(metrics.low_end_control, 48, 22),
+      target: "Low-end control: reject only severe mud, not normal genre weight"
+    },
+    {
+      id: "harshness_control",
+      score: floorScore(metrics.harshness_control, 46, 18),
+      target: "Harshness control: reject only clearly painful upper-mid balance"
+    }
   ];
-  const passed = checks.filter(([, ok]) => ok).length;
-  const score = Math.round((passed / checks.length) * 100);
+  const weights = {
+    integrated_lufs: 0.24,
+    peak_dbfs: 0.18,
+    tone_balance: 0.18,
+    crest_factor_db: 0.14,
+    stereo_width: 0.12,
+    low_end_control: 0.07,
+    harshness_control: 0.07
+  };
+  const score = Math.round(checks.reduce((sum, check) => sum + check.score * (weights[check.id] || 0), 0));
+  const clipping = metrics.peak_dbfs > 0.0;
   return {
-    accepted: score >= 72,
+    accepted: !clipping && score >= 58,
     score,
-    checks: checks.map(([id, ok, target]) => ({ id, ok, target }))
+    checks: checks.map((check) => ({ id: check.id, ok: check.score >= 35, score: check.score, target: check.target }))
   };
 }
 
@@ -320,8 +376,14 @@ async function handleAdminFileRead(request, env) {
     return json({ ok: true, path: relPath, content: await response.text(), source: "deployed asset" });
   }
   const { repo, branch } = repoConfig(env);
-  const payload = await githubRequest(env, `/repos/${repo}/contents/${encodeURIComponent(relPath).replace(/%2F/g, "/")}?ref=${branch}`);
-  return json({ ok: true, path: relPath, sha: payload.sha, content: base64ToUtf8(payload.content || ""), source: "github" });
+  try {
+    const payload = await githubRequest(env, `/repos/${repo}/contents/${encodeURIComponent(relPath).replace(/%2F/g, "/")}?ref=${branch}`);
+    return json({ ok: true, path: relPath, sha: payload.sha, content: base64ToUtf8(payload.content || ""), source: "github" });
+  } catch (error) {
+    const response = await fetch(new URL(`/${relPath}`, request.url), { cache: "no-store" });
+    if (response.ok) return json({ ok: true, path: relPath, content: await response.text(), source: "deployed asset", warning: `GitHub read failed: ${error.message || "unknown error"}` });
+    return json({ ok: false, error: `GitHub read failed: ${error.message || "unknown error"}` }, { status: 502 });
+  }
 }
 
 async function handleAdminFileWrite(request, env) {
@@ -330,6 +392,7 @@ async function handleAdminFileWrite(request, env) {
   const relPath = safeRepoPath(body.path);
   const content = String(body.content || "");
   const shouldDeploy = body.deploy !== false;
+  if (!env.GITHUB_TOKEN) return json({ ok: false, error: "GITHUB_TOKEN is not configured, so mobile website writes cannot be committed" }, { status: 501 });
   const { repo, branch } = repoConfig(env);
   const encodedPath = encodeURIComponent(relPath).replace(/%2F/g, "/");
   let sha = "";
@@ -337,25 +400,36 @@ async function handleAdminFileWrite(request, env) {
     const existing = await githubRequest(env, `/repos/${repo}/contents/${encodedPath}?ref=${branch}`);
     sha = existing.sha || "";
   } catch (_) {}
-  const payload = await githubRequest(env, `/repos/${repo}/contents/${encodedPath}`, {
-    method: "PUT",
-    body: JSON.stringify({
-      message: `Update ${relPath} from AIFRED admin`,
-      content: utf8ToBase64(content),
-      branch,
-      ...(sha ? { sha } : {})
-    })
-  });
+  let payload;
+  try {
+    payload = await githubRequest(env, `/repos/${repo}/contents/${encodedPath}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        message: `Update ${relPath} from AIFRED admin`,
+        content: utf8ToBase64(content),
+        branch,
+        ...(sha ? { sha } : {})
+      })
+    });
+  } catch (error) {
+    return json({ ok: false, error: `GitHub write failed: ${error.message || "unknown error"}` }, { status: 502 });
+  }
   let deploy = "";
+  let deployError = "";
   if (shouldDeploy) {
-    deploy = await dispatchDeploy(env);
+    try {
+      deploy = await dispatchDeploy(env);
+    } catch (error) {
+      deployError = `Deploy dispatch failed: ${error.message || "unknown error"}`;
+    }
   }
   return json({
     ok: true,
     path: relPath,
     commit: payload.commit?.sha || "",
     deploy_dispatched: Boolean(deploy),
-    message: deploy || "website file committed; run deploy:site to publish it"
+    deploy_error: deployError,
+    message: deploy || deployError || "website file committed; run deploy:site to publish it"
   });
 }
 
@@ -548,6 +622,7 @@ export async function onRequest({ request, env, params }) {
   const path = Array.isArray(params.path) ? params.path.join("/") : String(params.path || "");
 
   if (request.method === "OPTIONS") return new Response(null, { status: 204 });
+  try {
   if (path === "health") return json({ ok: true, service: "AIFRED website backend" });
   if (path === "catalog/list") return json({ ok: true, tracks: await loadCatalog(request) });
   if (path === "soundpacks/list") return json({ ok: true, soundpacks: [] });
@@ -600,4 +675,7 @@ export async function onRequest({ request, env, params }) {
   }
 
   return json({ ok: false, error: `unknown route: ${path}` }, { status: 404 });
+  } catch (error) {
+    return json({ ok: false, error: error.message || "backend route failed", route: path }, { status: 500 });
+  }
 }

@@ -23,6 +23,7 @@ private:
     float correlation = 1.0f;
     float spectralTilt = 0.0f;
     float transientDensity = 0.0f;
+    std::array<float, 8> spectrumBands {};
     float signal01 = 0.0f;
     float candleOpen = 0.0f;
     float candleHigh = 0.0f;
