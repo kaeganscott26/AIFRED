@@ -39,6 +39,19 @@ private:
     bool active = false;
   };
 
+  struct BiquadState {
+    float b0 = 1.0f;
+    float b1 = 0.0f;
+    float b2 = 0.0f;
+    float a1 = 0.0f;
+    float a2 = 0.0f;
+    float z1 = 0.0f;
+    float z2 = 0.0f;
+
+    float process(float x);
+    void reset();
+  };
+
   FeatureFrame live_;
   FeatureFrame smoothed_;
   std::array<CandleFrame, 10> sessionCandles_ {};
@@ -55,8 +68,13 @@ private:
   float hpRight_ = 0.0f;
   float hpPrevLeft_ = 0.0f;
   float hpPrevRight_ = 0.0f;
+  BiquadState kHighPassLeft_;
+  BiquadState kHighPassRight_;
+  BiquadState kShelfLeft_;
+  BiquadState kShelfRight_;
 
   static float linearToDb(float value);
+  void configureKWeighting();
   static float deviationOutsideCorridor(float value, float target, float tolerance, float criticalRange);
   static DomainAlignment makeDomain(float error01, float primary, float secondary, std::string summary, float confidenceSeed);
   void updateCandle(CandleFrame& candle, float value);

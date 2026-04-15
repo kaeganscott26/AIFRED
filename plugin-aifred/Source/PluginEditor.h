@@ -29,6 +29,7 @@ private:
   void drawMixSignature(juce::Graphics&, juce::Rectangle<int>, const HaloState&);
   void drawSpectrumMeter(juce::Graphics&, juce::Rectangle<int>, const HaloState&);
   void drawCorrelationMeter(juce::Graphics&, juce::Rectangle<int>, const HaloState&);
+  void pushSettingsToProcessor();
 
   AifredAudioProcessor& processor_;
   AifredLookAndFeel lookAndFeel_;

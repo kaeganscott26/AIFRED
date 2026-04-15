@@ -49,6 +49,7 @@ target_compile_definitions(Aifred
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
+    AIFRED_VERSION_STRING="${PROJECT_VERSION}"
 )
 
 target_link_libraries(Aifred

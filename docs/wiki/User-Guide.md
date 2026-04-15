@@ -77,10 +77,12 @@ Compare:
 Metering notes:
 
 - The spectrometer is labeled by frequency lane.
-- Loudness and peak read in LUFS estimate and dBFS.
+- Loudness and peak read in K-weighted LUFS and dBFS.
 - Crest reads in dB.
 - Correlation reads as a -1 to +1 value after a 150 Hz high-pass so bass energy does not dominate the phase read.
 - The chat module writes Ask AI output into the fix list and includes an educational mix section directly in the VST text output.
+- The plugin header displays the current AIFRED version so stale FL Studio scans are easier to spot.
+- Theme, layout, gate, API endpoint, and API key fields save into the FL Studio project state.
 
 ## Install Paths
 

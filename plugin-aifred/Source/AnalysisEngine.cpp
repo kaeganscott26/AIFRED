@@ -21,6 +21,7 @@ float toLoudness01(float rmsDb) {
 
 void AnalysisEngine::prepare(double sampleRate) {
   sampleRate_ = sampleRate > 0.0 ? sampleRate : 44100.0;
+  configureKWeighting();
   reset();
 }
 
@@ -39,6 +40,63 @@ void AnalysisEngine::reset() {
   hpRight_ = 0.0f;
   hpPrevLeft_ = 0.0f;
   hpPrevRight_ = 0.0f;
+  kHighPassLeft_.reset();
+  kHighPassRight_.reset();
+  kShelfLeft_.reset();
+  kShelfRight_.reset();
+}
+
+float AnalysisEngine::BiquadState::process(float x) {
+  const auto y = b0 * x + z1;
+  z1 = b1 * x - a1 * y + z2;
+  z2 = b2 * x - a2 * y;
+  return y;
+}
+
+void AnalysisEngine::BiquadState::reset() {
+  z1 = 0.0f;
+  z2 = 0.0f;
+}
+
+void AnalysisEngine::configureKWeighting() {
+  const auto sr = static_cast<float>(std::max(sampleRate_, 1000.0));
+  const auto setHighPass = [sr](BiquadState& filter) {
+    const auto q = 0.5f;
+    const auto omega = juce::MathConstants<float>::twoPi * 38.0f / sr;
+    const auto alpha = std::sin(omega) / (2.0f * q);
+    const auto cosw = std::cos(omega);
+    const auto a0 = 1.0f + alpha;
+    filter.b0 = (1.0f + cosw) * 0.5f / a0;
+    filter.b1 = -(1.0f + cosw) / a0;
+    filter.b2 = (1.0f + cosw) * 0.5f / a0;
+    filter.a1 = -2.0f * cosw / a0;
+    filter.a2 = (1.0f - alpha) / a0;
+  };
+  const auto setHighShelf = [sr](BiquadState& filter) {
+    const auto gainDb = 4.0f;
+    const auto slope = 1.0f;
+    const auto a = std::pow(10.0f, gainDb / 40.0f);
+    const auto omega = juce::MathConstants<float>::twoPi * 1681.974f / sr;
+    const auto sinw = std::sin(omega);
+    const auto cosw = std::cos(omega);
+    const auto alpha = sinw * 0.5f * std::sqrt((a + 1.0f / a) * (1.0f / slope - 1.0f) + 2.0f);
+    const auto twoSqrtAAlpha = 2.0f * std::sqrt(a) * alpha;
+    const auto b0 = a * ((a + 1.0f) + (a - 1.0f) * cosw + twoSqrtAAlpha);
+    const auto b1 = -2.0f * a * ((a - 1.0f) + (a + 1.0f) * cosw);
+    const auto b2 = a * ((a + 1.0f) + (a - 1.0f) * cosw - twoSqrtAAlpha);
+    const auto a0 = (a + 1.0f) - (a - 1.0f) * cosw + twoSqrtAAlpha;
+    const auto a1 = 2.0f * ((a - 1.0f) - (a + 1.0f) * cosw);
+    const auto a2 = (a + 1.0f) - (a - 1.0f) * cosw - twoSqrtAAlpha;
+    filter.b0 = b0 / a0;
+    filter.b1 = b1 / a0;
+    filter.b2 = b2 / a0;
+    filter.a1 = a1 / a0;
+    filter.a2 = a2 / a0;
+  };
+  setHighPass(kHighPassLeft_);
+  setHighPass(kHighPassRight_);
+  setHighShelf(kShelfLeft_);
+  setHighShelf(kShelfRight_);
 }
 
 float AnalysisEngine::linearToDb(float value) {
@@ -91,6 +149,7 @@ void AnalysisEngine::pushAudioBlock(const juce::AudioBuffer<float>& buffer) {
   if (channels == 0 || samples == 0) return;
 
   double sumSquares = 0.0;
+  double kWeightedSquares = 0.0;
   double peak = 0.0;
   double leftEnergy = 0.0;
   double rightEnergy = 0.0;
@@ -123,6 +182,8 @@ void AnalysisEngine::pushAudioBlock(const juce::AudioBuffer<float>& buffer) {
     const auto r = right[i];
     const auto hpL = hpAlpha * (hpLeft_ + l - hpPrevLeft_);
     const auto hpR = hpAlpha * (hpRight_ + r - hpPrevRight_);
+    const auto kL = kShelfLeft_.process(kHighPassLeft_.process(l));
+    const auto kR = kShelfRight_.process(kHighPassRight_.process(r));
     hpPrevLeft_ = l;
     hpPrevRight_ = r;
     hpLeft_ = hpL;
@@ -131,6 +192,7 @@ void AnalysisEngine::pushAudioBlock(const juce::AudioBuffer<float>& buffer) {
     const auto side = 0.5f * (l - r);
     const auto monoDelta = mono - prevMono;
     sumSquares += 0.5 * (static_cast<double>(l) * l + static_cast<double>(r) * r);
+    kWeightedSquares += 0.5 * (static_cast<double>(kL) * kL + static_cast<double>(kR) * kR);
     leftEnergy += static_cast<double>(l) * l;
     rightEnergy += static_cast<double>(r) * r;
     hpLeftEnergy += static_cast<double>(hpL) * hpL;
@@ -167,16 +229,17 @@ void AnalysisEngine::pushAudioBlock(const juce::AudioBuffer<float>& buffer) {
   }
 
   const auto sampleCount = std::max(samples, 1);
-  const auto rms = safeSqrt(static_cast<float>(sumSquares / sampleCount));
+  const auto kMeanSquare = static_cast<float>(kWeightedSquares / sampleCount);
+  const auto loudness = -0.691f + 10.0f * std::log10(std::max(kMeanSquare, 0.000000001f));
   const auto leftRms = safeSqrt(static_cast<float>((hpLeftEnergy > 0.0000001 ? hpLeftEnergy : leftEnergy) / sampleCount));
   const auto rightRms = safeSqrt(static_cast<float>((hpRightEnergy > 0.0000001 ? hpRightEnergy : rightEnergy) / sampleCount));
   const auto denom = std::max(leftRms * rightRms * static_cast<float>(sampleCount), 0.000001f);
   const auto correlation = std::clamp(static_cast<float>(hpCorrNum) / denom, -1.0f, 1.0f);
   const auto width = clamp01(safeSqrt(static_cast<float>(sideEnergy / std::max(midEnergy + sideEnergy, 0.000001))));
-  const auto crest = linearToDb(static_cast<float>(peak)) - linearToDb(rms);
+  const auto crest = linearToDb(static_cast<float>(peak)) - loudness;
   const auto tilt = clamp01(static_cast<float>(highMotion / std::max(lowMotion + highMotion, 0.000001)));
 
-  live_.rmsDb = linearToDb(rms);
+  live_.rmsDb = loudness;
   live_.peakDb = linearToDb(static_cast<float>(peak));
   live_.crestDb = std::clamp(crest, 0.0f, 24.0f);
   live_.stereoWidth = width;

@@ -31,6 +31,14 @@ cmake -S . -B build/aifred -DCMAKE_BUILD_TYPE=Release
 cmake --build build/aifred --config Release --parallel
 ```
 
+The plugin version is taken from the root CMake `project(AIFRED VERSION ...)` value and passed into the UI as `AIFRED_VERSION_STRING`.
+
+The analyzer uses:
+
+- K-weighted loudness path for LUFS-style display and loudness-domain scoring.
+- Separate 150 Hz high-passed correlation path so low-frequency phase does not dominate the stereo meter.
+- Raw peak still measured directly in dBFS.
+
 If MSVC cannot find standard headers like `string` or `algorithm`, run from the Visual Studio Developer Shell:
 
 ```powershell

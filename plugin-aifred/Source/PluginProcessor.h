@@ -7,6 +7,14 @@
 
 namespace aifred {
 
+struct PluginSettings {
+  int themeId = 1;
+  int layoutId = 1;
+  double gate = 0.62;
+  juce::String apiEndpoint;
+  juce::String apiKey;
+};
+
 class AifredAudioProcessor : public juce::AudioProcessor {
 public:
   AifredAudioProcessor();
@@ -39,11 +47,14 @@ public:
   HaloState getCompareHaloState() const;
   AnalysisMode getMode() const;
   void setMode(AnalysisMode mode);
+  PluginSettings getPluginSettings() const;
+  void setPluginSettings(const PluginSettings& settings);
 
 private:
   AnalysisEngine analysis_;
   AnalysisEngine compareAnalysis_;
   std::atomic<int> mode_ { static_cast<int>(AnalysisMode::Analyze) };
+  PluginSettings settings_;
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AifredAudioProcessor)
 };
 

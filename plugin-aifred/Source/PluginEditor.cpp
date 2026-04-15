@@ -5,6 +5,10 @@
 #include <array>
 #include <cmath>
 
+#ifndef AIFRED_VERSION_STRING
+#define AIFRED_VERSION_STRING "dev"
+#endif
+
 namespace aifred {
 namespace {
 
@@ -108,17 +112,21 @@ AifredAudioProcessorEditor::AifredAudioProcessorEditor(AifredAudioProcessor& pro
   themeMenu_.addItem("Neon Cyan", 1);
   themeMenu_.addItem("Voltage Green", 2);
   themeMenu_.addItem("Reference Violet", 3);
-  themeMenu_.setSelectedId(1);
   layoutMenu_.addItem("Studio Wide", 1);
   layoutMenu_.addItem("Compact Metering", 2);
   layoutMenu_.addItem("Chat Focus", 3);
-  layoutMenu_.setSelectedId(1);
   gateSlider_.setRange(0.0, 1.0, 0.01);
-  gateSlider_.setValue(0.62);
   gateSlider_.setTextValueSuffix(" gate");
   addAndMakeVisible(themeMenu_);
   addAndMakeVisible(layoutMenu_);
   addAndMakeVisible(gateSlider_);
+
+  const auto settings = processor_.getPluginSettings();
+  themeMenu_.setSelectedId(settings.themeId);
+  layoutMenu_.setSelectedId(settings.layoutId);
+  gateSlider_.setValue(settings.gate, juce::dontSendNotification);
+  apiEndpoint_.setText(settings.apiEndpoint, juce::dontSendNotification);
+  apiKey_.setText(settings.apiKey, juce::dontSendNotification);
 
   setResizable(true, true);
   setResizeLimits(980, 620, 1700, 1040);
@@ -164,17 +172,30 @@ void AifredAudioProcessorEditor::buttonClicked(juce::Button* button) {
     fixList_.setText(fixListText_, juce::dontSendNotification);
   }
   if (button == &saveApiButton_) {
+    pushSettingsToProcessor();
     apiStatus_ = "BYO API set: " + apiEndpoint_.getText().trim().substring(0, 64)
       + (apiKey_.getText().isNotEmpty() ? " / key stored for this editor session" : " / no key entered");
   }
+  pushSettingsToProcessor();
   resized();
   repaint();
 }
 
 void AifredAudioProcessorEditor::timerCallback() {
+  pushSettingsToProcessor();
   state_ = processor_.getHaloState();
   compareState_ = processor_.getCompareHaloState();
   repaint();
+}
+
+void AifredAudioProcessorEditor::pushSettingsToProcessor() {
+  PluginSettings settings;
+  settings.themeId = themeMenu_.getSelectedId();
+  settings.layoutId = layoutMenu_.getSelectedId();
+  settings.gate = gateSlider_.getValue();
+  settings.apiEndpoint = apiEndpoint_.getText().trim();
+  settings.apiKey = apiKey_.getText();
+  processor_.setPluginSettings(settings);
 }
 
 void AifredAudioProcessorEditor::paint(juce::Graphics& g) {
@@ -318,7 +339,7 @@ void AifredAudioProcessorEditor::drawHeader(juce::Graphics& g, juce::Rectangle<i
   auto info = bounds.removeFromRight(260).reduced(8, 13);
   g.setFont(juce::FontOptions(11.5f));
   g.setColour(Colours::muted);
-  g.drawFittedText("Tutorial appears once per editor session. Preferences: neon theme, layout focus, meter gate, API endpoint, and GPU preference note.", info, juce::Justification::centredRight, 3);
+  g.drawFittedText("v" AIFRED_VERSION_STRING " / Tutorial appears once per editor session. Preferences save with the FL Studio project.", info, juce::Justification::centredRight, 3);
 }
 
 void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int> bounds, const HaloState& state, const char* title, bool referenceOverlay) {
@@ -368,7 +389,7 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
   g.drawText(pct(state.totalAlignment01), card.removeFromTop(48.0f), juce::Justification::centred);
   g.setFont(juce::FontOptions(15.0f));
   g.setColour(Colours::ink);
-  g.drawText(dbText(state.metrics.rmsDb, "LUFS est") + "    " + dbText(state.metrics.peakDb, "dBFS"), card.removeFromTop(28.0f), juce::Justification::centred);
+  g.drawText(dbText(state.metrics.rmsDb, "LUFS K") + "    " + dbText(state.metrics.peakDb, "dBFS"), card.removeFromTop(28.0f), juce::Justification::centred);
   g.setColour(Colours::muted);
   g.drawText("Tone " + juce::String(state.metrics.tone01, 2) + " / Width " + juce::String(state.metrics.width01, 2) + " / Corr HP150 " + juce::String(state.metrics.correlation, 2), card.toNearestInt(), juce::Justification::centred);
 }
@@ -390,10 +411,10 @@ void AifredAudioProcessorEditor::drawDomainCard(juce::Graphics& g, juce::Rectang
   g.setFont(juce::FontOptions(11.5f));
   g.setColour(Colours::muted);
   juce::String units = juce::String(alignment.rawPrimaryMetric, 2) + " primary / " + juce::String(alignment.rawSecondaryMetric, 2) + " secondary";
-  if (juce::String(name) == "LOUDNESS") units = dbText(alignment.rawPrimaryMetric, "LUFS est") + " / " + dbText(alignment.rawSecondaryMetric, "dBFS peak");
+  if (juce::String(name) == "LOUDNESS") units = dbText(alignment.rawPrimaryMetric, "LUFS K") + " / " + dbText(alignment.rawSecondaryMetric, "dBFS peak");
   if (juce::String(name) == "PUNCH") units = dbText(alignment.rawPrimaryMetric, "dB crest") + " / transient " + juce::String(alignment.rawSecondaryMetric, 2);
   if (juce::String(name) == "WIDTH") units = "width " + juce::String(alignment.rawPrimaryMetric, 2) + " / corr HP150 " + juce::String(alignment.rawSecondaryMetric, 2);
-  if (juce::String(name) == "TONE") units = "tilt " + juce::String(alignment.rawPrimaryMetric, 2) + " / " + dbText(alignment.rawSecondaryMetric, "LUFS est");
+  if (juce::String(name) == "TONE") units = "tilt " + juce::String(alignment.rawPrimaryMetric, 2) + " / " + dbText(alignment.rawSecondaryMetric, "LUFS K");
   g.drawText(perceptualBand(alignment.alignment01) + " / " + units, inner, juce::Justification::centredLeft);
 }
 
