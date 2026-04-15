@@ -194,7 +194,10 @@ async function askOllama(env, message) {
   const model = env.OLLAMA_MODEL || "llama3.1";
   const response = await fetch(`${base}/api/chat`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      ...(env.OLLAMA_API_TOKEN ? { "authorization": `Bearer ${env.OLLAMA_API_TOKEN}` } : {})
+    },
     body: JSON.stringify({
       model,
       stream: false,
