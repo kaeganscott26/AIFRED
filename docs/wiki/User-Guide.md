@@ -9,7 +9,7 @@ The public site lives at:
 
 The website sells the AIFRED VST3 and North3rnLight3r beat catalog. Visitors can preview catalog audio, license beats through PayPal links, download VST release packages, and run the free mix analyzer.
 
-The public visual system uses the approved North3rnLight3r banner and album-art assets from `website/assets/showcase/`. Concept VST mockups are not part of the live storefront.
+The public site keeps the approved AIFRED mascot as the brand logo and uses `Website asset album art (2).jpg` plus `Brand Mascot Hero.jpg` as beat catalog artwork.
 
 ## Beat Catalog
 
@@ -21,9 +21,9 @@ Audio files are served from:
 
 `website/assets/audio/catalog/`
 
-Each catalog item should include a title, genre, BPM, price, stream URL or asset filename, and artwork URL. The public player falls back to the AIFRED mascot if artwork is missing.
+Each catalog item should include a title, genre, BPM, price, and stream URL or asset filename. The public player uses only the approved catalog artwork assets.
 
-The catalog grid is collapsible. The audio player remains visible, but browser download controls are disabled with `controlsList="nodownload"` so the catalog can be previewed without exposing a direct download button in the player UI.
+The catalog grid is collapsed by default. The audio player remains visible, but browser download controls are disabled with `controlsList="nodownload"` so the catalog can be previewed without exposing a direct download button in the player UI.
 
 While catalog audio plays, the analyzer canvas runs as a live visualizer. Uploaded-track analysis still draws a still-frame diagnostic after decoding the uploaded file.
 
@@ -47,7 +47,7 @@ Measured metadata includes:
 
 If the uploaded mix lands inside the professional target range, metadata can enter the reference pool. If it misses the target, metadata is disposed. Audio is not required to be persisted for the public gate.
 
-The current gate is intentionally broad. The center loudness lane is -14 to -9 LUFS with a near -1 dBFS ceiling, but the backend accepts a wider review lane for real released records and rejects only hard failures such as clipping or obviously broken tone-control scores.
+The current gate is intentionally broad. The backend accepts a wide review lane for released records and rejects only hard failures such as clipping or obviously broken tone-control scores.
 
 ## AIFRED VST3
 
@@ -63,9 +63,9 @@ Analyze:
 Reference:
 
 - One Halo.
-- Reference target overlay.
-- Target label from the reference pool.
-- Designed for alignment against pro reference behavior.
+- Genre target overlay.
+- Personal reference file picker.
+- Reference mixer panel with fader, balance, mute/solo, and DAW-routing lanes.
 
 Compare:
 
@@ -73,6 +73,7 @@ Compare:
 - Mix A and Mix B have separate DSP routes.
 - Comparison bars show tone, width, punch, loudness, and dynamics differences.
 - A center analog-style match VU shows how close Mix A is to Mix B.
+- In FL Studio, put AIFRED on the master or a bus, enable the Mix B sidechain input in the wrapper, then route the reference track to that sidechain from the mixer send.
 
 Metering notes:
 
@@ -80,7 +81,7 @@ Metering notes:
 - Loudness and peak read in K-weighted LUFS and dBFS.
 - Crest reads in dB.
 - Correlation reads as a -1 to +1 value after a 150 Hz high-pass so bass energy does not dominate the phase read.
-- The chat module writes Ask AI output into the fix list and includes an educational mix section directly in the VST text output.
+- Chat has its own dedicated module and no hardcoded fix suggestions.
 - The plugin header displays the current AIFRED version so stale FL Studio scans are easier to spot.
 - Theme, layout, gate, API endpoint, and API key fields save into the FL Studio project state.
 

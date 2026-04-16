@@ -12,6 +12,8 @@
 namespace aifred {
 namespace {
 
+bool gTutorialShownThisSession = false;
+
 juce::Colour accentForMode(AnalysisMode mode) {
   if (mode == AnalysisMode::Compare) return Colours::green;
   if (mode == AnalysisMode::Reference) return Colours::violet;
@@ -19,9 +21,31 @@ juce::Colour accentForMode(AnalysisMode mode) {
 }
 
 juce::Colour accentForTheme(int themeId, AnalysisMode mode) {
-  if (themeId == 2) return Colours::green;
-  if (themeId == 3) return Colours::violet;
+  if (themeId == 2) return juce::Colour(0xfff0d447);
+  if (themeId == 3) return juce::Colour(0xffff5f6d);
   return accentForMode(mode);
+}
+
+juce::Colour genreColour(int genreId) {
+  switch (genreId) {
+    case 2: return juce::Colour(0xffffcf33);
+    case 3: return juce::Colour(0xffff4d5a);
+    case 4: return juce::Colour(0xff23e3ff);
+    case 5: return juce::Colour(0xffb86cff);
+    case 6: return juce::Colour(0xfff7f2e7);
+    default: return juce::Colour(0xff8cff45);
+  }
+}
+
+const char* genreName(int genreId) {
+  switch (genreId) {
+    case 2: return "Boom Bap";
+    case 3: return "Drill / Trap";
+    case 4: return "Electronic / Dubstep";
+    case 5: return "R&B";
+    case 6: return "Same Genre";
+    default: return "Hip-Hop / Trap";
+  }
 }
 
 juce::Colour colourForAlignment(float alignment) {
@@ -70,10 +94,10 @@ float metricValue(const HaloState& state, int index) {
 
 const char* metricLabel(int index) {
   switch (index) {
-    case 0: return "TONE";
-    case 1: return "WIDTH";
-    case 2: return "PUNCH";
-    default: return "LOUD";
+    case 0: return "Tone";
+    case 1: return "Width";
+    case 2: return "Punch";
+    default: return "Loudness";
   }
 }
 
@@ -88,14 +112,14 @@ AifredAudioProcessorEditor::AifredAudioProcessorEditor(AifredAudioProcessor& pro
     addAndMakeVisible(button);
     button->addListener(this);
   }
-  for (auto* button : {&askAiButton_, &saveApiButton_}) {
+  for (auto* button : {&askAiButton_, &saveApiButton_, &chatFileButton_, &referenceFileButton_, &compareFileButton_}) {
     addAndMakeVisible(button);
     button->addListener(this);
   }
 
   chatInput_.setMultiLine(true);
   chatInput_.setReturnKeyStartsNewLine(true);
-  chatInput_.setTextToShowWhenEmpty("Ask for a mix decision, reference move, or release fix list.", Colours::muted);
+  chatInput_.setTextToShowWhenEmpty("Type your question.", Colours::muted);
   addAndMakeVisible(chatInput_);
 
   apiEndpoint_.setTextToShowWhenEmpty("http://127.0.0.1:11434 or https://api.openai.com/v1", Colours::muted);
@@ -110,20 +134,28 @@ AifredAudioProcessorEditor::AifredAudioProcessorEditor(AifredAudioProcessor& pro
   addAndMakeVisible(fixList_);
 
   themeMenu_.addItem("Neon Cyan", 1);
-  themeMenu_.addItem("Voltage Green", 2);
-  themeMenu_.addItem("Reference Violet", 3);
+  themeMenu_.addItem("Gold Meter", 2);
+  themeMenu_.addItem("Redline", 3);
   layoutMenu_.addItem("Studio Wide", 1);
   layoutMenu_.addItem("Compact Metering", 2);
   layoutMenu_.addItem("Chat Focus", 3);
+  genreMenu_.addItem("Hip-Hop / Trap", 1);
+  genreMenu_.addItem("Boom Bap", 2);
+  genreMenu_.addItem("Drill / Trap", 3);
+  genreMenu_.addItem("Electronic / Dubstep", 4);
+  genreMenu_.addItem("R&B", 5);
+  genreMenu_.addItem("Same Genre", 6);
   gateSlider_.setRange(0.0, 1.0, 0.01);
   gateSlider_.setTextValueSuffix(" gate");
   addAndMakeVisible(themeMenu_);
   addAndMakeVisible(layoutMenu_);
+  addAndMakeVisible(genreMenu_);
   addAndMakeVisible(gateSlider_);
 
   const auto settings = processor_.getPluginSettings();
   themeMenu_.setSelectedId(settings.themeId);
   layoutMenu_.setSelectedId(settings.layoutId);
+  genreMenu_.setSelectedId(settings.genreId);
   gateSlider_.setValue(settings.gate, juce::dontSendNotification);
   apiEndpoint_.setText(settings.apiEndpoint, juce::dontSendNotification);
   apiKey_.setText(settings.apiKey, juce::dontSendNotification);
@@ -131,11 +163,15 @@ AifredAudioProcessorEditor::AifredAudioProcessorEditor(AifredAudioProcessor& pro
   setResizable(true, true);
   setResizeLimits(980, 620, 1700, 1040);
   setSize(1280, 760);
+  showTutorial_ = !gTutorialShownThisSession;
   startTimerHz(30);
 }
 
 AifredAudioProcessorEditor::~AifredAudioProcessorEditor() {
   for (auto* button : {&analyzeButton_, &referenceButton_, &compareButton_, &optionsButton_, &tutorialButton_}) {
+    button->removeListener(this);
+  }
+  for (auto* button : {&askAiButton_, &saveApiButton_, &chatFileButton_, &referenceFileButton_, &compareFileButton_}) {
     button->removeListener(this);
   }
   setLookAndFeel(nullptr);
@@ -150,6 +186,7 @@ void AifredAudioProcessorEditor::buttonClicked(juce::Button* button) {
     if (showTutorial_) {
       showTutorial_ = false;
       splashDismissedThisEditor_ = true;
+      gTutorialShownThisSession = true;
     } else {
       showTutorial_ = true;
       splashDismissedThisEditor_ = false;
@@ -157,24 +194,25 @@ void AifredAudioProcessorEditor::buttonClicked(juce::Button* button) {
   }
   if (button == &askAiButton_) {
     const auto prompt = chatInput_.getText().trim();
-    const auto& m = state_.metrics;
-    fixListText_ = "FIX LIST\n";
-    fixListText_ += "- Loudness: " + dbText(m.rmsDb, "dB RMS") + " / " + perceptualBand(m.loudness01) + "\n";
-    fixListText_ += "- Tone: " + perceptualBand(m.tone01) + " tilt, keep moves wider than 1 dB unless the reference overlay confirms it.\n";
-    fixListText_ += "- Width: " + perceptualBand(m.width01) + " image, correlation " + juce::String(m.correlation, 2) + " after 150 Hz high-pass.\n";
-    fixListText_ += "- Punch: " + perceptualBand(m.punch01) + " transient motion, crest " + juce::String(m.crestDb, 1) + " dB.\n";
-    fixListText_ += "MIX EDUCATION\n";
-    fixListText_ += "- Loudness: aim for musical pressure first; -14 to -9 LUFS with a -1 dBFS ceiling is a pro working lane, not a tiny target dot.\n";
-    fixListText_ += "- Tone: broad 1 to 2 dB shelves translate better than chasing decimal movement.\n";
-    fixListText_ += "- Width: keep sub and bass stable, judge stereo above 150 Hz, and confirm mono before printing.\n";
-    fixListText_ += "- Punch: crest plus transient density tells whether drums breathe or collapse.\n";
-    fixListText_ += prompt.isNotEmpty() ? "- Question: " + prompt + "\n" : "- Add a question to route this through your BYO API bridge.\n";
+    fixListText_ = prompt.isNotEmpty() ? prompt : "Chat input is empty.";
+    if (chatFileStatus_ != "No chat file selected.") fixListText_ += "\n" + chatFileStatus_;
     fixList_.setText(fixListText_, juce::dontSendNotification);
   }
   if (button == &saveApiButton_) {
     pushSettingsToProcessor();
-    apiStatus_ = "BYO API set: " + apiEndpoint_.getText().trim().substring(0, 64)
-      + (apiKey_.getText().isNotEmpty() ? " / key stored for this editor session" : " / no key entered");
+    apiStatus_ = apiEndpoint_.getText().trim().isNotEmpty() ? "API route set." : "API route not connected.";
+  }
+  if (button == &chatFileButton_ || button == &referenceFileButton_ || button == &compareFileButton_) {
+    fileChooser_ = std::make_unique<juce::FileChooser>("Select audio file", juce::File{}, "*.wav;*.aif;*.aiff;*.mp3;*.flac");
+    fileChooser_->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+      [this, button](const juce::FileChooser& chooser) {
+        const auto file = chooser.getResult();
+        if (!file.existsAsFile()) return;
+        if (button == &chatFileButton_) chatFileStatus_ = "Chat file: " + file.getFileName();
+        if (button == &referenceFileButton_) referenceStatus_ = "Reference file: " + file.getFileName();
+        if (button == &compareFileButton_) compareStatus_ = "Compare file: " + file.getFileName();
+        repaint();
+      });
   }
   pushSettingsToProcessor();
   resized();
@@ -192,6 +230,7 @@ void AifredAudioProcessorEditor::pushSettingsToProcessor() {
   PluginSettings settings;
   settings.themeId = themeMenu_.getSelectedId();
   settings.layoutId = layoutMenu_.getSelectedId();
+  settings.genreId = genreMenu_.getSelectedId();
   settings.gate = gateSlider_.getValue();
   settings.apiEndpoint = apiEndpoint_.getText().trim();
   settings.apiKey = apiKey_.getText();
@@ -202,6 +241,7 @@ void AifredAudioProcessorEditor::paint(juce::Graphics& g) {
   auto bounds = getLocalBounds();
   const auto mode = processor_.getMode();
   auto accent = accentForTheme(themeMenu_.getSelectedId(), mode);
+  if (mode == AnalysisMode::Reference) accent = genreColour(genreMenu_.getSelectedId());
 
   g.fillAll(juce::Colour(0xff02060b));
   g.setGradientFill(juce::ColourGradient(juce::Colour(0xff07111d), 0, 0,
@@ -236,15 +276,19 @@ void AifredAudioProcessorEditor::paint(juce::Graphics& g) {
     drawCandles(g, left.reduced(0, 12), state_);
     drawHalo(g, center.reduced(0, 10), state_, mode == AnalysisMode::Reference ? "REFERENCE HALO" : "ANALYZE HALO", mode == AnalysisMode::Reference);
 
-    drawDomainCard(g, right.removeFromTop(96).reduced(0, 0), "TONE", state_.tone);
-    drawDomainCard(g, right.removeFromTop(96).reduced(0, 10), "WIDTH", state_.stereo);
-    drawDomainCard(g, right.removeFromTop(96).reduced(0, 10), "PUNCH", state_.dynamics);
-    drawDomainCard(g, right.removeFromTop(96).reduced(0, 10), "LOUDNESS", state_.loudness);
+    if (mode == AnalysisMode::Reference) {
+      drawReferenceMixer(g, right.removeFromTop(176).reduced(0, 0));
+    } else {
+      drawDomainCard(g, right.removeFromTop(76).reduced(0, 0), "TONE", state_.tone);
+      drawDomainCard(g, right.removeFromTop(76).reduced(0, 8), "WIDTH", state_.stereo);
+    }
+    drawDomainCard(g, right.removeFromTop(76).reduced(0, 8), "PUNCH", state_.dynamics);
+    drawDomainCard(g, right.removeFromTop(76).reduced(0, 8), "LOUDNESS", state_.loudness);
     drawChatPanel(g, right.reduced(0, 8));
   }
 
   if (showOptions_) {
-    auto panel = getLocalBounds().toFloat().withSizeKeepingCentre(520.0f, 300.0f);
+    auto panel = getLocalBounds().toFloat().withSizeKeepingCentre(560.0f, 420.0f);
     drawPanel(g, panel, 8.0f);
     auto inner = panel.toNearestInt().reduced(22);
     g.setFont(juce::FontOptions(22.0f, juce::Font::bold));
@@ -252,7 +296,7 @@ void AifredAudioProcessorEditor::paint(juce::Graphics& g) {
     g.drawText("PREFERENCES", inner.removeFromTop(34), juce::Justification::centredLeft);
     g.setFont(juce::FontOptions(14.0f));
     g.setColour(Colours::muted);
-    g.drawFittedText(apiStatus_ + "\nTheme, layout, and gate controls are live UI settings. Audio device, hardware buffer, GPU behavior, and plugin latency stay host-owned for FL Studio safety.\nGate is widened by default so the plugin reacts to perceptual changes, not tiny decimal drift.", inner.removeFromTop(120), juce::Justification::topLeft, 5);
+    g.drawFittedText(apiStatus_ + "\n" + juce::String(genreName(genreMenu_.getSelectedId())), inner.removeFromTop(64), juce::Justification::topLeft, 3);
   }
 
   if (showTutorial_ && !splashDismissedThisEditor_) {
@@ -268,7 +312,7 @@ void AifredAudioProcessorEditor::paint(juce::Graphics& g) {
     g.drawText("AIFRED START", inner.removeFromTop(36), juce::Justification::centredLeft);
     g.setFont(juce::FontOptions(14.0f));
     g.setColour(Colours::muted);
-    g.drawFittedText("Analyze: one live halo, candlestick loudness, and mix signature.\nReference: one halo with the PRO 25x6 target overlay.\nCompare: two independent halos for Mix A and Mix B sidechain routing.\nAsk AI turns the current measurements into the fix list. Options holds BYO API, theme, layout, and gate controls.\nPress TUTORIAL once to close the splash for this editor session.", inner, juce::Justification::topLeft, 8);
+    g.drawFittedText("Analyze: main input.\nReference: selected target plus reference file.\nCompare: Mix A and Mix B sidechain routing.\nFL Studio compare routing: put AIFRED on the master or a bus, enable the Mix B sidechain input in the wrapper, then route the reference track to that sidechain from the mixer send.", inner, juce::Justification::topLeft, 8);
   }
 }
 
@@ -286,26 +330,42 @@ void AifredAudioProcessorEditor::resized() {
   auto body = getLocalBounds().withTrimmedTop(88).reduced(18, 10);
   if (mode != AnalysisMode::Compare) {
     auto right = body.removeFromRight(juce::roundToInt(body.getWidth() * 0.28f)).reduced(0, 8);
-    right.removeFromTop(96);
-    right.removeFromTop(96);
-    right.removeFromTop(96);
-    right.removeFromTop(96);
+    if (mode == AnalysisMode::Reference) {
+      auto mixer = right.removeFromTop(176).reduced(16);
+      mixer.removeFromTop(30);
+      referenceFileButton_.setBounds(mixer.removeFromTop(34).reduced(0, 4));
+    }
+    else {
+      right.removeFromTop(76);
+      right.removeFromTop(76);
+      referenceFileButton_.setBounds({});
+    }
+    right.removeFromTop(76);
+    right.removeFromTop(76);
     auto chat = right.reduced(0, 8).reduced(16);
-    chat.removeFromTop(34);
-    chatInput_.setBounds(chat.removeFromTop(58));
-    askAiButton_.setBounds(chat.removeFromTop(34).reduced(0, 4));
+    chat.removeFromTop(30);
+    chatInput_.setBounds(chat.removeFromTop(82));
+    auto buttons = chat.removeFromTop(38);
+    chatFileButton_.setBounds(buttons.removeFromLeft(buttons.getWidth() / 2).reduced(0, 4));
+    askAiButton_.setBounds(buttons.reduced(6, 4));
     fixList_.setBounds(chat);
   } else {
     chatInput_.setBounds({});
     askAiButton_.setBounds({});
+    chatFileButton_.setBounds({});
+    referenceFileButton_.setBounds({});
     fixList_.setBounds({});
+    auto compareButtonArea = getLocalBounds().withTrimmedTop(104).removeFromRight(210).reduced(18, 0);
+    compareFileButton_.setBounds(compareButtonArea.removeFromTop(36));
   }
+  if (mode != AnalysisMode::Compare) compareFileButton_.setBounds({});
 
   if (showOptions_) {
-    auto panel = getLocalBounds().withSizeKeepingCentre(520, 300).reduced(22);
-    panel.removeFromTop(158);
+    auto panel = getLocalBounds().withSizeKeepingCentre(560, 420).reduced(22);
+    panel.removeFromTop(110);
     themeMenu_.setBounds(panel.removeFromTop(30));
     layoutMenu_.setBounds(panel.removeFromTop(34));
+    genreMenu_.setBounds(panel.removeFromTop(34));
     gateSlider_.setBounds(panel.removeFromTop(42));
     apiEndpoint_.setBounds(panel.removeFromTop(30));
     apiKey_.setBounds(panel.removeFromTop(30));
@@ -313,6 +373,7 @@ void AifredAudioProcessorEditor::resized() {
   } else {
     themeMenu_.setBounds({});
     layoutMenu_.setBounds({});
+    genreMenu_.setBounds({});
     gateSlider_.setBounds({});
     apiEndpoint_.setBounds({});
     apiKey_.setBounds({});
@@ -334,12 +395,12 @@ void AifredAudioProcessorEditor::drawHeader(juce::Graphics& g, juce::Rectangle<i
   g.drawText("AIFRED VST", text.removeFromTop(34), juce::Justification::centredLeft);
   g.setFont(juce::FontOptions(13.0f));
   g.setColour(Colours::green);
-  g.drawText("North3rnLight3r mix intelligence / local OpenAI + Ollama chat ready", text, juce::Justification::centredLeft);
+  g.drawText(juce::String(genreName(genreMenu_.getSelectedId())) + " / " + referenceStatus_, text, juce::Justification::centredLeft);
 
   auto info = bounds.removeFromRight(260).reduced(8, 13);
   g.setFont(juce::FontOptions(11.5f));
   g.setColour(Colours::muted);
-  g.drawFittedText("v" AIFRED_VERSION_STRING " / Tutorial appears once per editor session. Preferences save with the FL Studio project.", info, juce::Justification::centredRight, 3);
+  g.drawFittedText("v" AIFRED_VERSION_STRING, info, juce::Justification::centredRight, 1);
 }
 
 void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int> bounds, const HaloState& state, const char* title, bool referenceOverlay) {
@@ -347,17 +408,18 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
   auto area = bounds.reduced(28).toFloat();
   auto centre = area.getCentre();
   const auto radius = std::min(area.getWidth(), area.getHeight()) * 0.36f;
-  auto accent = accentForTheme(themeMenu_.getSelectedId(), processor_.getMode());
+  auto accent = referenceOverlay ? genreColour(genreMenu_.getSelectedId()) : accentForTheme(themeMenu_.getSelectedId(), processor_.getMode());
   const auto dynamicPulse = clamp01(0.28f * state.metrics.loudness01 + 0.26f * state.metrics.width01 + 0.20f * state.metrics.punch01 + 0.18f * (1.0f - std::abs(state.metrics.crestDb - 11.0f) / 18.0f));
-  const auto pulse = 0.78f + dynamicPulse * 0.18f + 0.035f * std::sin(static_cast<float>(juce::Time::getMillisecondCounterHiRes()) * 0.0065f);
+  const auto pulse = 0.82f + dynamicPulse * 0.14f;
 
-  g.setColour(accent.withAlpha(0.10f));
+  g.setColour(accent.withAlpha(referenceOverlay ? 0.18f : 0.10f));
   g.fillEllipse(centre.x - radius, centre.y - radius, radius * 2.0f, radius * 2.0f);
   g.setColour(accent.withAlpha(0.10f));
   g.drawEllipse(centre.x - radius * pulse, centre.y - radius * pulse, radius * 2.0f * pulse, radius * 2.0f * pulse, 3.0f + 3.0f * state.metrics.width01);
 
-  const std::array<float, 4> values {state.metrics.tone01, state.metrics.width01, state.metrics.punch01, state.metrics.loudness01};
+  const std::array<float, 4> values {state.metrics.punch01, state.metrics.tone01, state.metrics.loudness01, state.metrics.width01};
   const std::array<juce::Colour, 4> colours {Colours::cyan, Colours::green, Colours::yellow, Colours::violet};
+  const std::array<const char*, 4> labels {"Punch", "Tone", "Loudness", "Width"};
   for (int i = 0; i < 4; ++i) {
     const float start = -150.0f + i * 90.0f;
     juce::Path bg;
@@ -370,28 +432,48 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
                       juce::degreesToRadians(start), juce::degreesToRadians(start + 72.0f * clamp01(values[static_cast<size_t>(i)])), true);
     g.setColour(colours[static_cast<size_t>(i)].withAlpha(0.95f));
     g.strokePath(arc, juce::PathStrokeType(7.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    const auto labelAngle = juce::degreesToRadians(start + 36.0f);
+    const auto labelRadius = radius + 58.0f;
+    const auto labelCentre = juce::Point<float>(centre.x + std::cos(labelAngle) * labelRadius,
+                                                centre.y + std::sin(labelAngle) * labelRadius);
+    g.setFont(juce::FontOptions(13.0f, juce::Font::bold));
+    g.setColour(Colours::ink);
+    g.drawText(labels[static_cast<size_t>(i)], juce::Rectangle<float>(labelCentre.x - 42.0f, labelCentre.y - 11.0f, 84.0f, 22.0f).toNearestInt(), juce::Justification::centred);
   }
 
   if (referenceOverlay) {
     g.setColour(Colours::green.withAlpha(0.18f));
     g.drawEllipse(centre.x - radius * 0.82f, centre.y - radius * 0.82f, radius * 1.64f, radius * 1.64f, 2.0f);
     g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
-    g.drawText("PRO 25x6 TARGET OVERLAY", juce::Rectangle<float>(centre.x - 120.0f, centre.y + radius * 0.62f, 240.0f, 22.0f).toNearestInt(), juce::Justification::centred);
+    g.drawText(genreName(genreMenu_.getSelectedId()), juce::Rectangle<float>(centre.x - 120.0f, centre.y + radius * 0.72f, 240.0f, 22.0f).toNearestInt(), juce::Justification::centred);
   }
 
-  auto card = juce::Rectangle<float>(centre.x - 190.0f, centre.y - 78.0f, 380.0f, 156.0f);
-  drawPanel(g, card, 8.0f);
-  g.setFont(juce::FontOptions(15.0f, juce::Font::bold));
-  g.setColour(Colours::muted);
-  g.drawText(title, card.removeFromTop(28.0f), juce::Justification::centred);
-  g.setFont(juce::FontOptions(38.0f, juce::Font::bold));
+  drawHaloSpectrometer(g, juce::Rectangle<float>(centre.x - radius * 0.74f, centre.y - radius * 0.26f, radius * 1.48f, radius * 0.52f), state);
+  g.setFont(juce::FontOptions(14.0f, juce::Font::bold));
   g.setColour(colourForAlignment(state.totalAlignment01));
-  g.drawText(pct(state.totalAlignment01), card.removeFromTop(48.0f), juce::Justification::centred);
-  g.setFont(juce::FontOptions(15.0f));
-  g.setColour(Colours::ink);
-  g.drawText(dbText(state.metrics.rmsDb, "LUFS K") + "    " + dbText(state.metrics.peakDb, "dBFS"), card.removeFromTop(28.0f), juce::Justification::centred);
-  g.setColour(Colours::muted);
-  g.drawText("Tone " + juce::String(state.metrics.tone01, 2) + " / Width " + juce::String(state.metrics.width01, 2) + " / Corr HP150 " + juce::String(state.metrics.correlation, 2), card.toNearestInt(), juce::Justification::centred);
+  g.drawText(title, juce::Rectangle<float>(centre.x - 130.0f, centre.y - radius * 0.58f, 260.0f, 22.0f).toNearestInt(), juce::Justification::centred);
+}
+
+void AifredAudioProcessorEditor::drawHaloSpectrometer(juce::Graphics& g, juce::Rectangle<float> bounds, const HaloState& state) {
+  g.setColour(juce::Colour(0xff02060b).withAlpha(0.82f));
+  g.fillRoundedRectangle(bounds, 8.0f);
+  g.setColour(Colours::line.withAlpha(0.72f));
+  g.drawRoundedRectangle(bounds, 8.0f, 1.0f);
+
+  auto plot = bounds.reduced(10.0f, 8.0f);
+  const auto rows = static_cast<int>(state.metrics.spectrumBands.size());
+  const auto rowHeight = plot.getHeight() / static_cast<float>(rows);
+  for (int i = 0; i < rows; ++i) {
+    const auto value = clamp01(state.metrics.spectrumBands[static_cast<size_t>(i)]);
+    auto row = juce::Rectangle<float>(plot.getX(), plot.getY() + static_cast<float>(i) * rowHeight + 1.0f,
+                                      plot.getWidth(), std::max(2.0f, rowHeight - 2.0f));
+    g.setColour(Colours::line.withAlpha(0.24f));
+    g.fillRoundedRectangle(row, 3.0f);
+    auto fill = row.withWidth(std::max(2.0f, row.getWidth() * value));
+    const auto hue = i < 2 ? Colours::green : (i < 5 ? Colours::cyan : (i == 6 ? Colours::violet : Colours::yellow));
+    g.setColour(hue.withAlpha(0.82f));
+    g.fillRoundedRectangle(fill, 3.0f);
+  }
 }
 
 void AifredAudioProcessorEditor::drawDomainCard(juce::Graphics& g, juce::Rectangle<int> bounds, const char* name, const DomainAlignment& alignment) {
@@ -492,12 +574,39 @@ void AifredAudioProcessorEditor::drawChatPanel(juce::Graphics& g, juce::Rectangl
   auto inner = bounds.reduced(16);
   g.setFont(juce::FontOptions(18.0f, juce::Font::bold));
   g.setColour(Colours::ink);
-  g.drawText("CHAT OUTPUT", inner.removeFromTop(30), juce::Justification::centredLeft);
-  g.setFont(juce::FontOptions(12.5f));
-  g.setColour(Colours::muted);
-  g.drawFittedText("Ask AI writes the fix list from the current DSP frame. BYO API endpoint and key live in Options.", inner.removeFromTop(24), juce::Justification::topLeft, 2);
+  g.drawText("CHAT", inner.removeFromTop(30), juce::Justification::centredLeft);
+  g.setFont(juce::FontOptions(12.0f));
   g.setColour(Colours::green);
-  g.drawFittedText(apiStatus_, inner.removeFromBottom(34), juce::Justification::bottomLeft, 2);
+  g.drawFittedText(apiStatus_, inner.removeFromBottom(22), juce::Justification::bottomLeft, 1);
+}
+
+void AifredAudioProcessorEditor::drawReferenceMixer(juce::Graphics& g, juce::Rectangle<int> bounds) {
+  drawPanel(g, bounds.toFloat(), 8.0f);
+  auto inner = bounds.reduced(16);
+  g.setFont(juce::FontOptions(17.0f, juce::Font::bold));
+  g.setColour(Colours::ink);
+  g.drawText("REFERENCE MIXER", inner.removeFromTop(30), juce::Justification::centredLeft);
+  inner.removeFromTop(38);
+
+  const int lanes = 3;
+  const auto laneWidth = inner.getWidth() / lanes;
+  for (int lane = 0; lane < lanes; ++lane) {
+    auto strip = inner.removeFromLeft(laneWidth).reduced(5, 0).toFloat();
+    g.setColour(Colours::line.withAlpha(0.24f));
+    g.fillRoundedRectangle(strip, 6.0f);
+    auto fader = strip.reduced(8.0f, 10.0f);
+    g.setColour(Colours::muted.withAlpha(0.32f));
+    g.fillRoundedRectangle(fader.withWidth(5.0f).withCentre({strip.getCentreX(), fader.getCentreY()}), 2.5f);
+    const auto pos = fader.getBottom() - fader.getHeight() * (0.70f - lane * 0.12f);
+    g.setColour(genreColour(genreMenu_.getSelectedId()).withAlpha(0.9f));
+    g.fillRoundedRectangle(juce::Rectangle<float>(strip.getCentreX() - 18.0f, pos - 5.0f, 36.0f, 10.0f), 4.0f);
+    g.setFont(juce::FontOptions(9.5f, juce::Font::bold));
+    g.setColour(Colours::ink);
+    g.drawText(lane == 0 ? "REF" : (lane == 1 ? "MIX" : "DAW"), strip.toNearestInt().removeFromTop(18), juce::Justification::centred);
+  }
+  g.setFont(juce::FontOptions(11.0f));
+  g.setColour(Colours::muted);
+  g.drawFittedText(referenceStatus_, bounds.reduced(16).removeFromBottom(24), juce::Justification::centredLeft, 1);
 }
 
 void AifredAudioProcessorEditor::drawCompare(juce::Graphics& g, juce::Rectangle<int> bounds) {
@@ -630,21 +739,21 @@ void AifredAudioProcessorEditor::drawSpectrumMeter(juce::Graphics& g, juce::Rect
   g.drawText("SPECTROMETER", inner.removeFromTop(24), juce::Justification::centredLeft);
   auto plot = inner.reduced(0, 4).toFloat();
   const std::array<const char*, 8> labels {"40Hz", "90Hz", "180Hz", "400Hz", "1k", "3k", "8k", "SIDE"};
-  const auto barWidth = plot.getWidth() / static_cast<float>(labels.size());
+  const auto barHeight = plot.getHeight() / static_cast<float>(labels.size());
   for (size_t i = 0; i < labels.size(); ++i) {
     const auto value = clamp01(state.metrics.spectrumBands[i]);
-    auto slot = juce::Rectangle<float>(plot.getX() + static_cast<float>(i) * barWidth + 3.0f, plot.getY(), barWidth - 6.0f, plot.getHeight() - 18.0f);
+    auto row = juce::Rectangle<float>(plot.getX(), plot.getY() + static_cast<float>(i) * barHeight + 1.0f, plot.getWidth(), std::max(3.0f, barHeight - 2.0f));
+    auto label = row.removeFromLeft(42.0f);
+    auto slot = row.reduced(2.0f, 2.0f);
     g.setColour(Colours::line.withAlpha(0.42f));
     g.fillRoundedRectangle(slot, 4.0f);
-    auto fill = slot.withTrimmedTop(slot.getHeight() * (1.0f - value));
+    auto fill = slot.withWidth(std::max(2.0f, slot.getWidth() * value));
     const auto colour = i < 2 ? Colours::green : (i < 5 ? Colours::cyan : (i == 6 ? Colours::violet : Colours::yellow));
     g.setColour(colour.withAlpha(0.86f));
     g.fillRoundedRectangle(fill, 4.0f);
     g.setFont(juce::FontOptions(8.5f, juce::Font::bold));
     g.setColour(Colours::muted);
-    g.drawText(labels[i], juce::Rectangle<float>(slot.getX() - 2.0f, plot.getBottom() - 16.0f, slot.getWidth() + 4.0f, 14.0f).toNearestInt(), juce::Justification::centred);
-    g.setColour(Colours::ink.withAlpha(0.7f));
-    g.drawText(juce::String(value, 2), juce::Rectangle<float>(slot.getX() - 2.0f, slot.getY() + 3.0f, slot.getWidth() + 4.0f, 13.0f).toNearestInt(), juce::Justification::centred);
+    g.drawText(labels[i], label.toNearestInt(), juce::Justification::centredRight);
   }
 }
 

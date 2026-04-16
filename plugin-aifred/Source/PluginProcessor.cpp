@@ -52,6 +52,7 @@ void AifredAudioProcessor::getStateInformation(juce::MemoryBlock& destData) {
   state.setAttribute("mode", mode_.load());
   state.setAttribute("theme", settings_.themeId);
   state.setAttribute("layout", settings_.layoutId);
+  state.setAttribute("genre", settings_.genreId);
   state.setAttribute("gate", settings_.gate);
   state.setAttribute("apiEndpoint", settings_.apiEndpoint);
   state.setAttribute("apiKey", settings_.apiKey);
@@ -64,6 +65,7 @@ void AifredAudioProcessor::setStateInformation(const void* data, int sizeInBytes
   mode_.store(juce::jlimit(0, 2, state->getIntAttribute("mode", static_cast<int>(AnalysisMode::Analyze))));
   settings_.themeId = juce::jlimit(1, 3, state->getIntAttribute("theme", settings_.themeId));
   settings_.layoutId = juce::jlimit(1, 3, state->getIntAttribute("layout", settings_.layoutId));
+  settings_.genreId = juce::jlimit(1, 6, state->getIntAttribute("genre", settings_.genreId));
   settings_.gate = juce::jlimit(0.0, 1.0, state->getDoubleAttribute("gate", settings_.gate));
   settings_.apiEndpoint = state->getStringAttribute("apiEndpoint", settings_.apiEndpoint).substring(0, 256);
   settings_.apiKey = state->getStringAttribute("apiKey", settings_.apiKey).substring(0, 256);
@@ -96,6 +98,7 @@ PluginSettings AifredAudioProcessor::getPluginSettings() const {
 void AifredAudioProcessor::setPluginSettings(const PluginSettings& settings) {
   settings_.themeId = juce::jlimit(1, 3, settings.themeId);
   settings_.layoutId = juce::jlimit(1, 3, settings.layoutId);
+  settings_.genreId = juce::jlimit(1, 6, settings.genreId);
   settings_.gate = juce::jlimit(0.0, 1.0, settings.gate);
   settings_.apiEndpoint = settings.apiEndpoint.substring(0, 256);
   settings_.apiKey = settings.apiKey.substring(0, 256);

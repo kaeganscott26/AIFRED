@@ -94,8 +94,8 @@ function proGate(metrics) {
   const checks = [
     {
       id: "integrated_lufs",
-      score: bandScore(metrics.integrated_lufs, -14.0, -9.0, -20.0, -5.5),
-      target: "Loudness pro center: -14 to -9 LUFS; acceptable review lane: -20 to -5.5 LUFS"
+      score: bandScore(metrics.integrated_lufs, -16.0, -7.0, -24.0, -3.0),
+      target: "Loudness review lane: -24 to -3 LUFS"
     },
     {
       id: "peak_dbfs",
@@ -104,13 +104,13 @@ function proGate(metrics) {
     },
     {
       id: "tone_balance",
-      score: bandScore(metrics.tone_balance, 42, 100, 18, 100),
-      target: "Tone balance: accepts genre-shaped records; rejects only clearly hollow or broken ranges"
+      score: bandScore(metrics.tone_balance, 30, 100, 8, 100),
+      target: "Tone balance: rejects only broken ranges"
     },
     {
       id: "crest_factor_db",
-      score: bandScore(metrics.crest_factor_db, 4.0, 17.5, 1.5, 24.0),
-      target: "Dynamics: wide crest range; small differences like 10.4 to 7.3 are not rejected"
+      score: bandScore(metrics.crest_factor_db, 2.0, 22.0, 0.5, 28.0),
+      target: "Dynamics: wide crest range"
     },
     {
       id: "stereo_width",
@@ -119,13 +119,13 @@ function proGate(metrics) {
     },
     {
       id: "low_end_control",
-      score: floorScore(metrics.low_end_control, 30, 8),
-      target: "Low-end control: reject only severe mud, not normal genre weight"
+      score: floorScore(metrics.low_end_control, 18, 3),
+      target: "Low-end control: reject only severe mud"
     },
     {
       id: "harshness_control",
-      score: floorScore(metrics.harshness_control, 28, 8),
-      target: "Harshness control: reject only clearly painful upper-mid balance"
+      score: floorScore(metrics.harshness_control, 16, 3),
+      target: "Harshness control: reject only severe upper-mid failure"
     }
   ];
   const weights = {
@@ -139,12 +139,12 @@ function proGate(metrics) {
   };
   const score = Math.round(checks.reduce((sum, check) => sum + check.score * (weights[check.id] || 0), 0));
   const clipping = metrics.peak_dbfs > 0.05;
-  const proLoudnessLane = metrics.integrated_lufs >= -15.5 && metrics.integrated_lufs <= -7.0;
+  const proLoudnessLane = metrics.integrated_lufs >= -24.0 && metrics.integrated_lufs <= -3.0;
   const proPeakLane = metrics.peak_dbfs <= 0.0;
-  const noSevereToneFailure = metrics.tone_balance >= 18 && metrics.low_end_control >= 8 && metrics.harshness_control >= 8;
+  const noSevereToneFailure = metrics.tone_balance >= 8 && metrics.low_end_control >= 3 && metrics.harshness_control >= 3;
   const essentialPass = proLoudnessLane && proPeakLane && noSevereToneFailure;
   return {
-    accepted: !clipping && (score >= 42 || essentialPass),
+    accepted: !clipping && (score >= 30 || essentialPass),
     score,
     checks: checks.map((check) => ({ id: check.id, ok: check.score >= 20, score: check.score, target: check.target }))
   };
@@ -206,14 +206,19 @@ function contentPayload() {
     ],
     services: [
       {
-        title: "Mix Diagnostic Pass",
-        description: "Tone, width, headroom, punch, and next-step notes in the AIFRED diagnostic language.",
-        price: "$49"
+        title: "Mixing and Mastering",
+        description: "Pay for Quality not Time.",
+        price: "$99"
       },
       {
-        title: "Reference Match Notes",
-        description: "A target-aware comparison for producers who need a clear adjustment path.",
-        price: "$79"
+        title: "Beat liscenscing",
+        description: "All liscences are non-exclusive unless otherwise written in writing.",
+        price: "$19.99"
+      },
+      {
+        title: "VST Sales",
+        description: "AIFRED VST3 plugin.",
+        price: "$149.99"
       }
     ]
   };

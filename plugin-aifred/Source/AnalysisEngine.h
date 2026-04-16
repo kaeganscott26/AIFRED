@@ -57,7 +57,7 @@ private:
   std::array<CandleFrame, 10> sessionCandles_ {};
   std::array<CandleFrame, 10> minuteCandles_ {};
   double sampleRate_ = 44100.0;
-  float smoothing_ = 0.92f;
+  float smoothing_ = 0.965f;
   double sessionWindowSamples_ = 0.0;
   double minuteWindowSamples_ = 0.0;
   int sessionCandleWrite_ = 0;

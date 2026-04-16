@@ -31,18 +31,21 @@ AIFRED converts live audio behavior into a compact release-readiness view:
 
 The VST separates **Analyze**, **Reference**, and **Compare** into distinct surfaces. Analyze focuses on the current mix signature and candlestick metering. Reference uses one Halo with a target overlay. Compare uses two independent Halo routes for Mix A and Mix B.
 
-Current v0.3.2 metering surface:
+Current v0.3.3 metering surface:
 
-- Dark neon blue contrast theme with cyan, green, and violet meter accents
+- Distinct cyan, gold, and redline theme options
 - 10-stick session candlestick meter and 10-minute history meter
-- Spectrometer with labeled frequency lanes
+- Horizontal spectrometer with labeled frequency lanes
 - Correlation meter filtered above 150 Hz so bass energy does not distort the phase read
+- Halo quadrant labels for Punch, Tone, Loudness, and Width
+- Center Halo spectrometer matching the website visualizer direction
 - Compare-mode analog-style match VU between the two Halos
-- Chat input with Ask AI output routed into the fix list
-- Options for theme, layout focus, reference gate sensitivity, and BYO OpenAI/Ollama endpoint setup
+- Dedicated chat module without predetermined fix suggestions
+- Options for theme, layout focus, genre target, reference gate sensitivity, and BYO OpenAI/Ollama endpoint setup
+- Reference mode with genre target color, file picker, and reference mixer lanes
 - K-weighted loudness readout using a BS.1770-style high-pass plus high-shelf path
 - Version text in the plugin header so FL Studio cache/install state is visible
-- Theme, layout, gate, and BYO API fields save into the host project state
+- Theme, layout, genre, gate, and BYO API fields save into the host project state
 
 ## Repository Map
 

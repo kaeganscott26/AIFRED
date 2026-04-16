@@ -1,7 +1,8 @@
 const config = window.AIFRED_CONFIG || {};
 const API_BASE = String(config.apiBase || window.location.origin || "").replace(/\/+$/, "");
 const CONTACT_EMAIL = String(config.contactEmail || "north3rnlight3rofficial@outlook.com").trim();
-const DEFAULT_ART = "assets/brand/aifred-mascot.jpg";
+const DEFAULT_ART = "assets/showcase/album-art-02.jpg";
+const CATALOG_ART = ["assets/showcase/album-art-02.jpg", "assets/brand/aifred-mascot.jpg"];
 const RELEASE_URL = String(config.releaseUrl || "https://github.com/kaeganscott26/AIFRED/releases/latest").trim();
 const DOWNLOAD_URLS = config.downloadUrls || {};
 const PRODUCT_PRICE = String(config.productPrice || "$149.99").trim();
@@ -36,7 +37,7 @@ const analysisResult = document.getElementById("analysis-result");
 
 let tracks = [];
 let currentAnalysis = null;
-let catalogOpen = true;
+let catalogOpen = false;
 let audioContext = null;
 let audioAnalyser = null;
 let audioSource = null;
@@ -102,7 +103,7 @@ function renderCatalog() {
     const card = document.createElement("article");
     card.className = "catalog-card";
     card.innerHTML = `
-      <img src="${track.artwork_url || DEFAULT_ART}" alt="${title} artwork" loading="lazy" />
+      <img src="${CATALOG_ART[index % CATALOG_ART.length] || DEFAULT_ART}" alt="${title} artwork" loading="lazy" />
       <h3>${title}</h3>
       <p>${bpm} · ${genre} · ${price}</p>
       <div class="card-actions">
@@ -134,9 +135,9 @@ function setCatalogOpen(open) {
 
 function renderServices() {
   const services = [
-    ["Mix Diagnostic Pass", "A focused read on tone, width, headroom, punch, and the next move before mastering.", "$49"],
-    ["Reference Match Notes", "AIFRED-style notes against a target track so you know what to adjust and what to leave alone.", "$79"],
-    ["Release Readiness Check", "A final translation pass for artists who need a clean decision before upload.", "$99"]
+    ["Mixing and Mastering", "Pay for Quality not Time.", "$99"],
+    ["Beat liscenscing", "All liscences are non-exclusive unless otherwise written in writing.", "$19.99"],
+    ["VST Sales", "AIFRED VST3 plugin.", PRODUCT_PRICE]
   ];
   serviceList.innerHTML = services.map(([name, description, price]) => `
     <article>
@@ -167,7 +168,7 @@ async function askAifred(message) {
           model,
           stream: false,
           messages: [
-            { role: "system", content: "You are AIFRED for North3rnLight3r. Return concise mix decisions and a fix list." },
+            { role: "system", content: "You are AIFRED for North3rnLight3r. Answer directly." },
             { role: "user", content: message }
           ]
         })
@@ -185,7 +186,7 @@ async function askAifred(message) {
         body: JSON.stringify({
           model,
           input: [
-            { role: "system", content: "You are AIFRED for North3rnLight3r. Return concise mix decisions and a fix list." },
+            { role: "system", content: "You are AIFRED for North3rnLight3r. Answer directly." },
             { role: "user", content: message }
           ]
         })

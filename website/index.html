@@ -35,7 +35,7 @@
           <h1>AIFRED listens for the move your mix is asking you to make.</h1>
           <p>
             Built by North3rnLight3r for producers who need a clean read: tone, stereo, loudness,
-            dynamics, reference alignment, and a ranked fix list in one VST3 window.
+            dynamics, and reference alignment in one VST3 window.
           </p>
           <div class="actions">
             <a class="btn" href="#vst">View the VST</a>
@@ -43,7 +43,7 @@
           </div>
         </div>
         <div class="hero-art">
-          <img src="assets/showcase/banner-01.jpg" alt="North3rnLight3r catalog banner art" />
+          <img src="assets/showcase/album-art-02.jpg" alt="North3rnLight3r album artwork" />
         </div>
       </section>
 
@@ -57,7 +57,7 @@
           </p>
         </div>
         <div class="feature-grid">
-          <article><strong>Analyze</strong><span>Live mix signature, Halo score, and ranked fixes.</span></article>
+          <article><strong>Analyze</strong><span>Live mix signature and Halo score.</span></article>
           <article><strong>Reference</strong><span>Target-aware comparison without punishing mono-safe low end.</span></article>
           <article><strong>Compare</strong><span>Mix A vs Mix B deltas for level, width, tone, and punch.</span></article>
           <article><strong>FL Studio First</strong><span>Windows VST3 build target for FL Studio scanning before wider release.</span></article>
@@ -70,29 +70,6 @@
             <a class="btn ghost" id="aifred-release-button" target="_blank" rel="noreferrer">Release builds</a>
           </div>
           <div class="download-strip" id="aifred-downloads" aria-label="AIFRED release downloads"></div>
-        </div>
-      </section>
-
-      <section class="showcase-band" aria-label="AIFRED visual direction">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">AIFRED visual system</p>
-            <h2>Aurora meters, mascot identity, and North3rnLight3r catalog energy.</h2>
-            <p>
-              The plugin and storefront share the same neon language: halo motion, reference signatures,
-              catalog art, and smooth meter contrast that reads fast in a real session.
-            </p>
-          </div>
-        </div>
-        <div class="showcase-grid">
-          <img src="assets/showcase/banner-02.jpg" alt="North3rnLight3r banner art" />
-          <img src="assets/showcase/banner-03.jpg" alt="North3rnLight3r banner art" />
-          <img src="assets/showcase/banner-04.jpg" alt="North3rnLight3r banner art" />
-          <img src="assets/showcase/banner-05.jpg" alt="North3rnLight3r banner art" />
-          <img src="assets/showcase/banner-07.jpg" alt="North3rnLight3r banner art" />
-          <img src="assets/showcase/banner-08.jpg" alt="North3rnLight3r banner art" />
-          <img src="assets/showcase/album-art-02.jpg" alt="North3rnLight3r album artwork" />
-          <img src="assets/showcase/banner-01.jpg" alt="North3rnLight3r banner art" />
         </div>
       </section>
 
@@ -132,10 +109,9 @@
           <div>
             <p class="eyebrow">North3rnLight3r Beat Catalog</p>
             <h2>Preview the catalog. License the record-ready ideas.</h2>
-            <p>The player uses the audio already packaged with this site. No dead buttons, no ghost catalog.</p>
           </div>
           <div class="catalog-controls">
-            <button class="btn ghost" id="catalog-toggle" type="button" aria-expanded="true" aria-controls="catalog-list">Hide catalog</button>
+            <button class="btn ghost" id="catalog-toggle" type="button" aria-expanded="false" aria-controls="catalog-list">Show catalog</button>
             <button class="btn ghost" id="catalog-refresh" type="button">Refresh catalog</button>
           </div>
         </div>
@@ -147,17 +123,13 @@
           </div>
           <audio id="audio-player" controls controlsList="nodownload noplaybackrate" preload="metadata"></audio>
         </div>
-        <div id="catalog-list" class="catalog-grid" aria-live="polite"></div>
+        <div id="catalog-list" class="catalog-grid" aria-live="polite" hidden></div>
       </section>
 
       <section id="services" class="split">
         <div>
-          <p class="eyebrow">Mix intelligence services</p>
-          <h2>Bring the same diagnostic language into your release decisions.</h2>
-          <p>
-            Book focused feedback for tone balance, stereo translation, low-end cleanup, vocal placement,
-            and pre-master readiness. The goal is not more notes. The goal is the next correct move.
-          </p>
+          <p class="eyebrow">Services</p>
+          <h2>Mixing and Mastering. Beat licensing. VST sales.</h2>
         </div>
         <div id="service-list" class="feature-grid"></div>
       </section>
