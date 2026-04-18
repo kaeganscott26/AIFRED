@@ -4,6 +4,7 @@
 
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <array>
+#include <vector>
 
 namespace aifred {
 
@@ -17,7 +18,12 @@ public:
 private:
   struct FeatureFrame {
     float rmsDb = -90.0f;
+    float momentaryLufs = -90.0f;
+    float shortTermLufs = -90.0f;
+    float integratedLufs = -90.0f;
+    float loudnessRange = 0.0f;
     float peakDb = -90.0f;
+    float truePeakDb = -90.0f;
     float crestDb = 0.0f;
     float stereoWidth = 0.0f;
     float correlation = 1.0f;
@@ -60,6 +66,14 @@ private:
   float smoothing_ = 0.965f;
   double sessionWindowSamples_ = 0.0;
   double minuteWindowSamples_ = 0.0;
+  double integratedWeightedSquares_ = 0.0;
+  double integratedSamples_ = 0.0;
+  double momentaryWeightedSquares_ = 0.0;
+  double momentarySamples_ = 0.0;
+  double shortTermWeightedSquares_ = 0.0;
+  double shortTermSamples_ = 0.0;
+  float previousTruePeakLeft_ = 0.0f;
+  float previousTruePeakRight_ = 0.0f;
   int sessionCandleWrite_ = 0;
   int minuteCandleWrite_ = 0;
   int sessionCandleCount_ = 0;
@@ -72,9 +86,17 @@ private:
   BiquadState kHighPassRight_;
   BiquadState kShelfLeft_;
   BiquadState kShelfRight_;
+  std::vector<std::pair<double, double>> momentaryWindows_;
+  std::vector<std::pair<double, double>> shortTermWindows_;
+  std::array<float, 64> shortTermHistory_ {};
+  int shortTermHistoryWrite_ = 0;
+  int shortTermHistoryCount_ = 0;
 
   static float linearToDb(float value);
+  static float squareMeanToLufs(double weightedSquares, double samples);
   void configureKWeighting();
+  void pushLoudnessWindow(std::vector<std::pair<double, double>>& windows, double squares, double samples, double maxSamples);
+  static float loudnessRangeFromHistory(const std::array<float, 64>& history, int count);
   static float deviationOutsideCorridor(float value, float target, float tolerance, float criticalRange);
   static DomainAlignment makeDomain(float error01, float primary, float secondary, std::string summary, float confidenceSeed);
   void updateCandle(CandleFrame& candle, float value);

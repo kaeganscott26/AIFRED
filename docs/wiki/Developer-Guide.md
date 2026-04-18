@@ -9,20 +9,9 @@ Windows:
 - Ninja or Visual Studio generator
 - .NET SDK 10
 - Java 17
-- Android SDK command-line tools and platform tools
+- Android SDK command-line tools and platform tools for local phone install testing
 - Node.js 22+
-- Wrangler 4+
-
-macOS CI:
-
-- GitHub-hosted macOS runner
-- CMake
-- Apple toolchain
-
-Arch Linux CI:
-
-- `archlinux:latest` container
-- `base-devel`, `cmake`, `ninja`, `alsa-lib`, `curl`, `freetype2`, X11 libraries, Mesa, WebKitGTK
+- Wrangler 4+ through `npx wrangler`
 
 ## Local VST Build
 
@@ -53,17 +42,33 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-aifred.ps1 -Bu
 dotnet publish tools\AifredWindowsInstaller\AifredWindowsInstaller.csproj -c Release -o dist\installer\windows
 ```
 
-Install current user:
+Install:
 
 ```powershell
 .\dist\installer\windows\AIFRED-VST3-Setup.exe
 ```
 
-Install system-wide:
+The installer requests administrator elevation and installs:
+
+- `C:\Program Files\Common Files\VST3\Aifred.vst3`
+- `C:\Program Files\Aifred\bin\AifredEngine.exe`
+- `C:\Program Files\Aifred\config\config.json`
+- `C:\Program Files\Aifred\models\`
+- `C:\Program Files\Aifred\logs\`
+
+The installer registers the engine under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, starts it silently, and validates `GET http://127.0.0.1:8787/health`.
+
+## AIFRED Engine
+
+Local development:
 
 ```powershell
-.\dist\installer\windows\AIFRED-VST3-Setup.exe --system
+dotnet publish tools\AifredEngine\AifredEngine.csproj -c Release -o dist\engine\windows
+Start-Process dist\engine\windows\AifredEngine.exe -WindowStyle Hidden
+Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8787/health
 ```
+
+The engine must never be called from the audio thread. The plugin pings health from UI/background-safe code and keeps deterministic analysis active when the engine is unavailable.
 
 ## Android Admin Build
 
@@ -95,9 +100,7 @@ The `.pages.dev` URL is only a Cloudflare preview/deployment endpoint.
 
 The workflow validates:
 
-- Windows VST3 build and `.exe` package
-- macOS VST3 build and zip
-- Arch Linux VST3 build and tarball
+- Windows VST3 build, AIFRED engine publish, and `.exe` package
 - Android admin compile
 - Website JavaScript syntax
 - Hardcoded path guard

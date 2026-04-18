@@ -1,6 +1,6 @@
 # Admin App Guide
 
-The Android admin app is private owner-only software. It is not published in the GitHub release and is not distributed publicly.
+The Android admin app is private owner-only software. It is not shipped with the public AIFRED Windows installer.
 
 ## Install
 
@@ -17,6 +17,15 @@ Install over ADB:
 $adb=Join-Path $env:LOCALAPPDATA 'Android\Sdk\platform-tools\adb.exe'
 & $adb install -r android_admin\app\build\outputs\apk\debug\app-debug.apk
 ```
+
+After the repository split, the private `aifred-admin` repo should publish a private GitHub release artifact for owner download. Installing an APK directly from GitHub on Android still requires Android's normal "install unknown apps" permission unless the app is distributed through Google Play Internal Testing or another managed app store. There is no honest way to install a private APK from GitHub without Android treating it as a sideload.
+
+Required private admin release behavior:
+
+- CI builds `app-debug.apk` or a signed owner APK.
+- The artifact is attached only to a private `aifred-admin` release.
+- The public plugin release never includes the admin APK.
+- The app clearly reports whether analytics, sales storage, deploy control, and upload control are configured.
 
 ## Login
 

@@ -246,9 +246,7 @@ function renderReleaseActions() {
   aifredReleaseButton.href = RELEASE_URL;
   if (!aifredDownloads) return;
   const downloads = [
-    ["Windows .exe", DOWNLOAD_URLS.windows || `${RELEASE_URL}/download/AIFRED-VST3-Setup.exe`],
-    ["macOS VST3", DOWNLOAD_URLS.macos || `${RELEASE_URL}/download/AIFRED-VST3-macOS.zip`],
-    ["Arch Linux", DOWNLOAD_URLS.arch || `${RELEASE_URL}/download/AIFRED-VST3-Arch.tar.gz`]
+    ["Windows installer", DOWNLOAD_URLS.windows || `${RELEASE_URL}/download/AIFRED-VST3-Setup.exe`]
   ];
   aifredDownloads.innerHTML = downloads.map(([label, url]) => (
     `<a href="${url}" target="_blank" rel="noreferrer">${label}</a>`
@@ -486,8 +484,13 @@ async function submitAnalysisGate() {
     const payload = await response.json();
     if (!response.ok || !payload.ok) throw new Error(payload.error || "gate failed");
     const lines = [
-      payload.accepted ? "PASSED: metadata accepted for the AIFRED reference pool." : "NOT PASSED: metadata disposed.",
-      `Score: ${payload.score}/100`,
+      `${payload.classification || (payload.accepted ? "Usable Reference" : "Reject")}: ${payload.accepted ? "metadata can enter the reference workflow." : "metadata will not be used as a reference."}`,
+      `Reference utility: ${payload.reference_utility ?? payload.score}/100`,
+      `Technical caution: ${payload.technical_caution ?? "N/A"}/100`,
+      `Style tag: ${payload.style_tag || "unclassified"}`,
+      `Best use: ${payload.best_use || "No use assigned."}`,
+      `Caution: ${payload.caution || "No caution returned."}`,
+      `Why: ${payload.why || "No explanation returned."}`,
       `Persistence: ${payload.persistence}`,
       ...payload.checks.map((check) => `${check.ok ? "PASS" : "WATCH"} ${check.score}/100 ${check.target}`)
     ];

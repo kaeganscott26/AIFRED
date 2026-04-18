@@ -83,7 +83,8 @@ Metering notes:
 - Correlation reads as a -1 to +1 value after a 150 Hz high-pass so bass energy does not dominate the phase read.
 - Chat has its own dedicated module and no hardcoded fix suggestions.
 - The plugin header displays the current AIFRED version so stale FL Studio scans are easier to spot.
-- Theme, layout, gate, API endpoint, and API key fields save into the FL Studio project state.
+- Theme, layout, gate, and local AI settings save into project/local settings.
+- The local AIFRED engine runs at `http://127.0.0.1:8787` after installation. If the engine is unavailable, the plugin continues metering and shows `AI engine unavailable - core analysis still active`.
 
 ## Install Paths
 
@@ -91,14 +92,14 @@ Windows system-wide VST3:
 
 `C:\Program Files\Common Files\VST3\Aifred.vst3`
 
-Windows current-user VST3:
+Windows engine:
 
-`%LOCALAPPDATA%\Programs\Common\VST3\Aifred.vst3`
+`C:\Program Files\Aifred\bin\AifredEngine.exe`
 
-macOS user VST3:
+Windows model:
 
-`~/Library/Audio/Plug-Ins/VST3/Aifred.vst3`
+`C:\Program Files\Aifred\models\aifred-assistant-q4.gguf`
 
-Arch Linux user VST3:
+Windows user overrides:
 
-`~/.vst3/Aifred.vst3`
+`%AppData%\Aifred\user_settings.json`

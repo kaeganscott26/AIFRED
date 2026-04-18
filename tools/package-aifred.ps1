@@ -29,15 +29,32 @@ if (Test-Path -LiteralPath $packagePath) {
 New-Item -ItemType Directory -Force -Path $packagePath | Out-Null
 Copy-Item -LiteralPath $plugin.FullName -Destination (Join-Path $packagePath "Aifred.vst3") -Recurse -Force
 
-@(
-  '$ErrorActionPreference = "Stop"',
-  '$source = Join-Path $PSScriptRoot "Aifred.vst3"',
-  '$target = Join-Path $env:LOCALAPPDATA "Programs\Common\VST3\Aifred.vst3"',
-  'New-Item -ItemType Directory -Force -Path (Split-Path $target) | Out-Null',
-  'if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }',
-  'Copy-Item -Recurse -Force -LiteralPath $source -Destination $target',
-  'Write-Host "AIFRED installed to $target. Rescan plugins in FL Studio."'
-) | Set-Content (Join-Path $packagePath "install-aifred.ps1")
+$engineOut = Join-Path $distPath "engine\windows"
+& dotnet publish (Join-Path $repoRoot "tools\AifredEngine\AifredEngine.csproj") -c Release -o $engineOut
+if ($LASTEXITCODE -ne 0) {
+  throw "AifredEngine publish failed."
+}
+$productRoot = Join-Path $packagePath "Aifred"
+New-Item -ItemType Directory -Force -Path (Join-Path $productRoot "bin") | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $productRoot "config") | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $productRoot "logs") | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $productRoot "models") | Out-Null
+Copy-Item -LiteralPath (Join-Path $engineOut "AifredEngine.exe") -Destination (Join-Path $productRoot "bin\AifredEngine.exe") -Force
+@'
+{
+  "mode": "local",
+  "port": 8787,
+  "provider": "bundled-local",
+  "model_path": "C:\\Program Files\\Aifred\\models\\aifred-assistant-q4.gguf",
+  "openai_api_key": "",
+  "custom_endpoint": "",
+  "timeout_ms": 8000
+}
+'@ | Set-Content -Encoding UTF8 (Join-Path $productRoot "config\config.json")
+@'
+Place the licensed bundled AIFRED GGUF model here as aifred-assistant-q4.gguf before producing a public installer.
+The engine falls back to deterministic rule-based coaching when the model is unavailable.
+'@ | Set-Content -Encoding UTF8 (Join-Path $productRoot "models\README.txt")
 
 Compress-Archive -Path (Join-Path $packagePath "*") -DestinationPath $zipPath
 Write-Host "Packaged $packagePath -> $zipPath"

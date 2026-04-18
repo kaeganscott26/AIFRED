@@ -125,8 +125,10 @@ AifredAudioProcessorEditor::AifredAudioProcessorEditor(AifredAudioProcessor& pro
   apiEndpoint_.setTextToShowWhenEmpty("http://127.0.0.1:11434 or https://api.openai.com/v1", Colours::muted);
   apiKey_.setPasswordCharacter('*');
   apiKey_.setTextToShowWhenEmpty("OpenAI key or local proxy token", Colours::muted);
+  aiModel_.setTextToShowWhenEmpty("gpt-5.4-mini, llama3.1, or compatible model", Colours::muted);
   addAndMakeVisible(apiEndpoint_);
   addAndMakeVisible(apiKey_);
+  addAndMakeVisible(aiModel_);
 
   fixList_.setText(fixListText_, juce::dontSendNotification);
   fixList_.setColour(juce::Label::textColourId, Colours::ink);
@@ -136,6 +138,9 @@ AifredAudioProcessorEditor::AifredAudioProcessorEditor(AifredAudioProcessor& pro
   themeMenu_.addItem("Neon Cyan", 1);
   themeMenu_.addItem("Gold Meter", 2);
   themeMenu_.addItem("Redline", 3);
+  providerMenu_.addItem("OpenAI", 1);
+  providerMenu_.addItem("OpenAI-compatible", 2);
+  providerMenu_.addItem("Ollama / Local", 3);
   layoutMenu_.addItem("Studio Wide", 1);
   layoutMenu_.addItem("Compact Metering", 2);
   layoutMenu_.addItem("Chat Focus", 3);
@@ -147,6 +152,7 @@ AifredAudioProcessorEditor::AifredAudioProcessorEditor(AifredAudioProcessor& pro
   genreMenu_.addItem("Same Genre", 6);
   gateSlider_.setRange(0.0, 1.0, 0.01);
   gateSlider_.setTextValueSuffix(" gate");
+  addAndMakeVisible(providerMenu_);
   addAndMakeVisible(themeMenu_);
   addAndMakeVisible(layoutMenu_);
   addAndMakeVisible(genreMenu_);
@@ -156,14 +162,17 @@ AifredAudioProcessorEditor::AifredAudioProcessorEditor(AifredAudioProcessor& pro
   themeMenu_.setSelectedId(settings.themeId);
   layoutMenu_.setSelectedId(settings.layoutId);
   genreMenu_.setSelectedId(settings.genreId);
+  providerMenu_.setSelectedId(settings.aiProvider == "ollama" ? 3 : (settings.aiProvider == "compatible" ? 2 : 1));
   gateSlider_.setValue(settings.gate, juce::dontSendNotification);
   apiEndpoint_.setText(settings.apiEndpoint, juce::dontSendNotification);
   apiKey_.setText(settings.apiKey, juce::dontSendNotification);
+  aiModel_.setText(settings.aiModel, juce::dontSendNotification);
 
   setResizable(true, true);
   setResizeLimits(980, 620, 1700, 1040);
   setSize(1280, 760);
-  showTutorial_ = !gTutorialShownThisSession;
+  showTutorial_ = !processor_.isSessionInitialized() && !gTutorialShownThisSession;
+  AifredEngineClient::instance().pingHealthAsync();
   startTimerHz(30);
 }
 
@@ -187,6 +196,7 @@ void AifredAudioProcessorEditor::buttonClicked(juce::Button* button) {
       showTutorial_ = false;
       splashDismissedThisEditor_ = true;
       gTutorialShownThisSession = true;
+      processor_.markSessionInitialized();
     } else {
       showTutorial_ = true;
       splashDismissedThisEditor_ = false;
@@ -194,7 +204,13 @@ void AifredAudioProcessorEditor::buttonClicked(juce::Button* button) {
   }
   if (button == &askAiButton_) {
     const auto prompt = chatInput_.getText().trim();
-    fixListText_ = prompt.isNotEmpty() ? prompt : "Chat input is empty.";
+    diagnostic_ = DiagnosticInterpreter::instance().update(state_, providerMenu_.getText(), apiEndpoint_.getText(), apiKey_.getText(), aiModel_.getText());
+    if (!AifredEngineClient::instance().isAvailable()) {
+      fixListText_ = "AI engine unavailable - core analysis still active.\n" + diagnostic_.fixList;
+    } else {
+      fixListText_ = (prompt.isNotEmpty() ? "AI context prepared for: " + prompt : "AI context prepared from current DSP state.")
+        + "\n\n" + diagnostic_.aiContextJson;
+    }
     if (chatFileStatus_ != "No chat file selected.") fixListText_ += "\n" + chatFileStatus_;
     fixList_.setText(fixListText_, juce::dontSendNotification);
   }
@@ -220,9 +236,15 @@ void AifredAudioProcessorEditor::buttonClicked(juce::Button* button) {
 }
 
 void AifredAudioProcessorEditor::timerCallback() {
-  pushSettingsToProcessor();
   state_ = processor_.getHaloState();
   compareState_ = processor_.getCompareHaloState();
+  diagnostic_ = DiagnosticInterpreter::instance().update(state_, providerMenu_.getText(), apiEndpoint_.getText(), apiKey_.getText(), aiModel_.getText());
+  if (juce::Time::getMillisecondCounter() % 3000 < 40) {
+    AifredEngineClient::instance().pingHealthAsync();
+  }
+  if (!chatInput_.hasKeyboardFocus(true)) {
+    fixList_.setText(diagnostic_.fixList, juce::dontSendNotification);
+  }
   repaint();
 }
 
@@ -232,8 +254,10 @@ void AifredAudioProcessorEditor::pushSettingsToProcessor() {
   settings.layoutId = layoutMenu_.getSelectedId();
   settings.genreId = genreMenu_.getSelectedId();
   settings.gate = gateSlider_.getValue();
+  settings.aiProvider = providerMenu_.getSelectedId() == 3 ? "ollama" : (providerMenu_.getSelectedId() == 2 ? "compatible" : "openai");
   settings.apiEndpoint = apiEndpoint_.getText().trim();
   settings.apiKey = apiKey_.getText();
+  settings.aiModel = aiModel_.getText().trim();
   processor_.setPluginSettings(settings);
 }
 
@@ -314,6 +338,18 @@ void AifredAudioProcessorEditor::paint(juce::Graphics& g) {
     g.setColour(Colours::muted);
     g.drawFittedText("Analyze: main input.\nReference: selected target plus reference file.\nCompare: Mix A and Mix B sidechain routing.\nFL Studio compare routing: put AIFRED on the master or a bus, enable the Mix B sidechain input in the wrapper, then route the reference track to that sidechain from the mixer send.", inner, juce::Justification::topLeft, 8);
   }
+
+  if (!AifredEngineClient::instance().isAvailable()) {
+    auto panel = getLocalBounds().toFloat().withSizeKeepingCentre(600.0f, 170.0f).translated(0.0f, static_cast<float>(getHeight()) * 0.32f);
+    drawPanel(g, panel, 8.0f);
+    auto inner = panel.toNearestInt().reduced(18);
+    g.setFont(juce::FontOptions(18.0f, juce::Font::bold));
+    g.setColour(Colours::ink);
+    g.drawText("LOCAL AI ENGINE UNAVAILABLE", inner.removeFromTop(28), juce::Justification::centredLeft);
+    g.setFont(juce::FontOptions(12.5f));
+    g.setColour(Colours::muted);
+    g.drawFittedText("Core analysis is still active. The installer normally starts AifredEngine.exe at login and exposes http://127.0.0.1:8787/health for local coaching.", inner, juce::Justification::topLeft, 4);
+  }
 }
 
 void AifredAudioProcessorEditor::resized() {
@@ -363,20 +399,24 @@ void AifredAudioProcessorEditor::resized() {
   if (showOptions_) {
     auto panel = getLocalBounds().withSizeKeepingCentre(560, 420).reduced(22);
     panel.removeFromTop(110);
+    providerMenu_.setBounds(panel.removeFromTop(30));
     themeMenu_.setBounds(panel.removeFromTop(30));
     layoutMenu_.setBounds(panel.removeFromTop(34));
     genreMenu_.setBounds(panel.removeFromTop(34));
     gateSlider_.setBounds(panel.removeFromTop(42));
     apiEndpoint_.setBounds(panel.removeFromTop(30));
     apiKey_.setBounds(panel.removeFromTop(30));
+    aiModel_.setBounds(panel.removeFromTop(30));
     saveApiButton_.setBounds(panel.removeFromTop(34).reduced(0, 4));
   } else {
+    providerMenu_.setBounds({});
     themeMenu_.setBounds({});
     layoutMenu_.setBounds({});
     genreMenu_.setBounds({});
     gateSlider_.setBounds({});
     apiEndpoint_.setBounds({});
     apiKey_.setBounds({});
+    aiModel_.setBounds({});
     saveApiButton_.setBounds({});
   }
 }
@@ -493,7 +533,7 @@ void AifredAudioProcessorEditor::drawDomainCard(juce::Graphics& g, juce::Rectang
   g.setFont(juce::FontOptions(11.5f));
   g.setColour(Colours::muted);
   juce::String units = juce::String(alignment.rawPrimaryMetric, 2) + " primary / " + juce::String(alignment.rawSecondaryMetric, 2) + " secondary";
-  if (juce::String(name) == "LOUDNESS") units = dbText(alignment.rawPrimaryMetric, "LUFS K") + " / " + dbText(alignment.rawSecondaryMetric, "dBFS peak");
+  if (juce::String(name) == "LOUDNESS") units = dbText(alignment.rawPrimaryMetric, "LUFS ST") + " / " + dbText(alignment.rawSecondaryMetric, "dBTP");
   if (juce::String(name) == "PUNCH") units = dbText(alignment.rawPrimaryMetric, "dB crest") + " / transient " + juce::String(alignment.rawSecondaryMetric, 2);
   if (juce::String(name) == "WIDTH") units = "width " + juce::String(alignment.rawPrimaryMetric, 2) + " / corr HP150 " + juce::String(alignment.rawSecondaryMetric, 2);
   if (juce::String(name) == "TONE") units = "tilt " + juce::String(alignment.rawPrimaryMetric, 2) + " / " + dbText(alignment.rawSecondaryMetric, "LUFS K");
@@ -576,8 +616,11 @@ void AifredAudioProcessorEditor::drawChatPanel(juce::Graphics& g, juce::Rectangl
   g.setColour(Colours::ink);
   g.drawText("CHAT", inner.removeFromTop(30), juce::Justification::centredLeft);
   g.setFont(juce::FontOptions(12.0f));
-  g.setColour(Colours::green);
-  g.drawFittedText(apiStatus_, inner.removeFromBottom(22), juce::Justification::bottomLeft, 1);
+  const auto engineReady = AifredEngineClient::instance().isAvailable();
+  g.setColour(engineReady ? Colours::green : Colours::yellow);
+  g.drawFittedText(engineReady ? "AI ready: local AIFRED engine." : AifredEngineClient::instance().statusText(), inner.removeFromBottom(38), juce::Justification::bottomLeft, 2);
+  g.setColour(Colours::muted);
+  g.drawFittedText(diagnostic_.summary, inner.removeFromBottom(44), juce::Justification::bottomLeft, 2);
 }
 
 void AifredAudioProcessorEditor::drawReferenceMixer(juce::Graphics& g, juce::Rectangle<int> bounds) {

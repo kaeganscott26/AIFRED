@@ -20,8 +20,6 @@ jobs:
         include:
           - name: windows
             os: windows-latest
-          - name: macos
-            os: macos-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -41,42 +39,10 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $plugin = Get-ChildItem build/aifred -Recurse -Filter Aifred.vst3 | Where-Object { $_.PSIsContainer } | Select-Object -First 1
-          New-Item -ItemType Directory -Force -Path package/AIFRED-Windows | Out-Null
-          New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Copy-Item -Recurse -LiteralPath $plugin.FullName -Destination package/AIFRED-Windows/Aifred.vst3
-          @(
-            '$ErrorActionPreference = "Stop"',
-            '$source = Join-Path $PSScriptRoot "Aifred.vst3"',
-            '$target = Join-Path $env:LOCALAPPDATA "Programs\Common\VST3\Aifred.vst3"',
-            'New-Item -ItemType Directory -Force -Path (Split-Path $target) | Out-Null',
-            'if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }',
-            'Copy-Item -Recurse -Force -LiteralPath $source -Destination $target',
-            'Write-Host "AIFRED installed to $target. Rescan plugins in FL Studio."'
-          ) | Set-Content package/AIFRED-Windows/install-aifred.ps1
-          Compress-Archive -Path package/AIFRED-Windows/* -DestinationPath dist/AIFRED-VST3-windows.zip
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools/package-aifred.ps1 -BuildRoot build/aifred -OutputDir dist -Platform windows
           dotnet publish tools/AifredWindowsInstaller/AifredWindowsInstaller.csproj -c Release -o dist/installer/windows
           Copy-Item dist/installer/windows/AIFRED-VST3-Setup.exe AIFRED-VST3-Setup.exe
           Copy-Item dist/AIFRED-VST3-windows.zip AIFRED-VST3-windows.zip
-
-      - name: Package macOS installer
-        if: runner.os == 'macOS'
-        run: |
-          PLUGIN="$(find build/aifred -name Aifred.vst3 -type d | head -n 1)"
-          mkdir -p package/AIFRED-macOS
-          cp -R "$PLUGIN" package/AIFRED-macOS/Aifred.vst3
-          cat > package/AIFRED-macOS/install-aifred.command <<'SCRIPT'
-          #!/bin/sh
-          set -eu
-          SRC="$(cd "$(dirname "$0")" && pwd)/Aifred.vst3"
-          DEST="$HOME/Library/Audio/Plug-Ins/VST3/Aifred.vst3"
-          mkdir -p "$(dirname "$DEST")"
-          rm -rf "$DEST"
-          cp -R "$SRC" "$DEST"
-          echo "AIFRED installed to $DEST. Rescan plugins in your DAW."
-          SCRIPT
-          chmod +x package/AIFRED-macOS/install-aifred.command
-          ditto -c -k --keepParent package/AIFRED-macOS AIFRED-VST3-macOS.zip
 
       - name: Upload VST3 package
         uses: actions/upload-artifact@v4
@@ -85,50 +51,7 @@ jobs:
           path: |
             AIFRED-VST3-*.zip
             AIFRED-VST3-Setup.exe
-            AIFRED-VST3-*.tar.gz
           if-no-files-found: error
-
-  arch-linux:
-    name: VST3 arch-linux
-    runs-on: ubuntu-latest
-    container: archlinux:latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Arch build dependencies
-        run: |
-          pacman -Syu --noconfirm
-          pacman -S --noconfirm base-devel cmake git ninja alsa-lib curl freetype2 libx11 libxcomposite libxcursor libxext libxinerama libxrandr mesa webkit2gtk-4.1
-
-      - name: Configure
-        run: cmake -S . -B build/aifred -G Ninja -DCMAKE_BUILD_TYPE=Release
-
-      - name: Build
-        run: cmake --build build/aifred --parallel
-
-      - name: Package Arch installer
-        run: |
-          PLUGIN="$(find build/aifred -name Aifred.vst3 -type d | head -n 1)"
-          mkdir -p package/AIFRED-Arch
-          cp -R "$PLUGIN" package/AIFRED-Arch/Aifred.vst3
-          cat > package/AIFRED-Arch/install-aifred.sh <<'SCRIPT'
-          #!/usr/bin/env bash
-          set -euo pipefail
-          SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/Aifred.vst3"
-          DEST="$HOME/.vst3/Aifred.vst3"
-          mkdir -p "$(dirname "$DEST")"
-          rm -rf "$DEST"
-          cp -R "$SRC" "$DEST"
-          echo "AIFRED installed to $DEST. Rescan plugins in your DAW."
-          SCRIPT
-          chmod +x package/AIFRED-Arch/install-aifred.sh
-          tar -czf AIFRED-VST3-Arch.tar.gz -C package AIFRED-Arch
-
-      - name: Upload Arch package
-        uses: actions/upload-artifact@v4
-        with:
-          name: AIFRED-VST3-arch-linux
-          path: AIFRED-VST3-Arch.tar.gz
 
   android-admin:
     name: Android admin
@@ -174,7 +97,7 @@ jobs:
     name: Publish GitHub release
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
-    needs: [vst3, arch-linux, website]
+    needs: [vst3, website]
     steps:
       - uses: actions/checkout@v4
 
@@ -189,7 +112,7 @@ jobs:
         run: |
           gh release create "${GITHUB_REF_NAME}" release-assets/* \
             --title "AIFRED ${GITHUB_REF_NAME}" \
-            --notes "AIFRED release packages for Windows VST3, macOS VST3, and Arch Linux VST3. The Android admin app is private and is not distributed through releases."
+            --notes "AIFRED release package for Windows VST3. The Android admin app is private and is not distributed through releases."
 
   deploy-website:
     name: Deploy Cloudflare Pages

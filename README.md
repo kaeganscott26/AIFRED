@@ -1,6 +1,6 @@
 # AIFRED
 
-**AIFRED** is the private product repository for the North3rnLight3r VST3, website, beat catalog, Cloudflare backend, and owner-only Android admin app.
+**AIFRED** is the Windows-first product repository for the North3rnLight3r VST3, local AIFRED engine, website, beat catalog, Cloudflare backend, and owner-only Android admin app.
 
 The public-facing product is the AIFRED VST3 and North3rnLight3r beat catalog. The source code, admin app, credentials, prompts, backend maps, and deployment controls are private operational assets.
 
@@ -14,7 +14,8 @@ The public-facing product is the AIFRED VST3 and North3rnLight3r beat catalog. T
 
 | Product | Purpose | Distribution |
 | --- | --- | --- |
-| AIFRED VST3 | Mix analysis, reference alignment, compare metering, and chat-guided fix output | Release installers for Windows, macOS, and Arch Linux |
+| AIFRED VST3 | Mix analysis, reference alignment, compare metering, and chat-guided fix output | Windows installer |
+| AIFRED Engine | Local AI/coaching companion at `127.0.0.1:8787` | Bundled inside the Windows installer |
 | North3rnLight3r Website | Brand storefront, beat catalog playback, VST sales path, free mix analyzer | Cloudflare Pages custom domain |
 | Android Admin App | Owner-only control panel for chat, catalog uploads, website file control, shell access, and admin operations | Private install only, never public release |
 
@@ -43,7 +44,8 @@ Current v0.3.3 metering surface:
 - Dedicated chat module without predetermined fix suggestions
 - Options for theme, layout focus, genre target, reference gate sensitivity, and BYO OpenAI/Ollama endpoint setup
 - Reference mode with genre target color, file picker, and reference mixer lanes
-- K-weighted loudness readout using a BS.1770-style high-pass plus high-shelf path
+- K-weighted loudness readout with momentary, short-term, integrated, LRA, and estimated 4x true peak fields
+- Local AIFRED engine health detection with deterministic fallback when AI is unavailable
 - Version text in the plugin header so FL Studio cache/install state is visible
 - Theme, layout, genre, gate, and BYO API fields save into the host project state
 
@@ -54,8 +56,10 @@ Current v0.3.3 metering surface:
 | `plugin-aifred/` | JUCE/C++ VST3 source |
 | `website/` | Cloudflare Pages site, static catalog, browser analyzer, backend Worker routes |
 | `android_admin/` | Private Android admin app |
+| `tools/AifredEngine/` | Windows local engine source |
+| `tools/AifredWindowsInstaller/` | Windows installer source |
 | `tools/` | Packaging, installer, and verification utilities |
-| `.github/workflows/build.yml` | Windows, macOS, Arch Linux, website, and Android validation |
+| `.github/workflows/build.yml` | Windows plugin/installer, website, and Android validation |
 | `docs/wiki/` | Operational wiki, guides, maps, and troubleshooting |
 
 ## Release Targets
@@ -63,8 +67,6 @@ Current v0.3.3 metering surface:
 The release workflow builds and packages:
 
 - `AIFRED-VST3-Setup.exe` for Windows
-- `AIFRED-VST3-macOS.zip` for macOS
-- `AIFRED-VST3-Arch.tar.gz` for Arch Linux
 
 The Android admin app is validated by CI but is **not uploaded as a public artifact** and is **not attached to GitHub Releases**.
 
@@ -78,6 +80,8 @@ cmake --build build/aifred --config Release --parallel
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-aifred.ps1 -BuildRoot build\aifred -OutputDir dist -Platform windows
 dotnet publish tools\AifredWindowsInstaller\AifredWindowsInstaller.csproj -c Release -o dist\installer\windows
 ```
+
+Run `dist\installer\windows\AIFRED-VST3-Setup.exe` to install. The installer requests administrator elevation, installs `Aifred.vst3` to `C:\Program Files\Common Files\VST3`, installs `AifredEngine.exe` to `C:\Program Files\Aifred\bin`, registers the engine at user login, starts it silently, and checks `http://127.0.0.1:8787/health`.
 
 Android local build:
 

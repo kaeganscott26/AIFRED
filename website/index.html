@@ -64,7 +64,7 @@
         </div>
         <div class="release-panel">
           <strong>AIFRED VST3 Distribution</strong>
-          <span>Windows first, with macOS and Arch Linux packages published from verified release builds.</span>
+          <span>Windows is the customer installer target. The plugin keeps core analysis active even when the local AI engine is unavailable.</span>
           <div class="card-actions">
             <a class="btn" id="aifred-buy-button" target="_blank" rel="noreferrer">Buy AIFRED</a>
             <a class="btn ghost" id="aifred-release-button" target="_blank" rel="noreferrer">Release builds</a>
@@ -137,7 +137,7 @@
       <section id="chat" class="chat-panel">
         <div>
           <p class="eyebrow">Ask Aifred</p>
-          <h2>Use OpenAI or Ollama from backend configuration.</h2>
+          <h2>Use configured OpenAI, OpenAI-compatible, or Ollama routes.</h2>
           <p>
             The site does not store model keys in browser code. The backend decides whether the configured
             provider is OpenAI or Ollama and returns a focused answer.
@@ -175,7 +175,7 @@
 
     <footer>
       <span>© <span id="year"></span> North3rnLight3r / AIFRED</span>
-      <span>Windows VST3 first. Cross-platform builds through CI.</span>
+      <span>Windows VST3 installer with local AIFRED engine.</span>
     </footer>
 
     <script src="config.js"></script>

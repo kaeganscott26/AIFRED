@@ -27,7 +27,12 @@ struct DspMetrics {
   float punch01 = 0.0f;
   float loudness01 = 0.0f;
   float rmsDb = -90.0f;
+  float momentaryLufs = -90.0f;
+  float shortTermLufs = -90.0f;
+  float integratedLufs = -90.0f;
+  float loudnessRange = 0.0f;
   float peakDb = -90.0f;
+  float truePeakDb = -90.0f;
   float crestDb = 0.0f;
   float correlation = 1.0f;
   float transientDensity = 0.0f;

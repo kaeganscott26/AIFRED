@@ -7,7 +7,17 @@ AifredAudioProcessor::AifredAudioProcessor()
   : AudioProcessor(BusesProperties()
       .withInput("Mix A", juce::AudioChannelSet::stereo(), true)
       .withInput("Mix B", juce::AudioChannelSet::stereo(), false)
-      .withOutput("Output", juce::AudioChannelSet::stereo(), true)) {}
+      .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
+    parameters_(*this, nullptr, "AIFRED_PARAMETERS", createParameterLayout()) {
+  loadLocalSettings();
+}
+
+juce::AudioProcessorValueTreeState::ParameterLayout AifredAudioProcessor::createParameterLayout() {
+  std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
+  params.push_back(std::make_unique<juce::AudioParameterBool>(
+    juce::ParameterID("session_initialized", 1), "Session Initialized", false));
+  return { params.begin(), params.end() };
+}
 
 void AifredAudioProcessor::prepareToPlay(double sampleRate, int) {
   analysis_.prepare(sampleRate);
@@ -54,8 +64,10 @@ void AifredAudioProcessor::getStateInformation(juce::MemoryBlock& destData) {
   state.setAttribute("layout", settings_.layoutId);
   state.setAttribute("genre", settings_.genreId);
   state.setAttribute("gate", settings_.gate);
+  state.setAttribute("aiProvider", settings_.aiProvider);
   state.setAttribute("apiEndpoint", settings_.apiEndpoint);
-  state.setAttribute("apiKey", settings_.apiKey);
+  state.setAttribute("aiModel", settings_.aiModel);
+  state.setAttribute("session_initialized", isSessionInitialized());
   copyXmlToBinary(state, destData);
 }
 
@@ -67,8 +79,12 @@ void AifredAudioProcessor::setStateInformation(const void* data, int sizeInBytes
   settings_.layoutId = juce::jlimit(1, 3, state->getIntAttribute("layout", settings_.layoutId));
   settings_.genreId = juce::jlimit(1, 6, state->getIntAttribute("genre", settings_.genreId));
   settings_.gate = juce::jlimit(0.0, 1.0, state->getDoubleAttribute("gate", settings_.gate));
+  settings_.aiProvider = state->getStringAttribute("aiProvider", settings_.aiProvider).substring(0, 32);
   settings_.apiEndpoint = state->getStringAttribute("apiEndpoint", settings_.apiEndpoint).substring(0, 256);
-  settings_.apiKey = state->getStringAttribute("apiKey", settings_.apiKey).substring(0, 256);
+  settings_.aiModel = state->getStringAttribute("aiModel", settings_.aiModel).substring(0, 80);
+  if (auto* param = parameters_.getParameter("session_initialized")) {
+    param->setValueNotifyingHost(state->getBoolAttribute("session_initialized", false) ? 1.0f : 0.0f);
+  }
 }
 
 HaloState AifredAudioProcessor::getHaloState() const {
@@ -100,8 +116,55 @@ void AifredAudioProcessor::setPluginSettings(const PluginSettings& settings) {
   settings_.layoutId = juce::jlimit(1, 3, settings.layoutId);
   settings_.genreId = juce::jlimit(1, 6, settings.genreId);
   settings_.gate = juce::jlimit(0.0, 1.0, settings.gate);
+  settings_.aiProvider = settings.aiProvider.substring(0, 32);
   settings_.apiEndpoint = settings.apiEndpoint.substring(0, 256);
   settings_.apiKey = settings.apiKey.substring(0, 256);
+  settings_.aiModel = settings.aiModel.substring(0, 80);
+  saveLocalSettings();
+}
+
+bool AifredAudioProcessor::isSessionInitialized() const {
+  if (const auto* value = parameters_.getRawParameterValue("session_initialized")) {
+    return value->load() > 0.5f;
+  }
+  return false;
+}
+
+void AifredAudioProcessor::markSessionInitialized() {
+  if (auto* param = parameters_.getParameter("session_initialized")) {
+    param->setValueNotifyingHost(1.0f);
+  }
+}
+
+void AifredAudioProcessor::loadLocalSettings() {
+  juce::PropertiesFile::Options options;
+  options.applicationName = "AIFRED";
+  options.filenameSuffix = "config";
+  options.folderName = "AIFRED";
+  options.osxLibrarySubFolder = "Application Support";
+  options.storageFormat = juce::PropertiesFile::storeAsXML;
+  juce::PropertiesFile file(options);
+  settings_.aiProvider = file.getValue("aiProvider", settings_.aiProvider);
+  settings_.apiEndpoint = file.getValue("apiEndpoint", settings_.apiEndpoint);
+  settings_.apiKey = file.getValue("apiKey", settings_.apiKey);
+  settings_.aiModel = file.getValue("aiModel", settings_.aiModel);
+  settings_.genreId = file.getIntValue("genreId", settings_.genreId);
+}
+
+void AifredAudioProcessor::saveLocalSettings() const {
+  juce::PropertiesFile::Options options;
+  options.applicationName = "AIFRED";
+  options.filenameSuffix = "config";
+  options.folderName = "AIFRED";
+  options.osxLibrarySubFolder = "Application Support";
+  options.storageFormat = juce::PropertiesFile::storeAsXML;
+  juce::PropertiesFile file(options);
+  file.setValue("aiProvider", settings_.aiProvider);
+  file.setValue("apiEndpoint", settings_.apiEndpoint);
+  file.setValue("apiKey", settings_.apiKey);
+  file.setValue("aiModel", settings_.aiModel);
+  file.setValue("genreId", settings_.genreId);
+  file.saveIfNeeded();
 }
 
 } // namespace aifred

@@ -139,13 +139,53 @@ function proGate(metrics) {
   };
   const score = Math.round(checks.reduce((sum, check) => sum + check.score * (weights[check.id] || 0), 0));
   const clipping = metrics.peak_dbfs > 0.05;
+  const invalid = !Number.isFinite(metrics.integrated_lufs) || !Number.isFinite(metrics.peak_dbfs);
+  const severeToneFailure = metrics.tone_balance < 8 || metrics.low_end_control < 3 || metrics.harshness_control < 3;
   const proLoudnessLane = metrics.integrated_lufs >= -24.0 && metrics.integrated_lufs <= -3.0;
   const proPeakLane = metrics.peak_dbfs <= 0.0;
   const noSevereToneFailure = metrics.tone_balance >= 8 && metrics.low_end_control >= 3 && metrics.harshness_control >= 3;
   const essentialPass = proLoudnessLane && proPeakLane && noSevereToneFailure;
+  let classification = "Poor Reference";
+  let referenceUtility = Math.max(0, Math.min(100, score));
+  let technicalCaution = 100 - Math.min(checks.find((check) => check.id === "peak_dbfs")?.score || 0, checks.find((check) => check.id === "harshness_control")?.score || 0);
+  let styleTag = metrics.integrated_lufs > -8.0 ? "modern-hot" : metrics.stereo_width > 0.75 ? "wide" : metrics.crest_factor_db < 8.0 ? "dense-limited" : "balanced";
+  let bestUse = "Use only as a cautionary comparison.";
+  let caution = "Several measured values sit outside the useful reference lane.";
+
+  if (invalid || (clipping && severeToneFailure)) {
+    classification = "Reject";
+    referenceUtility = 0;
+    technicalCaution = 100;
+    bestUse = "Do not use this material as a reference.";
+    caution = "The file is analytically invalid, clipped with severe balance failure, or otherwise unusable.";
+  } else if (clipping || metrics.peak_dbfs > -0.3 || metrics.integrated_lufs > -7.0) {
+    classification = score >= 30 && noSevereToneFailure ? "Technically Hot Reference" : "Poor Reference";
+    bestUse = "Useful for modern loudness, density, and competitive ceiling behavior.";
+    caution = "Treat peak and limiter behavior as a caution, not a default rejection.";
+  } else if (score >= 78) {
+    classification = "Strong Reference";
+    bestUse = "Useful for broad tone, loudness, dynamics, and stereo alignment.";
+    caution = "No major technical caution detected.";
+  } else if (score >= 56 || essentialPass) {
+    classification = "Usable Reference";
+    bestUse = "Useful for comparison after checking style and section context.";
+    caution = "Some dimensions are outside the center lane but remain analytically useful.";
+  } else if (score >= 36 && noSevereToneFailure) {
+    classification = "Style-Specific Reference";
+    bestUse = "Useful when the target intentionally matches this style tag.";
+    caution = "Do not average this against unrelated genres without tagging it.";
+  }
+
   return {
-    accepted: !clipping && (score >= 30 || essentialPass),
+    accepted: classification !== "Reject" && classification !== "Poor Reference",
     score,
+    classification,
+    reference_utility: referenceUtility,
+    technical_caution: technicalCaution,
+    style_tag: styleTag,
+    best_use: bestUse,
+    caution,
+    why: `${classification}: score ${score}/100, loudness ${metrics.integrated_lufs} LUFS, peak ${metrics.peak_dbfs} dBFS, crest ${metrics.crest_factor_db} dB, width ${metrics.stereo_width}.`,
     checks: checks.map((check) => ({ id: check.id, ok: check.score >= 20, score: check.score, target: check.target }))
   };
 }
@@ -185,7 +225,14 @@ async function handleAnalysisSubmit(request, env) {
     ok: true,
     accepted: gate.accepted,
     score: gate.score,
-    action: gate.accepted ? "metadata eligible for the AIFRED reference pool" : "metadata disposed",
+    classification: gate.classification,
+    reference_utility: gate.reference_utility,
+    technical_caution: gate.technical_caution,
+    style_tag: gate.style_tag,
+    best_use: gate.best_use,
+    caution: gate.caution,
+    why: gate.why,
+    action: gate.accepted ? "metadata eligible for the AIFRED reference pool" : "metadata rejected or kept out of the pool",
     persistence,
     checks: gate.checks,
     analysis_id: gate.accepted ? analysisId : null
@@ -643,7 +690,13 @@ export async function onRequest({ request, env, params }) {
   if (path === "admin/login" && request.method === "POST") return handleAdminLogin(request, env);
   if (path === "command/run" && request.method === "POST") return handleCommand(request, env);
   if (path === "registry/actions") return json({ ok: true, actions: commandCatalog() });
-  if (path === "admin/dashboard/state") return json({ ok: true, traffic: { status: "live" }, catalog: { tracks: (await loadCatalog(request)).length } });
+  if (path === "admin/dashboard/state") return json({
+    ok: true,
+    traffic: { status: "live", source: "Cloudflare health endpoint" },
+    catalog: { tracks: (await loadCatalog(request)).length, source: "website/assets/data/beat_catalog.json" },
+    analytics: { configured: Boolean(env.AIFRED_ANALYTICS_API_TOKEN), message: env.AIFRED_ANALYTICS_API_TOKEN ? "analytics provider configured" : "live analytics are not configured" },
+    deploy: { source: repoConfig(env).repo, branch: repoConfig(env).branch, target: "Cloudflare Pages project north3rnlight3r" }
+  });
   if (path === "admin/catalog/list") return json({ ok: true, tracks: await loadCatalog(request) });
   if (path === "admin/files/read" && request.method === "POST") return handleAdminFileRead(request, env);
   if (path === "admin/files/write" && request.method === "POST") return handleAdminFileWrite(request, env);
@@ -652,10 +705,10 @@ export async function onRequest({ request, env, params }) {
   if (path === "admin/files/upload" && request.method === "POST") return handleAdminFileUpload(request, env);
   if (path === "admin/reference/upload" && request.method === "POST") return handleAdminReferenceUpload(request, env);
   if (path === "admin/catalog/upload" && request.method === "POST") return handleAdminCatalogUpload(request, env);
-  if (path === "admin/inquiries/list") return json({ ok: true, inquiries: [] });
-  if (path === "admin/logs/list") return json({ ok: true, logs: [] });
-  if (path === "admin/sales/list") return json({ ok: true, sales: [] });
-  if (path === "admin/sales/record" && request.method === "POST") return json({ ok: true, sale_id: crypto.randomUUID() });
+  if (path === "admin/inquiries/list") return json({ ok: true, configured: false, inquiries: [], message: "Inquiry persistence is not configured; contact form currently returns an inquiry id and email target only." });
+  if (path === "admin/logs/list") return json({ ok: true, configured: false, logs: [], message: "Live log storage is not configured." });
+  if (path === "admin/sales/list") return json({ ok: true, configured: false, sales: [], message: "Sales storage and PayPal capture records are not configured." });
+  if (path === "admin/sales/record" && request.method === "POST") return json({ ok: false, configured: false, error: "Sales recording is disabled until PayPal capture storage is configured." }, { status: 501 });
   if (path === "models/list") {
     return json({
       ok: true,

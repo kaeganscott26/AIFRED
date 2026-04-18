@@ -39,6 +39,8 @@ target_sources(Aifred PRIVATE
   Source/PluginEditor.cpp
   Source/HaloState.cpp
   Source/AnalysisEngine.cpp
+  Source/DiagnosticInterpreter.cpp
+  Source/AifredEngineClient.cpp
   Source/AifredLookAndFeel.cpp
 )
 
@@ -56,6 +58,7 @@ target_link_libraries(Aifred
   PRIVATE
     AifredAssets
     juce::juce_audio_utils
+    $<$<PLATFORM_ID:Windows>:winhttp>
   PUBLIC
     juce::juce_recommended_config_flags
     juce::juce_recommended_lto_flags

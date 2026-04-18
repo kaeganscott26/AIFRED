@@ -1,18 +1,16 @@
 using System.IO.Compression;
 using System.Reflection;
+using System.Net.Http;
+using System.Windows.Forms;
 
 const string ZipResourceName = "AIFRED-VST3-windows.zip";
 const string PluginFolderName = "Aifred.vst3";
+const string EngineExeName = "AifredEngine.exe";
 
-var useSystemInstall = args.Any(arg => string.Equals(arg, "--system", StringComparison.OrdinalIgnoreCase));
-var targetRoot = useSystemInstall
-    ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonProgramFiles), "VST3")
-    : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Common", "VST3");
+var targetRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonProgramFiles), "VST3");
 var targetPlugin = Path.Combine(targetRoot, PluginFolderName);
-
-Console.WriteLine("AIFRED VST3 Installer");
-Console.WriteLine(useSystemInstall ? "Install mode: system-wide" : "Install mode: current user");
-Console.WriteLine($"Target: {targetPlugin}");
+var productRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Aifred");
+var engineTarget = Path.Combine(productRoot, "bin", EngineExeName);
 
 try
 {
@@ -45,25 +43,34 @@ try
         }
 
         var sourcePlugin = Path.Combine(extractedRoot, PluginFolderName);
+        var sourceEngine = Path.Combine(extractedRoot, "Aifred", "bin", EngineExeName);
         if (!Directory.Exists(sourcePlugin))
         {
             throw new InvalidOperationException("Installer payload did not contain the VST3 bundle.");
         }
+        if (!File.Exists(sourceEngine))
+        {
+            throw new InvalidOperationException("Installer payload did not contain AifredEngine.exe.");
+        }
 
         Directory.CreateDirectory(targetRoot);
+        Directory.CreateDirectory(productRoot);
         if (Directory.Exists(targetPlugin))
         {
             Directory.Delete(targetPlugin, recursive: true);
         }
 
         CopyDirectory(sourcePlugin, targetPlugin);
+        CopyDirectory(Path.Combine(extractedRoot, "Aifred"), productRoot);
+        RegisterStartup(engineTarget);
+        StartEngine(engineTarget);
+        var health = await ValidateEngineHealth();
 
-        Console.WriteLine();
-        Console.WriteLine("AIFRED installed.");
-        Console.WriteLine("Open FL Studio, go to Plugin Manager, add or rescan this folder:");
-        Console.WriteLine(targetRoot);
-        Console.WriteLine();
-        Console.WriteLine("For system-wide install, rerun this installer from an Administrator terminal with: --system");
+        MessageBox.Show(
+            $"AIFRED installed.\n\nVST3:\n{targetPlugin}\n\nEngine:\n{engineTarget}\n\nEngine health: {(health ? "ready" : "starting or unavailable; core plugin analysis still works")}\n\nOpen FL Studio Plugin Manager and rescan VST3 plugins.",
+            "AIFRED Setup",
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Information);
         return 0;
     }
     finally
@@ -76,16 +83,16 @@ try
 }
 catch (UnauthorizedAccessException)
 {
-    Console.Error.WriteLine();
-    Console.Error.WriteLine("Windows blocked access to the target folder.");
-    Console.Error.WriteLine("Run the installer normally for current-user install, or run as Administrator with --system for system-wide install.");
+    MessageBox.Show(
+        "Windows blocked access to the install folder. Run the installer as Administrator for the standard system-wide VST3 install.",
+        "AIFRED Setup",
+        MessageBoxButtons.OK,
+        MessageBoxIcon.Error);
     return 1;
 }
 catch (Exception ex)
 {
-    Console.Error.WriteLine();
-    Console.Error.WriteLine("Install failed:");
-    Console.Error.WriteLine(ex.Message);
+    MessageBox.Show($"Install failed:\n\n{ex.Message}", "AIFRED Setup", MessageBoxButtons.OK, MessageBoxIcon.Error);
     return 1;
 }
 
@@ -109,5 +116,46 @@ static void CopyDirectory(string source, string destination)
 static bool IsPluginEntry(ZipArchiveEntry entry)
 {
     var normalized = entry.FullName.Replace('\\', '/');
-    return normalized.StartsWith(PluginFolderName + "/", StringComparison.OrdinalIgnoreCase);
+    return normalized.StartsWith(PluginFolderName + "/", StringComparison.OrdinalIgnoreCase)
+        || normalized.StartsWith("Aifred/", StringComparison.OrdinalIgnoreCase);
+}
+
+static void RegisterStartup(string enginePath)
+{
+    using var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run");
+    key?.SetValue("AIFRED Engine", $"\"{enginePath}\"");
+}
+
+static void StartEngine(string enginePath)
+{
+    try
+    {
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = enginePath,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden
+        });
+    }
+    catch
+    {
+        // Installer reports health below. The plugin still works without the engine.
+    }
+}
+
+static async Task<bool> ValidateEngineHealth()
+{
+    using var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(1200) };
+    for (var attempt = 0; attempt < 8; attempt++)
+    {
+        try
+        {
+            var response = await client.GetAsync("http://127.0.0.1:8787/health");
+            if (response.IsSuccessStatusCode) return true;
+        }
+        catch {}
+        await Task.Delay(350);
+    }
+    return false;
 }

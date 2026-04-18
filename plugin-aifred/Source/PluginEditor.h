@@ -1,6 +1,8 @@
 #pragma once
 
 #include "AifredLookAndFeel.h"
+#include "AifredEngineClient.h"
+#include "DiagnosticInterpreter.h"
 #include "PluginProcessor.h"
 
 #include <juce_gui_basics/juce_gui_basics.h>
@@ -49,7 +51,9 @@ private:
   juce::TextEditor chatInput_;
   juce::TextEditor apiEndpoint_;
   juce::TextEditor apiKey_;
+  juce::TextEditor aiModel_;
   juce::Label fixList_;
+  juce::ComboBox providerMenu_;
   juce::ComboBox themeMenu_;
   juce::ComboBox layoutMenu_;
   juce::ComboBox genreMenu_;
@@ -58,6 +62,7 @@ private:
   std::unique_ptr<juce::FileChooser> fileChooser_;
   HaloState state_;
   HaloState compareState_;
+  DiagnosticPresentation diagnostic_;
   juce::String fixListText_ = "Chat output.";
   juce::String apiStatus_ = "API route not connected.";
   juce::String referenceStatus_ = "No reference file selected.";
