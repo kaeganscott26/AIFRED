@@ -1,10 +1,11 @@
-AIFRED v0.3.2 JUCE Release Notes
+AIFRED v0.3.3 Ollama Chat Release Notes
 
 Current build target:
 - JUCE VST3 plugin with resizable Halo interface.
 - Halo quadrant scale ticks, reference rings, and switchable center display.
-- One session candlestick plus 10 one-minute history candlesticks.
+- Ten persisted session candlesticks plus 10 one-minute history candlesticks.
 - Reference mode with five reference volume lanes.
 - Compare mode with separate Mix A and Mix B analysis routes.
 - $5 PayPal purchase path with tokenized backend download delivery.
-- Local AIFRED engine fallback plus optional OpenAI-compatible endpoint setup.
+- Local Ollama chat using current DSP context and reference-pool metadata.
+- Optional OpenAI-compatible endpoint setup when the user supplies private credentials.

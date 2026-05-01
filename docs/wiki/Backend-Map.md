@@ -17,7 +17,7 @@ The backend is a Cloudflare Pages Worker mounted from `website/_worker.js`.
 | --- | --- | --- |
 | `GET` | `/api/v1/health` | Backend health |
 | `GET` | `/api/v1/catalog/list` | Public beat catalog |
-| `GET` | `/api/v1/soundpacks/list` | Soundpack placeholder route |
+| `GET` | `/api/v1/soundpacks/list` | Soundpack catalog route |
 | `GET` | `/api/v1/content/get` | Website content payload |
 | `POST` | `/api/v1/analysis/submit` | Free analyzer metadata gate |
 | `POST` | `/api/v1/analyzer/submit` | Alias for analyzer gate |
