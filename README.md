@@ -32,22 +32,21 @@ AIFRED converts live audio behavior into a compact release-readiness view:
 
 The VST separates **Analyze**, **Reference**, and **Compare** into distinct surfaces. Analyze focuses on the current mix signature and candlestick metering. Reference uses one Halo with a target overlay. Compare uses two independent Halo routes for Mix A and Mix B.
 
-Current v0.3.3 JUCE metering surface:
+Current v0.3.4 JUCE metering surface:
 
-- Distinct cyan, gold, and redline theme options
 - One-stick session candlestick meter plus 10-minute history meter
 - Switchable Halo center display for multiband lanes, waveform, or combined spectrometer view
 - Correlation meter filtered above 150 Hz so bass energy does not distort the phase read
 - Halo quadrant labels, scale ticks, and readable frequency/loudness/correlation labels
 - Center Halo spectrometer matching the website visualizer direction
 - Compare-mode analog-style match VU between the two Halos
-- Dedicated chat module without predetermined fix suggestions
-- Options for theme, layout focus, genre target, reference gate sensitivity, and BYO OpenAI/Ollama endpoint setup
-- Reference mode with pool ring, five reference rings, reference file picker, and five reference volume lanes
+- Dedicated scrollable chat module without predetermined fix suggestions
+- Chat Focus layout with genre target, reference gate sensitivity, and BYO OpenAI/Ollama endpoint setup
+- Reference mode with pool ring, five reference rings, five independent reference file pickers, and five reference volume lanes
 - K-weighted loudness readout with momentary, short-term, integrated, LRA, and estimated 4x true peak fields
 - Local AIFRED engine health detection with request-driven Ollama chat
 - Version text in the plugin header so FL Studio cache/install state is visible
-- Theme, layout, genre, gate, and BYO API fields save into the host project state
+- Genre, gate, and BYO API fields save into the host project state
 
 ## Repository Map
 
@@ -58,6 +57,7 @@ Current v0.3.3 JUCE metering surface:
 | `android_admin/` | Private Android admin app |
 | `tools/AifredEngine/` | Windows local engine source |
 | `tools/AifredWindowsInstaller/` | Windows installer source |
+| `tools/AifredWindowsUninstaller/` | Windows uninstaller source |
 | `tools/` | Packaging, installer, and verification utilities |
 | `.github/workflows/build.yml` | Windows, macOS, Linux, Arch package builds, website checks, release publishing, and Android validation |
 | `docs/wiki/` | Operational wiki, guides, maps, and troubleshooting |
@@ -67,6 +67,7 @@ Current v0.3.3 JUCE metering surface:
 The release workflow builds and packages:
 
 - `AIFRED-VST3-Setup.exe` for Windows
+- `AIFRED-Uninstall.exe` for Windows
 - `AIFRED-VST3-windows.zip`
 - `AIFRED-VST3-macOS.zip`
 - `AIFRED-VST3-linux.zip`

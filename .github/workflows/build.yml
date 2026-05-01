@@ -57,7 +57,9 @@ jobs:
         shell: pwsh
         run: |
           dotnet publish tools/AifredWindowsInstaller/AifredWindowsInstaller.csproj -c Release -o dist/installer/windows
+          dotnet publish tools/AifredWindowsUninstaller/AifredWindowsUninstaller.csproj -c Release -o dist/uninstaller/windows
           Copy-Item dist/installer/windows/AIFRED-VST3-Setup.exe AIFRED-VST3-Setup.exe
+          Copy-Item dist/uninstaller/windows/AIFRED-Uninstall.exe AIFRED-Uninstall.exe
 
       - name: Stage release artifacts
         shell: pwsh
@@ -65,6 +67,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path release-assets | Out-Null
           Copy-Item dist/AIFRED-VST3-${{ matrix.package_platform }}.zip release-assets/
           if (Test-Path AIFRED-VST3-Setup.exe) { Copy-Item AIFRED-VST3-Setup.exe release-assets/ }
+          if (Test-Path AIFRED-Uninstall.exe) { Copy-Item AIFRED-Uninstall.exe release-assets/ }
 
       - name: Upload VST3 package
         uses: actions/upload-artifact@v4
@@ -108,7 +111,7 @@ jobs:
             "model_name": "aifred:latest",
             "openai_api_key": "",
             "custom_endpoint": "http://127.0.0.1:11434",
-            "timeout_ms": 180000
+            "timeout_ms": 420000
           }
           JSON
           cat > dist/AIFRED-VST3-arch/Aifred/models/README.txt <<'TXT'

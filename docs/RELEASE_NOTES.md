@@ -1,10 +1,15 @@
-# AIFRED v0.3.3 Ollama Chat Release
+# AIFRED v0.3.4 Chat Focus Release
 
-This release restores the distributable JUCE VST3 line, removes canned coaching text, and routes AIFRED chat through the local Ollama model by default.
+This release keeps the distributable JUCE VST3 line and tightens the Chat Focus layout, natural AI response display, five-slot reference loading, and Windows uninstall path.
 
 ## Plugin
 
-- JUCE VST3 build target versioned as `0.3.3`.
+- JUCE VST3 build target versioned as `0.3.4`.
+- Chat output is now a scrollable read-only text window.
+- AI responses are cleaned before display so JSON/code-fence remnants are not shown as the chat answer.
+- Theme/layout choices were removed from the options surface; the plugin uses the Chat Focus layout.
+- Reference mixer exposes five independent file buttons, one per reference lane.
+- Windows release assets include `AIFRED-Uninstall.exe`.
 - Resizable Halo interface with quadrant scale ticks and readable labels.
 - Switchable Halo center display for multiband, waveform, and combined spectrometer views.
 - Session candlestick meter remembers the latest 10 plugin-open/plugin-close sessions.
@@ -17,7 +22,7 @@ This release restores the distributable JUCE VST3 line, removes canned coaching 
 
 - Website config uses the $5 PayPal purchase path.
 - Cloudflare backend records PayPal IPN sales and issues tokenized download links for the configured release package.
-- Download defaults target `kaeganscott26/AIFRED` tag `v0.3.3-ollama-chat`.
+- Download defaults target `kaeganscott26/AIFRED` tag `v0.3.4-chat-scroll`.
 - Notification email support remains environment-variable driven.
 
 ## Packaging

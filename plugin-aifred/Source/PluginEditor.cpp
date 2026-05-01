@@ -21,12 +21,6 @@ juce::Colour accentForMode(AnalysisMode mode) {
   return Colours::cyan;
 }
 
-juce::Colour accentForTheme(int themeId, AnalysisMode mode) {
-  if (themeId == 2) return juce::Colour(0xfff0d447);
-  if (themeId == 3) return juce::Colour(0xffff5f6d);
-  return accentForMode(mode);
-}
-
 juce::Colour genreColour(int genreId) {
   switch (genreId) {
     case 2: return juce::Colour(0xffffcf33);
@@ -88,6 +82,16 @@ juce::String candleDb(float normalized) {
   return juce::String(-42.0f + clamp01(normalized) * 34.0f, 1) + " dB";
 }
 
+juce::String cleanAiDisplayText(juce::String text) {
+  text = text.trim();
+  if ((text.startsWith("{") && text.endsWith("}")) || (text.startsWith("[") && text.endsWith("]"))) {
+    return "I received structured model data instead of a normal answer. Ask again in plain language and I will respond conversationally from the current mix snapshot.";
+  }
+  text = text.replace("```json", "").replace("```", "");
+  text = text.replace("\\n", "\n").replace("\\\"", "\"");
+  return text.trim();
+}
+
 float metricValue(const HaloState& state, int index) {
   switch (index) {
     case 0: return state.metrics.tone01;
@@ -117,15 +121,31 @@ AifredAudioProcessorEditor::AifredAudioProcessorEditor(AifredAudioProcessor& pro
     addAndMakeVisible(button);
     button->addListener(this);
   }
-  for (auto* button : {&askAiButton_, &saveApiButton_, &chatFileButton_, &referenceFileButton_, &compareFileButton_}) {
+  for (auto* button : {&askAiButton_, &saveApiButton_, &chatFileButton_, &compareFileButton_}) {
     addAndMakeVisible(button);
     button->addListener(this);
+  }
+  for (auto& button : referenceFileButtons_) {
+    addAndMakeVisible(button);
+    button.addListener(this);
   }
 
   chatInput_.setMultiLine(true);
   chatInput_.setReturnKeyStartsNewLine(true);
   chatInput_.setTextToShowWhenEmpty("Type your question.", Colours::muted);
   addAndMakeVisible(chatInput_);
+
+  chatOutput_.setMultiLine(true);
+  chatOutput_.setReadOnly(true);
+  chatOutput_.setScrollbarsShown(true);
+  chatOutput_.setCaretVisible(false);
+  chatOutput_.setTextToShowWhenEmpty("AIFRED answers will appear here.", Colours::muted);
+  chatOutput_.setColour(juce::TextEditor::backgroundColourId, juce::Colours::transparentBlack);
+  chatOutput_.setColour(juce::TextEditor::outlineColourId, Colours::line);
+  chatOutput_.setColour(juce::TextEditor::focusedOutlineColourId, Colours::cyan);
+  chatOutput_.setColour(juce::TextEditor::textColourId, Colours::ink);
+  chatOutput_.setColour(juce::TextEditor::highlightColourId, Colours::cyan.withAlpha(0.22f));
+  addAndMakeVisible(chatOutput_);
 
   apiEndpoint_.setTextToShowWhenEmpty("http://127.0.0.1:11434 or https://api.openai.com/v1", Colours::muted);
   apiKey_.setPasswordCharacter('*');
@@ -135,20 +155,9 @@ AifredAudioProcessorEditor::AifredAudioProcessorEditor(AifredAudioProcessor& pro
   addAndMakeVisible(apiKey_);
   addAndMakeVisible(aiModel_);
 
-  fixList_.setText({}, juce::dontSendNotification);
-  fixList_.setColour(juce::Label::textColourId, Colours::ink);
-  fixList_.setJustificationType(juce::Justification::topLeft);
-  addAndMakeVisible(fixList_);
-
-  themeMenu_.addItem("Neon Cyan", 1);
-  themeMenu_.addItem("Gold Meter", 2);
-  themeMenu_.addItem("Redline", 3);
   providerMenu_.addItem("OpenAI", 1);
   providerMenu_.addItem("OpenAI-compatible", 2);
   providerMenu_.addItem("Ollama / Local", 3);
-  layoutMenu_.addItem("Studio Wide", 1);
-  layoutMenu_.addItem("Compact Metering", 2);
-  layoutMenu_.addItem("Chat Focus", 3);
   genreMenu_.addItem("Hip-Hop / Trap", 1);
   genreMenu_.addItem("Boom Bap", 2);
   genreMenu_.addItem("Drill / Trap", 3);
@@ -158,8 +167,6 @@ AifredAudioProcessorEditor::AifredAudioProcessorEditor(AifredAudioProcessor& pro
   gateSlider_.setRange(0.0, 1.0, 0.01);
   gateSlider_.setTextValueSuffix(" gate");
   addAndMakeVisible(providerMenu_);
-  addAndMakeVisible(themeMenu_);
-  addAndMakeVisible(layoutMenu_);
   addAndMakeVisible(genreMenu_);
   addAndMakeVisible(gateSlider_);
   for (int i = 0; i < static_cast<int>(referenceVolumeSliders_.size()); ++i) {
@@ -173,8 +180,6 @@ AifredAudioProcessorEditor::AifredAudioProcessorEditor(AifredAudioProcessor& pro
   }
 
   const auto settings = processor_.getPluginSettings();
-  themeMenu_.setSelectedId(settings.themeId);
-  layoutMenu_.setSelectedId(settings.layoutId);
   genreMenu_.setSelectedId(settings.genreId);
   providerMenu_.setSelectedId(settings.aiProvider == "ollama" ? 3 : (settings.aiProvider == "compatible" ? 2 : 1));
   gateSlider_.setValue(settings.gate, juce::dontSendNotification);
@@ -194,8 +199,11 @@ AifredAudioProcessorEditor::~AifredAudioProcessorEditor() {
   for (auto* button : {&analyzeButton_, &referenceButton_, &compareButton_, &optionsButton_, &tutorialButton_, &centerModeButton_}) {
     button->removeListener(this);
   }
-  for (auto* button : {&askAiButton_, &saveApiButton_, &chatFileButton_, &referenceFileButton_, &compareFileButton_}) {
+  for (auto* button : {&askAiButton_, &saveApiButton_, &chatFileButton_, &compareFileButton_}) {
     button->removeListener(this);
+  }
+  for (auto& button : referenceFileButtons_) {
+    button.removeListener(this);
   }
   setLookAndFeel(nullptr);
 }
@@ -221,28 +229,41 @@ void AifredAudioProcessorEditor::buttonClicked(juce::Button* button) {
     const auto prompt = chatInput_.getText().trim();
     diagnostic_ = DiagnosticInterpreter::instance().update(state_, providerMenu_.getText(), apiEndpoint_.getText(), apiKey_.getText(), aiModel_.getText());
     if (prompt.isEmpty()) {
-      fixListText_.clear();
+      chatOutputText_.clear();
     } else {
-      fixListText_ = "Reading current mix snapshot...";
+      chatOutputText_ = "You: " + prompt + "\n\nAIFRED: Reading current mix snapshot...";
       AifredEngineClient::instance().askAsync(prompt, diagnostic_.aiContextJson);
     }
-    fixList_.setText(fixListText_, juce::dontSendNotification);
+    chatOutput_.setText(chatOutputText_, juce::dontSendNotification);
+    chatOutput_.moveCaretToEnd();
   }
   if (button == &saveApiButton_) {
     pushSettingsToProcessor();
     apiStatus_ = apiEndpoint_.getText().trim().isNotEmpty() ? "API route set." : "API route not connected.";
   }
-  if (button == &chatFileButton_ || button == &referenceFileButton_ || button == &compareFileButton_) {
+  if (button == &chatFileButton_ || button == &compareFileButton_) {
     fileChooser_ = std::make_unique<juce::FileChooser>("Select audio file", juce::File{}, "*.wav;*.aif;*.aiff;*.mp3;*.flac");
     fileChooser_->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
       [this, button](const juce::FileChooser& chooser) {
         const auto file = chooser.getResult();
         if (!file.existsAsFile()) return;
         if (button == &chatFileButton_) chatFileStatus_ = "Chat file: " + file.getFileName();
-        if (button == &referenceFileButton_) referenceStatus_ = "Reference file: " + file.getFileName();
         if (button == &compareFileButton_) compareStatus_ = "Compare file: " + file.getFileName();
         repaint();
       });
+  }
+  for (int i = 0; i < static_cast<int>(referenceFileButtons_.size()); ++i) {
+    if (button == &referenceFileButtons_[static_cast<size_t>(i)]) {
+      fileChooser_ = std::make_unique<juce::FileChooser>("Select reference " + juce::String(i + 1), juce::File{}, "*.wav;*.aif;*.aiff;*.mp3;*.flac");
+      fileChooser_->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+        [this, i](const juce::FileChooser& chooser) {
+          const auto file = chooser.getResult();
+          if (!file.existsAsFile()) return;
+          referenceFileNames_[static_cast<size_t>(i)] = file.getFileName();
+          referenceStatus_ = "Loaded " + juce::String(i + 1) + "/5 reference slots.";
+          repaint();
+        });
+    }
   }
   pushSettingsToProcessor();
   resized();
@@ -257,17 +278,24 @@ void AifredAudioProcessorEditor::timerCallback() {
     AifredEngineClient::instance().pingHealthAsync();
   }
   const auto engineResponse = AifredEngineClient::instance().lastResponse();
-  if (engineResponse.isNotEmpty() && engineResponse != fixListText_ && !AifredEngineClient::instance().hasPendingChat()) {
-    fixListText_ = engineResponse;
-    fixList_.setText(fixListText_, juce::dontSendNotification);
+  if (engineResponse.isNotEmpty() && !AifredEngineClient::instance().hasPendingChat()) {
+    const auto cleaned = cleanAiDisplayText(engineResponse);
+    const auto nextText = chatOutputText_.contains("AIFRED: Reading current mix snapshot...")
+      ? chatOutputText_.replace("AIFRED: Reading current mix snapshot...", "AIFRED: " + cleaned)
+      : cleaned;
+    if (nextText != chatOutputText_) {
+      chatOutputText_ = nextText;
+      chatOutput_.setText(chatOutputText_, juce::dontSendNotification);
+      chatOutput_.moveCaretToEnd();
+    }
   }
   repaint();
 }
 
 void AifredAudioProcessorEditor::pushSettingsToProcessor() {
   PluginSettings settings;
-  settings.themeId = themeMenu_.getSelectedId();
-  settings.layoutId = layoutMenu_.getSelectedId();
+  settings.themeId = 1;
+  settings.layoutId = 3;
   settings.genreId = genreMenu_.getSelectedId();
   settings.gate = gateSlider_.getValue();
   settings.aiProvider = providerMenu_.getSelectedId() == 3 ? "ollama" : (providerMenu_.getSelectedId() == 2 ? "compatible" : "openai");
@@ -280,7 +308,7 @@ void AifredAudioProcessorEditor::pushSettingsToProcessor() {
 void AifredAudioProcessorEditor::paint(juce::Graphics& g) {
   auto bounds = getLocalBounds();
   const auto mode = processor_.getMode();
-  auto accent = accentForTheme(themeMenu_.getSelectedId(), mode);
+  auto accent = accentForMode(mode);
   if (mode == AnalysisMode::Reference) accent = genreColour(genreMenu_.getSelectedId());
 
   g.fillAll(juce::Colour(0xff02060b));
@@ -303,9 +331,8 @@ void AifredAudioProcessorEditor::paint(juce::Graphics& g) {
   if (mode == AnalysisMode::Compare) {
     drawCompare(g, main);
   } else {
-    const auto layoutId = layoutMenu_.getSelectedId();
-    const auto leftFraction = layoutId == 2 ? 0.38f : (layoutId == 3 ? 0.24f : 0.32f);
-    const auto rightFraction = layoutId == 3 ? 0.36f : 0.28f;
+    const auto leftFraction = 0.23f;
+    const auto rightFraction = 0.40f;
     auto left = main.removeFromLeft(juce::roundToInt(main.getWidth() * leftFraction));
     auto right = main.removeFromRight(juce::roundToInt(main.getWidth() * rightFraction));
     auto center = main.reduced(14, 0);
@@ -317,7 +344,7 @@ void AifredAudioProcessorEditor::paint(juce::Graphics& g) {
     drawHalo(g, center.reduced(0, 10), state_, mode == AnalysisMode::Reference ? "REFERENCE HALO" : "ANALYZE HALO", mode == AnalysisMode::Reference);
 
     if (mode == AnalysisMode::Reference) {
-      drawReferenceMixer(g, right.removeFromTop(176).reduced(0, 0));
+      drawReferenceMixer(g, right.removeFromTop(236).reduced(0, 0));
     } else {
       drawDomainCard(g, right.removeFromTop(76).reduced(0, 0), "TONE", state_.tone);
       drawDomainCard(g, right.removeFromTop(76).reduced(0, 8), "WIDTH", state_.stereo);
@@ -336,7 +363,7 @@ void AifredAudioProcessorEditor::paint(juce::Graphics& g) {
     g.drawText("PREFERENCES", inner.removeFromTop(34), juce::Justification::centredLeft);
     g.setFont(juce::FontOptions(14.0f));
     g.setColour(Colours::muted);
-    g.drawFittedText(apiStatus_ + "\n" + juce::String(genreName(genreMenu_.getSelectedId())), inner.removeFromTop(64), juce::Justification::topLeft, 3);
+    g.drawFittedText(apiStatus_ + "\nLayout: Chat Focus\n" + juce::String(genreName(genreMenu_.getSelectedId())), inner.removeFromTop(64), juce::Justification::topLeft, 3);
   }
 
   if (showTutorial_ && !splashDismissedThisEditor_) {
@@ -383,11 +410,18 @@ void AifredAudioProcessorEditor::resized() {
   const auto mode = processor_.getMode();
   auto body = getLocalBounds().withTrimmedTop(88).reduced(18, 10);
   if (mode != AnalysisMode::Compare) {
-    auto right = body.removeFromRight(juce::roundToInt(body.getWidth() * 0.28f)).reduced(0, 8);
+    auto right = body.removeFromRight(juce::roundToInt(body.getWidth() * 0.40f)).reduced(0, 8);
     if (mode == AnalysisMode::Reference) {
-      auto mixer = right.removeFromTop(176).reduced(16);
+      auto mixer = right.removeFromTop(236).reduced(16);
       mixer.removeFromTop(30);
-      referenceFileButton_.setBounds(mixer.removeFromTop(34).reduced(0, 4));
+      auto firstRow = mixer.removeFromTop(34);
+      for (int i = 0; i < 3; ++i) {
+        referenceFileButtons_[static_cast<size_t>(i)].setBounds(firstRow.removeFromLeft(firstRow.getWidth() / (3 - i)).reduced(3, 3));
+      }
+      auto secondRow = mixer.removeFromTop(34);
+      for (int i = 3; i < 5; ++i) {
+        referenceFileButtons_[static_cast<size_t>(i)].setBounds(secondRow.removeFromLeft(secondRow.getWidth() / (5 - i)).reduced(3, 3));
+      }
       auto sliderArea = mixer.reduced(0, 4);
       const auto laneWidth = sliderArea.getWidth() / 5;
       for (int i = 0; i < 5; ++i) {
@@ -397,24 +431,24 @@ void AifredAudioProcessorEditor::resized() {
     else {
       right.removeFromTop(76);
       right.removeFromTop(76);
-      referenceFileButton_.setBounds({});
+      for (auto& button : referenceFileButtons_) button.setBounds({});
       for (auto& slider : referenceVolumeSliders_) slider.setBounds({});
     }
     right.removeFromTop(76);
     right.removeFromTop(76);
     auto chat = right.reduced(0, 8).reduced(16);
     chat.removeFromTop(30);
-    chatInput_.setBounds(chat.removeFromTop(82));
+    chatInput_.setBounds(chat.removeFromTop(74));
     auto buttons = chat.removeFromTop(38);
     chatFileButton_.setBounds(buttons.removeFromLeft(buttons.getWidth() / 2).reduced(0, 4));
     askAiButton_.setBounds(buttons.reduced(6, 4));
-    fixList_.setBounds(chat);
+    chatOutput_.setBounds(chat.reduced(0, 4));
   } else {
     chatInput_.setBounds({});
+    chatOutput_.setBounds({});
     askAiButton_.setBounds({});
     chatFileButton_.setBounds({});
-    referenceFileButton_.setBounds({});
-    fixList_.setBounds({});
+    for (auto& button : referenceFileButtons_) button.setBounds({});
     auto compareButtonArea = getLocalBounds().withTrimmedTop(104).removeFromRight(210).reduced(18, 0);
     compareFileButton_.setBounds(compareButtonArea.removeFromTop(36));
     for (auto& slider : referenceVolumeSliders_) slider.setBounds({});
@@ -425,8 +459,6 @@ void AifredAudioProcessorEditor::resized() {
     auto panel = getLocalBounds().withSizeKeepingCentre(560, 420).reduced(22);
     panel.removeFromTop(110);
     providerMenu_.setBounds(panel.removeFromTop(30));
-    themeMenu_.setBounds(panel.removeFromTop(30));
-    layoutMenu_.setBounds(panel.removeFromTop(34));
     genreMenu_.setBounds(panel.removeFromTop(34));
     gateSlider_.setBounds(panel.removeFromTop(42));
     apiEndpoint_.setBounds(panel.removeFromTop(30));
@@ -435,8 +467,6 @@ void AifredAudioProcessorEditor::resized() {
     saveApiButton_.setBounds(panel.removeFromTop(34).reduced(0, 4));
   } else {
     providerMenu_.setBounds({});
-    themeMenu_.setBounds({});
-    layoutMenu_.setBounds({});
     genreMenu_.setBounds({});
     gateSlider_.setBounds({});
     apiEndpoint_.setBounds({});
@@ -473,7 +503,7 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
   auto area = bounds.reduced(28).toFloat();
   auto centre = area.getCentre();
   const auto radius = std::min(area.getWidth(), area.getHeight()) * 0.36f;
-  auto accent = referenceOverlay ? genreColour(genreMenu_.getSelectedId()) : accentForTheme(themeMenu_.getSelectedId(), processor_.getMode());
+  auto accent = referenceOverlay ? genreColour(genreMenu_.getSelectedId()) : accentForMode(processor_.getMode());
   const auto dynamicPulse = clamp01(0.28f * state.metrics.loudness01 + 0.26f * state.metrics.width01 + 0.20f * state.metrics.punch01 + 0.18f * (1.0f - std::abs(state.metrics.crestDb - 11.0f) / 18.0f));
   const auto pulse = 0.82f + dynamicPulse * 0.14f;
 
@@ -712,7 +742,7 @@ void AifredAudioProcessorEditor::drawReferenceMixer(juce::Graphics& g, juce::Rec
   g.setFont(juce::FontOptions(17.0f, juce::Font::bold));
   g.setColour(Colours::ink);
   g.drawText("REFERENCE MIXER", inner.removeFromTop(30), juce::Justification::centredLeft);
-  inner.removeFromTop(38);
+  inner.removeFromTop(76);
 
   const int lanes = 5;
   const auto laneWidth = inner.getWidth() / lanes;
@@ -730,6 +760,12 @@ void AifredAudioProcessorEditor::drawReferenceMixer(juce::Graphics& g, juce::Rec
     g.setFont(juce::FontOptions(9.5f, juce::Font::bold));
     g.setColour(Colours::ink);
     g.drawText("REF " + juce::String(lane + 1), strip.toNearestInt().removeFromTop(18), juce::Justification::centred);
+    const auto loadedName = referenceFileNames_[static_cast<size_t>(lane)].isNotEmpty()
+      ? referenceFileNames_[static_cast<size_t>(lane)]
+      : "empty";
+    g.setFont(juce::FontOptions(8.8f));
+    g.setColour(Colours::muted);
+    g.drawFittedText(loadedName, strip.toNearestInt().removeFromBottom(22), juce::Justification::centred, 2);
   }
   g.setFont(juce::FontOptions(11.0f));
   g.setColour(Colours::muted);

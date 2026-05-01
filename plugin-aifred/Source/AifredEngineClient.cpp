@@ -81,7 +81,7 @@ juce::String chatRequest(const juce::String& prompt, const juce::String& context
   if (connect) {
     HINTERNET request = WinHttpOpenRequest(connect, L"POST", L"/chat", nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, 0);
     if (request) {
-      DWORD timeout = 180000;
+      DWORD timeout = 420000;
       WinHttpSetOption(request, WINHTTP_OPTION_CONNECT_TIMEOUT, &timeout, sizeof(timeout));
       WinHttpSetOption(request, WINHTTP_OPTION_RECEIVE_TIMEOUT, &timeout, sizeof(timeout));
       WinHttpSetOption(request, WINHTTP_OPTION_SEND_TIMEOUT, &timeout, sizeof(timeout));

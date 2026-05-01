@@ -55,13 +55,19 @@ try
 
         Directory.CreateDirectory(targetRoot);
         Directory.CreateDirectory(productRoot);
+        StopExistingEngine();
         if (Directory.Exists(targetPlugin))
         {
             Directory.Delete(targetPlugin, recursive: true);
         }
+        if (Directory.Exists(productRoot))
+        {
+            Directory.Delete(productRoot, recursive: true);
+        }
 
         CopyDirectory(sourcePlugin, targetPlugin);
         CopyDirectory(Path.Combine(extractedRoot, "Aifred"), productRoot);
+        ClearPreviousBackendSettings();
         EnsureOllamaReady();
         ConfigureAiProvider(productRoot);
         RegisterStartup(engineTarget);
@@ -120,6 +126,29 @@ static bool IsPluginEntry(ZipArchiveEntry entry)
     var normalized = entry.FullName.Replace('\\', '/');
     return normalized.StartsWith(PluginFolderName + "/", StringComparison.OrdinalIgnoreCase)
         || normalized.StartsWith("Aifred/", StringComparison.OrdinalIgnoreCase);
+}
+
+static void StopExistingEngine()
+{
+    foreach (var process in System.Diagnostics.Process.GetProcessesByName("AifredEngine"))
+    {
+        try
+        {
+            process.Kill(entireProcessTree: true);
+            process.WaitForExit(3000);
+        }
+        catch {}
+    }
+}
+
+static void ClearPreviousBackendSettings()
+{
+    var settingsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Aifred", "user_settings.json");
+    try
+    {
+        if (File.Exists(settingsPath)) File.Delete(settingsPath);
+    }
+    catch {}
 }
 
 static void RegisterStartup(string enginePath)

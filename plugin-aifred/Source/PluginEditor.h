@@ -48,25 +48,30 @@ private:
   juce::TextButton askAiButton_ {"ASK AI"};
   juce::TextButton saveApiButton_ {"SAVE API"};
   juce::TextButton chatFileButton_ {"CHAT FILE"};
-  juce::TextButton referenceFileButton_ {"REFERENCE FILE"};
+  std::array<juce::TextButton, 5> referenceFileButtons_ {
+    juce::TextButton {"REF 1 FILE"},
+    juce::TextButton {"REF 2 FILE"},
+    juce::TextButton {"REF 3 FILE"},
+    juce::TextButton {"REF 4 FILE"},
+    juce::TextButton {"REF 5 FILE"}
+  };
   juce::TextButton compareFileButton_ {"COMPARE FILE"};
   juce::TextEditor chatInput_;
+  juce::TextEditor chatOutput_;
   juce::TextEditor apiEndpoint_;
   juce::TextEditor apiKey_;
   juce::TextEditor aiModel_;
-  juce::Label fixList_;
   juce::ComboBox providerMenu_;
-  juce::ComboBox themeMenu_;
-  juce::ComboBox layoutMenu_;
   juce::ComboBox genreMenu_;
   juce::Slider gateSlider_;
   std::array<juce::Slider, 5> referenceVolumeSliders_;
+  std::array<juce::String, 5> referenceFileNames_;
   juce::Image mascot_;
   std::unique_ptr<juce::FileChooser> fileChooser_;
   HaloState state_;
   HaloState compareState_;
   DiagnosticPresentation diagnostic_;
-  juce::String fixListText_;
+  juce::String chatOutputText_;
   juce::String apiStatus_ = "API route not connected.";
   juce::String referenceStatus_ = "No reference file selected.";
   juce::String compareStatus_ = "No compare file selected.";

@@ -87,7 +87,7 @@ Metering notes:
 - Correlation reads as a -1 to +1 value after a 150 Hz high-pass so bass energy does not dominate the phase read.
 - Chat has its own dedicated module and no hardcoded fix suggestions.
 - The plugin header displays the current AIFRED version so stale FL Studio scans are easier to spot.
-- Theme, layout, gate, and local AI settings save into project/local settings.
+- Gate and local AI settings save into project/local settings. The plugin uses the Chat Focus layout.
 - The local AIFRED engine runs at `http://127.0.0.1:8787` after installation. If the engine is unavailable, the plugin continues metering and shows `Local AI route unavailable`.
 - The Windows installer can store an OpenAI-compatible endpoint, API key, and model name for online chat routing. The local engine routes offline chat to the local Ollama model when no external API is configured.
 

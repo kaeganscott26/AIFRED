@@ -51,7 +51,7 @@ if ($IsWindows -or $env:OS -eq "Windows_NT") {
   "model_name": "aifred:latest",
   "openai_api_key": "",
   "custom_endpoint": "http://127.0.0.1:11434",
-  "timeout_ms": 180000
+  "timeout_ms": 420000
 }
 '@ | Set-Content -Encoding UTF8 (Join-Path $productRoot "config\config.json")
 @'

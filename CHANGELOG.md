@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.3.4-chat-scroll
+
+- Replaced the chat answer label with a scrollable read-only chat output window.
+- Cleaned model text before display so JSON wrappers and code fences do not appear as the visible answer.
+- Changed the engine prompt to keep chat open-ended while still using DAW audio context when relevant.
+- Removed visible theme/layout options and forced the plugin to the Chat Focus layout.
+- Added five independent reference file buttons for the five reference mixer lanes.
+- Added a Windows uninstaller release artifact and updated the installer to remove prior backend files/settings before installing the current backend.
+
 ## v0.3.3-ollama-chat - AIFRED Windows Release Architecture
 
 - Added `AifredEngine.exe`, a Windows companion process that exposes `http://127.0.0.1:8787`.

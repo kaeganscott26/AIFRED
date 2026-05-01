@@ -230,8 +230,8 @@ sealed class AifredRuntime
             ["prompt"] = BuildMixPrompt(message, context),
             ["options"] = new JsonObject
             {
-                ["num_predict"] = 120,
-                ["temperature"] = 0.55
+                ["num_predict"] = 140,
+                ["temperature"] = 0.35
             }
         };
         var response = await client.PostAsync($"{endpoint}/api/generate", new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json"));
@@ -254,7 +254,7 @@ sealed class AifredRuntime
                 new JsonObject { ["role"] = "system", ["content"] = SystemPrompt() },
                 new JsonObject { ["role"] = "user", ["content"] = BuildMixPrompt(message, context) }
             },
-            ["temperature"] = 0.55
+            ["temperature"] = 0.35
         };
         var response = await client.PostAsync($"{endpoint}/chat/completions", new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json"));
         response.EnsureSuccessStatusCode();
@@ -268,20 +268,72 @@ sealed class AifredRuntime
         return $"""
         {SystemPrompt()}
         Snapshot: {context.ToJsonString(new JsonSerializerOptions { WriteIndented = false })}
+        Interpretation notes: {BuildInterpretationNotes(context)}
         Question: {message}
         """;
     }
 
+    static string BuildInterpretationNotes(JsonObject context)
+    {
+        var notes = new List<string>();
+        var metrics = context["metrics"]?.AsObject();
+        var reference = context["reference_pool"]?.AsObject();
+        if (TryGetDouble(metrics, "integrated_lufs", out var lufs) && TryGetDouble(reference, "target_loudness_lufs", out var targetLufs))
+        {
+            notes.Add($"{lufs:0.0} LUFS is {(lufs > targetLufs ? "louder/hotter" : "quieter/softer")} than the {targetLufs:0.0} LUFS reference target.");
+        }
+        if (TryGetDouble(metrics, "true_peak_dbtp", out var truePeak))
+        {
+            notes.Add(truePeak > 0.0 ? $"True peak is {truePeak:0.0} dBTP, so there is clipping or insufficient ceiling." : $"True peak is {truePeak:0.0} dBTP.");
+        }
+        if (TryGetDouble(metrics, "crest_db", out var crest) && TryGetDouble(reference, "target_crest_db", out var targetCrest))
+        {
+            notes.Add($"{crest:0.0} dB crest is {(crest < targetCrest ? "less dynamic/more compressed" : "more dynamic/more open")} than the {targetCrest:0.0} dB reference crest.");
+        }
+        return notes.Count == 0 ? "Use the supplied snapshot when it is relevant." : string.Join(" ", notes);
+    }
+
+    static bool TryGetDouble(JsonObject? obj, string key, out double value)
+    {
+        value = 0;
+        if (obj == null || obj[key] == null) return false;
+        try
+        {
+            value = obj[key]!.GetValue<double>();
+            return true;
+        }
+        catch
+        {
+            return double.TryParse(obj[key]!.ToString(), out value);
+        }
+    }
+
     static string SystemPrompt() =>
-        "You are AIFRED, a mix-aware assistant inside an audio plugin. Answer naturally in plain English. Use only the measured DSP snapshot, reference-pool metadata, compare-mode data, and the user's question. Compare each numeric value against the supplied reference target before judging it; for LUFS, -9.2 is louder/hotter than -11.5, not quieter, and for crest, 6.1 is below 10.4, not above. If true_peak_dbtp is above 0, treat clipping/headroom as the first priority. If crest_db is far below the reference crest target, treat dynamics as compressed/low-contrast. Do not output JSON, tables, canned scripts, or generic talk. Give accurate, actionable mix advice with units when useful. If the snapshot is idle or insufficient, say what measurement is missing.";
+        "You are AIFRED, a natural mix-aware assistant inside an audio plugin. Reply conversationally to any user message. When the DAW audio snapshot or reference-pool metadata is relevant, use it to give practical mix advice with clear units such as dB, LUFS, dBTP, frequency range, crest, and correlation. Treat the interpretation notes as measured facts and do not contradict them. Remember that -9.2 LUFS is louder/hotter than -11.5 LUFS, and a 6.1 dB crest is less dynamic than a 10.4 dB crest by 4.3 dB. Keep the answer human, direct, and complete in 2 to 4 concise sentences. Do not print JSON, code fences, raw objects, tables, schema text, or implementation details.";
 
     static string CleanAiText(string value)
     {
         value = value.Trim();
         if (value.StartsWith("{") || value.StartsWith("["))
         {
-            return "Local model returned structured data instead of a normal answer.";
+            try
+            {
+                var parsed = JsonNode.Parse(value);
+                var candidate = parsed?["response"]?.GetValue<string>()
+                    ?? parsed?["message"]?.GetValue<string>()
+                    ?? parsed?["answer"]?.GetValue<string>()
+                    ?? parsed?["content"]?.GetValue<string>()
+                    ?? "";
+                if (!string.IsNullOrWhiteSpace(candidate)) return CleanAiText(candidate);
+            }
+            catch {}
+            return "I received structured model data instead of a normal spoken answer. Ask again and I will answer naturally from the current mix context.";
         }
+        value = value.Replace("```json", "", StringComparison.OrdinalIgnoreCase)
+                     .Replace("```", "")
+                     .Replace("\\n", "\n")
+                     .Replace("\\\"", "\"")
+                     .Trim();
         return value.Length == 0 ? "AIFRED did not receive a usable model response." : value;
     }
 

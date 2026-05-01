@@ -9,7 +9,7 @@ namespace aifred {
 
 struct PluginSettings {
   int themeId = 1;
-  int layoutId = 1;
+  int layoutId = 3;
   int genreId = 1;
   double gate = 0.35;
   juce::String aiProvider = "ollama";

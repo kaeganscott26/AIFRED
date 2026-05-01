@@ -80,8 +80,8 @@ void AifredAudioProcessor::setStateInformation(const void* data, int sizeInBytes
   auto state = getXmlFromBinary(data, sizeInBytes);
   if (!state || !state->hasTagName("AIFRED_STATE")) return;
   mode_.store(juce::jlimit(0, 2, state->getIntAttribute("mode", static_cast<int>(AnalysisMode::Analyze))));
-  settings_.themeId = juce::jlimit(1, 3, state->getIntAttribute("theme", settings_.themeId));
-  settings_.layoutId = juce::jlimit(1, 3, state->getIntAttribute("layout", settings_.layoutId));
+  settings_.themeId = 1;
+  settings_.layoutId = 3;
   settings_.genreId = juce::jlimit(1, 6, state->getIntAttribute("genre", settings_.genreId));
   settings_.gate = juce::jlimit(0.0, 1.0, state->getDoubleAttribute("gate", settings_.gate));
   settings_.aiProvider = state->getStringAttribute("aiProvider", settings_.aiProvider).substring(0, 32);
@@ -117,8 +117,8 @@ PluginSettings AifredAudioProcessor::getPluginSettings() const {
 }
 
 void AifredAudioProcessor::setPluginSettings(const PluginSettings& settings) {
-  settings_.themeId = juce::jlimit(1, 3, settings.themeId);
-  settings_.layoutId = juce::jlimit(1, 3, settings.layoutId);
+  settings_.themeId = 1;
+  settings_.layoutId = 3;
   settings_.genreId = juce::jlimit(1, 6, settings.genreId);
   settings_.gate = juce::jlimit(0.0, 1.0, settings.gate);
   settings_.aiProvider = settings.aiProvider.substring(0, 32);
