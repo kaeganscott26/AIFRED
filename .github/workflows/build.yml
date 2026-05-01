@@ -103,16 +103,17 @@ jobs:
           {
             "mode": "local",
             "port": 8787,
-            "provider": "bundled-local",
+            "provider": "ollama",
             "model_path": "models/aifred-assistant-q4.gguf",
+            "model_name": "aifred:latest",
             "openai_api_key": "",
-            "custom_endpoint": "",
-            "timeout_ms": 8000
+            "custom_endpoint": "http://127.0.0.1:11434",
+            "timeout_ms": 180000
           }
           JSON
           cat > dist/AIFRED-VST3-arch/Aifred/models/README.txt <<'TXT'
           Optional offline model slot: place a licensed GGUF model here as aifred-assistant-q4.gguf.
-          AIFRED works out of the box with deterministic local coaching, and users can configure an OpenAI-compatible API route for online chat.
+          AIFRED uses local Ollama chat by default, and users can configure an OpenAI-compatible API route for online chat.
           TXT
           cd dist/AIFRED-VST3-arch
           zip -r ../AIFRED-VST3-arch.zip .
@@ -122,23 +123,6 @@ jobs:
           name: AIFRED-VST3-arch
           path: dist/AIFRED-VST3-arch.zip
           if-no-files-found: error
-
-  android-admin:
-    name: Android admin
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: microsoft
-          java-version: "17"
-
-      - uses: android-actions/setup-android@v3
-
-      - name: Build debug APK
-        working-directory: android_admin
-        run: bash ./gradlew assembleDebug
 
   website:
     name: Website checks
