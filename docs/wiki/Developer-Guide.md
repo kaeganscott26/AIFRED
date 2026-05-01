@@ -32,7 +32,7 @@ If MSVC cannot find standard headers like `string` or `algorithm`, run from the 
 
 ```powershell
 & 'C:\Program Files\Microsoft Visual Studio\18\Community\Common7\Tools\Launch-VsDevShell.ps1' -Arch amd64 -HostArch amd64
-cmake --build 'C:\Users\Scott\Projects\AIFRED\build\aifred' --config Release --parallel
+cmake --build build\aifred --config Release --parallel
 ```
 
 ## Windows Installer
@@ -100,7 +100,8 @@ The `.pages.dev` URL is only a Cloudflare preview/deployment endpoint.
 
 The workflow validates:
 
-- Windows VST3 build, AIFRED engine publish, and `.exe` package
+- Windows, macOS, Linux, and Arch VST package builds
+- Windows AIFRED engine publish and `.exe` installer package
 - Android admin compile
 - Website JavaScript syntax
 - Hardcoded path guard

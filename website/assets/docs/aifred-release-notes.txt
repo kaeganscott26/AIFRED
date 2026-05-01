@@ -1,8 +1,10 @@
-AIFRED Release Notes
+AIFRED v0.3.2 JUCE Release Notes
 
-Initial build target:
-- Fresh AIFRED VST3 plugin source.
-- Windows-first VST3 packaging for FL Studio scanning.
-- Cloudflare Pages Functions aligned to the website folder.
-- Beat catalog storefront wired to website/assets/audio/catalog and website/assets/data/beat_catalog.json.
-- OpenAI and Ollama chat provider routing through backend environment variables.
+Current build target:
+- JUCE VST3 plugin with resizable Halo interface.
+- Halo quadrant scale ticks, reference rings, and switchable center display.
+- One session candlestick plus 10 one-minute history candlesticks.
+- Reference mode with five reference volume lanes.
+- Compare mode with separate Mix A and Mix B analysis routes.
+- $5 PayPal purchase path with tokenized backend download delivery.
+- Local AIFRED engine fallback plus optional OpenAI-compatible endpoint setup.

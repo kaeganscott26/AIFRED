@@ -62,6 +62,7 @@ try
 
         CopyDirectory(sourcePlugin, targetPlugin);
         CopyDirectory(Path.Combine(extractedRoot, "Aifred"), productRoot);
+        ConfigureAiProvider(productRoot);
         RegisterStartup(engineTarget);
         StartEngine(engineTarget);
         var health = await ValidateEngineHealth();
@@ -124,6 +125,69 @@ static void RegisterStartup(string enginePath)
 {
     using var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run");
     key?.SetValue("AIFRED Engine", $"\"{enginePath}\"");
+}
+
+static void ConfigureAiProvider(string productRoot)
+{
+    var result = MessageBox.Show(
+        "Configure online AI chat now?\n\nChoose Yes to enter an OpenAI-compatible endpoint and API key. Choose No to use local offline AIFRED coaching.",
+        "AIFRED AI Setup",
+        MessageBoxButtons.YesNo,
+        MessageBoxIcon.Question);
+
+    if (result != DialogResult.Yes)
+    {
+        return;
+    }
+
+    using var form = new Form
+    {
+        Text = "AIFRED Online AI Setup",
+        Width = 560,
+        Height = 260,
+        FormBorderStyle = FormBorderStyle.FixedDialog,
+        StartPosition = FormStartPosition.CenterScreen,
+        MaximizeBox = false,
+        MinimizeBox = false
+    };
+
+    var endpointLabel = new Label { Left = 20, Top = 22, Width = 500, Text = "Endpoint (OpenAI or compatible):" };
+    var endpoint = new TextBox { Left = 20, Top = 46, Width = 500, Text = "https://api.openai.com/v1" };
+    var keyLabel = new Label { Left = 20, Top = 82, Width = 500, Text = "API key:" };
+    var apiKey = new TextBox { Left = 20, Top = 106, Width = 500, PasswordChar = '*' };
+    var modelLabel = new Label { Left = 20, Top = 142, Width = 500, Text = "Model:" };
+    var model = new TextBox { Left = 20, Top = 166, Width = 500, Text = "gpt-5.4-mini" };
+    var save = new Button { Text = "Save", Left = 340, Top = 198, Width = 84, DialogResult = DialogResult.OK };
+    var cancel = new Button { Text = "Cancel", Left = 436, Top = 198, Width = 84, DialogResult = DialogResult.Cancel };
+    form.Controls.AddRange(new Control[] { endpointLabel, endpoint, keyLabel, apiKey, modelLabel, model, save, cancel });
+    form.AcceptButton = save;
+    form.CancelButton = cancel;
+
+    if (form.ShowDialog() != DialogResult.OK)
+    {
+        return;
+    }
+
+    var settingsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Aifred", "user_settings.json");
+    Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
+    File.WriteAllText(settingsPath, $$"""
+    {
+      "provider_override_enabled": true,
+      "provider_mode": "openai-compatible",
+      "api_key": "{{JsonEscape(apiKey.Text.Trim())}}",
+      "custom_endpoint": "{{JsonEscape(endpoint.Text.Trim())}}",
+      "model_name": "{{JsonEscape(model.Text.Trim())}}"
+    }
+    """);
+}
+
+static string JsonEscape(string value)
+{
+    return value
+        .Replace("\\", "\\\\")
+        .Replace("\"", "\\\"")
+        .Replace("\r", "")
+        .Replace("\n", "\\n");
 }
 
 static void StartEngine(string enginePath)

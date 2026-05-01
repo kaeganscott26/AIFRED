@@ -64,8 +64,9 @@ Reference:
 
 - One Halo.
 - Genre target overlay.
+- One default reference-pool ring plus up to five per-reference rings.
 - Personal reference file picker.
-- Reference mixer panel with fader, balance, mute/solo, and DAW-routing lanes.
+- Reference mixer panel with five volume lanes for balancing reference tracks against the live mix.
 
 Compare:
 
@@ -77,7 +78,10 @@ Compare:
 
 Metering notes:
 
-- The spectrometer is labeled by frequency lane.
+- The Halo center can switch between multiband frequency lanes, waveform, and combined spectrometer view.
+- Halo quadrants include visible scale ticks and readable labels for tone, width/correlation, loudness, and punch.
+- The session candlestick meter shows one candle for the current session. The history meter shows one candle per minute for the latest 10 minutes.
+- Candlesticks label open dB, close dB, and the open-to-close variation so level changes are visible without overreacting to tiny float movement.
 - Loudness and peak read in K-weighted LUFS and dBFS.
 - Crest reads in dB.
 - Correlation reads as a -1 to +1 value after a 150 Hz high-pass so bass energy does not dominate the phase read.
@@ -85,6 +89,7 @@ Metering notes:
 - The plugin header displays the current AIFRED version so stale FL Studio scans are easier to spot.
 - Theme, layout, gate, and local AI settings save into project/local settings.
 - The local AIFRED engine runs at `http://127.0.0.1:8787` after installation. If the engine is unavailable, the plugin continues metering and shows `AI engine unavailable - core analysis still active`.
+- The Windows installer can store an OpenAI-compatible endpoint, API key, and model name for online chat routing. The local engine keeps deterministic offline guidance available when no external model is configured.
 
 ## Install Paths
 

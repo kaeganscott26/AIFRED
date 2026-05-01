@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AIFRED by North3rnLight3r</title>
+    <title>North3rnLight3r | AIFRED VST3</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet" />
@@ -11,95 +11,166 @@
   </head>
   <body>
     <header class="topbar">
-      <a class="brand" href="#top" aria-label="AIFRED home">
+      <a class="brand" href="#top" aria-label="North3rnLight3r home">
         <img src="assets/brand/aifred-mascot.jpg" alt="AIFRED mascot" />
         <span>
           <strong>North3rnLight3r</strong>
-          <small>AIFRED VST3 + Beat Catalog</small>
+          <small>AIFRED VST3</small>
         </span>
       </a>
       <nav>
-        <a href="#vst">AIFRED</a>
-        <a href="#analyzer">Analyzer</a>
-        <a href="#beats">Beats</a>
-        <a href="#services">Services</a>
-        <a href="#chat">Ask Aifred</a>
-        <a href="#contact">Contact</a>
+        <a href="#vst">AIFRED VST3</a>
+        <a href="#beats">Beat Catalog</a>
       </nav>
     </header>
 
     <main id="top">
       <section class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">Mix decisions without guesswork</p>
-          <h1>AIFRED listens for the move your mix is asking you to make.</h1>
+          <h1>AIFRED VST3</h1>
           <p>
-            Built by North3rnLight3r for producers who need a clean read: tone, stereo, loudness,
-            dynamics, and reference alignment in one VST3 window.
+            Mix intelligence for producers who need clear feedback on tone, width, loudness, punch,
+            correlation, and reference alignment without guessing through scattered meters.
+          </p>
+          <p>
+            AIFRED turns real DSP measurements into a readable Halo view, candlestick level history,
+            and practical mix guidance so you can make cleaner decisions faster.
           </p>
           <div class="actions">
-            <a class="btn" href="#vst">View the VST</a>
-            <a class="btn ghost" href="#beats">Play the catalog</a>
+            <a class="btn" href="#vst">See AIFRED</a>
+            <a class="btn ghost" href="#beats">Browse the Catalog</a>
           </div>
         </div>
         <div class="hero-art">
-          <img src="assets/showcase/album-art-02.jpg" alt="North3rnLight3r album artwork" />
+          <img src="assets/showcase/album-art-02.jpg" alt="North3rnLight3r artwork" />
         </div>
       </section>
 
       <section id="vst" class="split">
         <div>
-          <p class="eyebrow">AIFRED VST3</p>
-          <h2>The Halo turns raw mix behavior into one readable decision.</h2>
+          <p class="eyebrow">AIFRED</p>
+          <h2>A real-time mix diagnostic tool for producers who want useful feedback inside the session.</h2>
           <p>
-            AIFRED is not a decorative meter. The Halo scores alignment across tone, stereo,
-            loudness, and dynamics, then explains the strongest cause before the session drifts.
+            AIFRED is not a one-click mix generator or preset shortcut. It measures the audio that is
+            actually playing, shows where the mix differs from the target, and keeps the decision in
+            your hands.
           </p>
+          <p>
+            The Halo system gives you a concise fingerprint for tone, width, loudness, punch, and
+            reference behavior, with readable meters that stay grounded in real DSP instead of tiny
+            jittery value changes.
+          </p>
+          <p>Inside AIFRED, you can check:</p>
+          <ul>
+            <li>tone balance</li>
+            <li>stereo width and mono behavior</li>
+            <li>loudness and peak behavior</li>
+            <li>punch and density</li>
+            <li>reference alignment</li>
+            <li>A/B comparison between your mix and a target</li>
+          </ul>
+          <p>
+            Instead of bouncing between random meters and trying to piece the story together in your
+            head, AIFRED pulls it into one view so you can catch the problem faster and move with
+            intention.
+          </p>
+          <p>The goal is simple: less guessing, better decisions, cleaner mixes.</p>
         </div>
-        <div class="feature-grid">
-          <article><strong>Analyze</strong><span>Live mix signature and Halo score.</span></article>
-          <article><strong>Reference</strong><span>Target-aware comparison without punishing mono-safe low end.</span></article>
-          <article><strong>Compare</strong><span>Mix A vs Mix B deltas for level, width, tone, and punch.</span></article>
-          <article><strong>FL Studio First</strong><span>Windows VST3 build target for FL Studio scanning before wider release.</span></article>
-        </div>
-        <div class="release-panel">
-          <strong>AIFRED VST3 Distribution</strong>
-          <span>Windows is the customer installer target. The plugin keeps core analysis active even when the local AI engine is unavailable.</span>
-          <div class="card-actions">
-            <a class="btn" id="aifred-buy-button" target="_blank" rel="noreferrer">Buy AIFRED</a>
-            <a class="btn ghost" id="aifred-release-button" target="_blank" rel="noreferrer">Release builds</a>
+        <div>
+          <div class="feature-grid">
+            <article><strong>Real-time Halo-based analysis</strong></article>
+            <article><strong>Reference and compare workflow</strong></article>
+            <article><strong>Visual feedback for tone, width, loudness, and punch</strong></article>
+            <article><strong>Fast mix translation checks</strong></article>
+            <article><strong>Built for real production decisions</strong></article>
           </div>
-          <div class="download-strip" id="aifred-downloads" aria-label="AIFRED release downloads"></div>
+          <div class="release-panel">
+            <strong>AIFRED</strong>
+            <div class="pricing-copy" aria-label="AIFRED beta pricing">
+              <strong>Beta purchase:</strong>
+              <span>$5 one-time purchase</span>
+              <span>Free updates for life included</span>
+              <span>No subscription</span>
+              <span>No recurring charge</span>
+            </div>
+            <form id="aifred-paypal-form" action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_top">
+              <input type="hidden" name="business" value="kaeganscott@outlook.com">
+              <input type="hidden" name="cmd" value="_xclick">
+              <input type="hidden" name="item_name" value="AIFRED Plugin (download)">
+              <input type="hidden" name="amount" value="5.00">
+              <input type="hidden" name="currency_code" value="USD">
+              <input type="hidden" name="notify_url" value="">
+              <input type="hidden" name="return" value="">
+              <input type="hidden" name="cancel_return" value="">
+              <input type="hidden" name="custom" value="">
+              <button class="btn" type="submit">Buy Now ($5)</button>
+              <img alt="" border="0" src="https://www.paypalobjects.com/en_US/i/scr/pixel.gif" width="1" height="1">
+            </form>
+            <div class="download-strip" id="aifred-downloads" aria-label="AIFRED downloads"></div>
+          </div>
         </div>
+      </section>
+
+      <section id="why">
+        <p class="eyebrow">Why AIFRED Exists</p>
+        <h2>Why AIFRED Exists</h2>
+        <p>A lot of tools give you numbers. That doesn't always mean they give you clarity.</p>
+        <p>
+          AIFRED was built because most producers do not need more clutter. They need a better read
+          on what the mix is doing.
+        </p>
+        <p>
+          When you're deep in a session, the hardest part usually is not finding a plugin to throw on
+          the chain. It's figuring out what actually needs attention first.
+        </p>
+        <p>AIFRED helps you answer questions like:</p>
+        <ul>
+          <li>Is this mix too narrow?</li>
+          <li>Is the top end pushing too hard?</li>
+          <li>Is it loud enough or just crushed?</li>
+          <li>Is it actually punching or just dense?</li>
+          <li>How far off is it from the reference?</li>
+          <li>What needs to be fixed first?</li>
+        </ul>
+        <p>That is the point of the Halo. Not to look cool for no reason. To help you read the mix faster.</p>
       </section>
 
       <section id="analyzer" class="analyzer-panel">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Free Mix Analyzer</p>
-            <h2>Upload a mix. Keep the data only when the mix earns the reference pool.</h2>
+            <p class="eyebrow">Free Online Mix Analyzer</p>
+            <h2>Upload a file and get a quick read before you ever open the full plugin.</h2>
             <p>
-              AIFRED reads tone balance, loudness, dynamics, stereo width, low-end control,
-              and harshness control in the browser. The pro center is -14 to -9 LUFS with a
-              -1 dBFS ceiling, and the gate is wide enough to keep real records instead of
-              throwing away musical references over tiny meter movement.
+              The online analyzer is a simple first-pass tool for checking where your mix is landing.
             </p>
+            <p>It helps you get a quick outside read on:</p>
+            <ul>
+              <li>loudness</li>
+              <li>tonal balance</li>
+              <li>stereo behavior</li>
+              <li>general mix translation</li>
+            </ul>
+            <p>
+              It is not meant to replace the plugin. It is there to give you a quick direction check
+              and help you catch obvious issues earlier.
+            </p>
+            <p>Drop in a file, run the analysis, and get a quick read on where your mix stands.</p>
           </div>
           <label class="btn">
-            Upload Mix
+            Upload a Mix
             <input id="analysis-upload" class="hidden-input" type="file" accept="audio/*" />
           </label>
         </div>
         <div class="analyzer-grid">
           <div class="visualizer-shell">
-            <canvas id="spectral-canvas" width="920" height="320" aria-label="Spectral visualizer"></canvas>
+            <canvas id="spectral-canvas" width="920" height="320" aria-label="Mix analyzer visualizer"></canvas>
           </div>
           <div class="analysis-readout">
             <h3 id="analysis-title">No mix loaded</h3>
-            <p id="analysis-status">Choose a WAV, MP3, or audio export to run the free diagnostic gate.</p>
+            <p id="analysis-status">Drop in a file, run the analysis, and get a quick read on where your mix stands.</p>
             <div id="analysis-metrics" class="metric-list"></div>
-            <button class="btn ghost" id="analysis-submit" type="button" disabled>Submit Metadata Gate</button>
-            <pre id="analysis-result">Reference pool gate has not run yet.</pre>
+            <button class="btn ghost" id="analysis-submit" type="button" disabled>Upload a Mix</button>
+            <pre id="analysis-result">The online analyzer is ready.</pre>
           </div>
         </div>
       </section>
@@ -107,10 +178,21 @@
       <section id="beats">
         <div class="section-head">
           <div>
-            <p class="eyebrow">North3rnLight3r Beat Catalog</p>
-            <h2>Preview the catalog. License the record-ready ideas.</h2>
+            <p class="eyebrow">Beat Catalog</p>
+            <h2>Production by North3rnLight3r.</h2>
+            <p>This is where the music lives.</p>
+            <p>
+              Browse the catalog, preview beats, and lock in the sound directly. Whether you're
+              looking for something hard, melodic, dark, cinematic, or clean enough to build a full
+              song around, this is where you hear the work for yourself.
+            </p>
+            <p>No filler. No fake catalog. Just real beats and real direction.</p>
+            <p>Non-exclusive license: $100</p>
+            <p>Exclusive license: $200</p>
+            <p>Exclusive licenses must be handled through the contact/inquiries tab.</p>
           </div>
           <div class="catalog-controls">
+            <a class="btn" href="#beats">Browse Beats</a>
             <button class="btn ghost" id="catalog-toggle" type="button" aria-expanded="false" aria-controls="catalog-list">Show catalog</button>
             <button class="btn ghost" id="catalog-refresh" type="button">Refresh catalog</button>
           </div>
@@ -119,63 +201,76 @@
           <div>
             <p class="eyebrow">Now playing</p>
             <h3 id="now-title">Select a beat</h3>
-            <p id="now-meta">BPM and style will appear here.</p>
+            <p id="now-meta">Production by North3rnLight3r.</p>
           </div>
           <audio id="audio-player" controls controlsList="nodownload noplaybackrate" preload="metadata"></audio>
         </div>
         <div id="catalog-list" class="catalog-grid" aria-live="polite" hidden></div>
       </section>
 
-      <section id="services" class="split">
-        <div>
-          <p class="eyebrow">Services</p>
-          <h2>Mixing and Mastering. Beat licensing. VST sales.</h2>
+      <section id="offerings">
+        <p class="eyebrow">Everything I Got To Offer</p>
+        <h2>Everything I Got To Offer</h2>
+        <p>This platform is built around the music, the tools, and the work behind both.</p>
+        <div class="feature-grid">
+          <article>
+            <strong>AIFRED VST</strong>
+            <span>A visual mix tool that helps you understand what your mix is doing in real time.</span>
+          </article>
+          <article>
+            <strong>Beat Licensing</strong>
+            <span>Browse the catalog and license beats directly for your next project.</span>
+          </article>
+          <article>
+            <strong>Mixing and Mastering</strong>
+            <span>Project-based mixing and mastering work built around quality, not rushing the clock.</span>
+          </article>
+          <article>
+            <strong>Beat Services</strong>
+            <span>Custom beat work and production inquiries handled directly through contact.</span>
+          </article>
         </div>
-        <div id="service-list" class="feature-grid"></div>
       </section>
 
-      <section id="chat" class="chat-panel">
-        <div>
-          <p class="eyebrow">Ask Aifred</p>
-          <h2>Use configured OpenAI, OpenAI-compatible, or Ollama routes.</h2>
-          <p>
-            The site does not store model keys in browser code. The backend decides whether the configured
-            provider is OpenAI or Ollama and returns a focused answer.
-          </p>
-        </div>
-        <form id="chat-form">
-          <div class="api-setup">
-            <select id="chat-provider" aria-label="Model provider">
-              <option value="backend">Website backend</option>
-              <option value="ollama">BYO Ollama</option>
-              <option value="openai">BYO OpenAI</option>
-            </select>
-            <input id="chat-endpoint" type="url" placeholder="Endpoint: http://127.0.0.1:11434 or https://api.openai.com/v1" />
-            <input id="chat-api-key" type="password" placeholder="API key or local proxy token" />
-            <input id="chat-model" type="text" placeholder="Model: llama3.1 or gpt-5.4-mini" />
-          </div>
-          <textarea id="chat-input" rows="5" placeholder="Ask about a mix, a beat license, or the AIFRED workflow."></textarea>
-          <button class="btn" type="submit">Ask Aifred</button>
-        </form>
-        <pre id="chat-output">Model route not checked yet.</pre>
+      <section id="mixing">
+        <p class="eyebrow">Mixing and Mastering</p>
+        <h2>Pay for quality, not for time.</h2>
+        <p>
+          Mixing and mastering services are charged by the project, not by the hour.
+        </p>
+        <p>
+          The goal is not to drag a session out and run a clock on you. The goal is to get the
+          record where it needs to be and make sure the final result actually sounds right.
+        </p>
+        <p>For project pricing and inquiries, use the contact tab.</p>
+        <a class="btn" href="#contact">Send an Inquiry</a>
       </section>
 
       <section id="contact" class="contact">
-        <p class="eyebrow">Licensing and support</p>
-        <h2>North3rnLight3r catalog, AIFRED VST, and mix feedback inquiries.</h2>
+        <p class="eyebrow">Contact</p>
+        <h2>Contact</h2>
+        <p>
+          For exclusive beat licenses, mixing and mastering inquiries, beat service requests, or
+          general questions, reach out here.
+        </p>
+        <p>
+          This is the place for serious inquiries about the work, the music, and anything on the
+          site that needs a direct response.
+        </p>
         <form id="contact-form">
           <input id="contact-name" placeholder="Name" autocomplete="name" required />
           <input id="contact-email" type="email" placeholder="Email" autocomplete="email" required />
           <textarea id="contact-message" rows="5" placeholder="Tell me what you need." required></textarea>
-          <button class="btn" type="submit">Send inquiry</button>
+          <button class="btn" type="submit">Contact North3rnLight3r</button>
         </form>
         <p id="contact-status"></p>
       </section>
     </main>
 
     <footer>
-      <span>© <span id="year"></span> North3rnLight3r / AIFRED</span>
-      <span>Windows VST3 installer with local AIFRED engine.</span>
+      <span>North3rnLight3r</span>
+      <span>AIFRED VST3 | Beat Catalog | Mixing and Mastering | Beat Services</span>
+      <span>© <span id="year"></span></span>
     </footer>
 
     <script src="config.js"></script>

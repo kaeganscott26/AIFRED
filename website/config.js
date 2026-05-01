@@ -2,9 +2,14 @@ const __base = window.location.origin;
 window.AIFRED_CONFIG = {
   apiBase: __base,
   contactEmail: "north3rnlight3rofficial@outlook.com",
-  releaseUrl: "https://github.com/kaeganscott26/aifred-plugin/releases/latest",
-  downloadUrls: {
-    windows: "https://github.com/kaeganscott26/aifred-plugin/releases/latest/download/AIFRED-VST3-Setup.exe"
+  paypal: {
+    business: "kaeganscott@outlook.com",
+    itemName: "AIFRED Plugin (download)",
+    amount: "5.00",
+    currencyCode: "USD"
   },
-  productPrice: "$149.99"
+  downloadUrls: {
+    releaseNotes: `${__base}/assets/docs/aifred-release-notes.txt`
+  },
+  productPrice: "$5 one-time beta access"
 };

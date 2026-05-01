@@ -217,6 +217,8 @@ void AnalysisEngine::pushAudioBlock(const juce::AudioBuffer<float>& buffer) {
   float lp3 = 0.0f;
   float lp4 = 0.0f;
   std::array<double, 8> spectrum {};
+  std::array<double, 96> waveformSum {};
+  std::array<int, 96> waveformCount {};
 
   const auto* left = buffer.getReadPointer(0);
   const auto* right = channels > 1 ? buffer.getReadPointer(1) : left;
@@ -238,6 +240,9 @@ void AnalysisEngine::pushAudioBlock(const juce::AudioBuffer<float>& buffer) {
     hpRight_ = hpR;
     const auto mono = 0.5f * (l + r);
     const auto side = 0.5f * (l - r);
+    const auto waveformIndex = static_cast<size_t>(juce::jlimit(0, 95, (i * 96) / std::max(samples, 1)));
+    waveformSum[waveformIndex] += mono;
+    waveformCount[waveformIndex] += 1;
     const auto monoDelta = mono - prevMono;
     sumSquares += 0.5 * (static_cast<double>(l) * l + static_cast<double>(r) * r);
     kWeightedSquares += 0.5 * (static_cast<double>(kL) * kL + static_cast<double>(kR) * kR);
@@ -337,6 +342,10 @@ void AnalysisEngine::pushAudioBlock(const juce::AudioBuffer<float>& buffer) {
     const auto energy = safeSqrt(static_cast<float>(spectrum[band] / sampleCount));
     live_.spectrumBands[band] = clamp01(static_cast<float>(energy / spectrumSum) * 3.35f);
   }
+  for (size_t i = 0; i < live_.waveform.size(); ++i) {
+    const auto count = std::max(1, waveformCount[i]);
+    live_.waveform[i] = std::clamp(static_cast<float>(waveformSum[i] / count), -1.0f, 1.0f);
+  }
   live_.signal01 = clamp01((live_.rmsDb + 60.0f) / 48.0f);
   live_.candleOpen = clamp01((smoothed_.rmsDb + 42.0f) / 34.0f);
   live_.candleClose = toLoudness01(live_.rmsDb);
@@ -359,20 +368,19 @@ void AnalysisEngine::pushAudioBlock(const juce::AudioBuffer<float>& buffer) {
   for (size_t band = 0; band < smoothed_.spectrumBands.size(); ++band) {
     smoothed_.spectrumBands[band] = smooth(smoothed_.spectrumBands[band], live_.spectrumBands[band], amount);
   }
+  for (size_t i = 0; i < smoothed_.waveform.size(); ++i) {
+    smoothed_.waveform[i] = smooth(smoothed_.waveform[i], live_.waveform[i], 0.72f);
+  }
   smoothed_.signal01 = smooth(smoothed_.signal01, live_.signal01, amount);
   smoothed_.candleOpen = smooth(smoothed_.candleOpen, live_.candleOpen, amount);
   smoothed_.candleHigh = smooth(smoothed_.candleHigh, live_.candleHigh, amount);
   smoothed_.candleLow = smooth(smoothed_.candleLow, live_.candleLow, amount);
   smoothed_.candleClose = smooth(smoothed_.candleClose, live_.candleClose, amount);
 
-  updateCandle(sessionCandles_[static_cast<size_t>(sessionCandleWrite_)], live_.candleClose);
+  updateCandle(sessionCandles_[0], live_.candleClose);
+  sessionCandleCount_ = live_.signal01 > 0.02f ? 1 : sessionCandleCount_;
   updateCandle(minuteCandles_[static_cast<size_t>(minuteCandleWrite_)], live_.candleClose);
-  sessionWindowSamples_ += samples;
   minuteWindowSamples_ += samples;
-  if (sessionWindowSamples_ >= sampleRate_ * 0.75) {
-    sessionWindowSamples_ = 0.0;
-    commitCandle(sessionCandles_, sessionCandleWrite_, sessionCandleCount_);
-  }
   if (minuteWindowSamples_ >= sampleRate_ * 60.0) {
     minuteWindowSamples_ = 0.0;
     commitCandle(minuteCandles_, minuteCandleWrite_, minuteCandleCount_);
@@ -402,6 +410,7 @@ HaloState AnalysisEngine::buildHaloState() const {
   state.metrics.correlation = smoothed_.correlation;
   state.metrics.transientDensity = smoothed_.transientDensity;
   state.metrics.spectrumBands = smoothed_.spectrumBands;
+  state.metrics.waveform = smoothed_.waveform;
   state.metrics.candleOpen = smoothed_.candleOpen;
   state.metrics.candleHigh = smoothed_.candleHigh;
   state.metrics.candleLow = smoothed_.candleLow;
@@ -409,7 +418,7 @@ HaloState AnalysisEngine::buildHaloState() const {
   state.metrics.sessionCandleCount = sessionCandleCount_;
   state.metrics.minuteCandleCount = minuteCandleCount_;
   for (int i = 0; i < 10; ++i) {
-    const auto sessionIndex = (sessionCandleWrite_ + i) % 10;
+    const auto sessionIndex = i == 9 ? 0 : i;
     const auto minuteIndex = (minuteCandleWrite_ + i) % 10;
     const auto& s = sessionCandles_[static_cast<size_t>(sessionIndex)];
     const auto& m = minuteCandles_[static_cast<size_t>(minuteIndex)];

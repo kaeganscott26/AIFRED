@@ -1,6 +1,6 @@
-# AIFRED Windows Release Architecture
+# AIFRED Release Architecture
 
-AIFRED is a Windows-first mix-analysis plugin with a local companion engine. The plugin remains the product: it performs deterministic DSP, metering, Halo rendering, and rule-based diagnosis inside the DAW. The companion engine explains the measured state and handles chat without running model work inside the host process.
+AIFRED is a JUCE mix-analysis plugin with a local companion engine. The plugin remains the product: it performs deterministic DSP, metering, Halo rendering, and rule-based diagnosis inside the DAW. The companion engine explains the measured state and handles chat without running model work inside the host process.
 
 ## Project Structure
 
@@ -23,10 +23,10 @@ website/
 android_admin/
 ```
 
-Final plugin repository layout after split:
+Distributable repository layout:
 
 ```text
-aifred-plugin/
+AIFRED/
   CMakeLists.txt
   CMakePresets.json
   plugin-aifred/
@@ -34,7 +34,7 @@ aifred-plugin/
   tools/AifredWindowsInstaller/
   tools/package-aifred.ps1
   docs/
-  .github/workflows/release.yml
+  .github/workflows/build.yml
 ```
 
 ## Component Responsibilities
@@ -44,7 +44,7 @@ aifred-plugin/
 | `Aifred.vst3` | Real-time audio pass-through, DSP feature extraction, Halo UI, deterministic diagnosis, offline rule-based messaging. |
 | `AifredEngine.exe` | Localhost AI orchestration, session memory, settings, rule-based fallback, future GGUF/llama.cpp bridge. |
 | Bundled model | A compact GGUF model named `aifred-assistant-q4.gguf`, used only for explanation and coaching. |
-| Installer | Installs the VST3, engine, config, logs/model folders, startup registration, and health validation. |
+| Installer | Installs the VST3, engine, config, logs/model folders, startup registration, optional API endpoint settings, and health validation. |
 
 ## Local API Contract
 

@@ -30,6 +30,7 @@ private:
     float spectralTilt = 0.0f;
     float transientDensity = 0.0f;
     std::array<float, 8> spectrumBands {};
+    std::array<float, 96> waveform {};
     float signal01 = 0.0f;
     float candleOpen = 0.0f;
     float candleHigh = 0.0f;

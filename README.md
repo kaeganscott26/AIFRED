@@ -1,6 +1,6 @@
 # AIFRED
 
-**AIFRED** is the Windows-first product repository for the North3rnLight3r VST3, local AIFRED engine, website, beat catalog, Cloudflare backend, and owner-only Android admin app.
+**AIFRED** is the product repository for the North3rnLight3r JUCE VST3, local AIFRED engine, website, beat catalog, Cloudflare backend, and owner-only Android admin app.
 
 The public-facing product is the AIFRED VST3 and North3rnLight3r beat catalog. The source code, admin app, credentials, prompts, backend maps, and deployment controls are private operational assets.
 
@@ -14,8 +14,8 @@ The public-facing product is the AIFRED VST3 and North3rnLight3r beat catalog. T
 
 | Product | Purpose | Distribution |
 | --- | --- | --- |
-| AIFRED VST3 | Mix analysis, reference alignment, compare metering, and chat-guided fix output | Windows installer |
-| AIFRED Engine | Local AI/coaching companion at `127.0.0.1:8787` | Bundled inside the Windows installer |
+| AIFRED VST3 | Mix analysis, reference alignment, compare metering, and chat-guided fix output | Windows installer plus CI-built Windows, macOS, Linux, and Arch packages |
+| AIFRED Engine | Local AI/coaching companion at `127.0.0.1:8787` | Bundled with Windows packages; local deterministic fallback works without a model |
 | North3rnLight3r Website | Brand storefront, beat catalog playback, VST sales path, free mix analyzer | Cloudflare Pages custom domain |
 | Android Admin App | Owner-only control panel for chat, catalog uploads, website file control, shell access, and admin operations | Private install only, never public release |
 
@@ -32,18 +32,18 @@ AIFRED converts live audio behavior into a compact release-readiness view:
 
 The VST separates **Analyze**, **Reference**, and **Compare** into distinct surfaces. Analyze focuses on the current mix signature and candlestick metering. Reference uses one Halo with a target overlay. Compare uses two independent Halo routes for Mix A and Mix B.
 
-Current v0.3.3 metering surface:
+Current v0.3.2 JUCE metering surface:
 
 - Distinct cyan, gold, and redline theme options
-- 10-stick session candlestick meter and 10-minute history meter
-- Horizontal spectrometer with labeled frequency lanes
+- One-stick session candlestick meter plus 10-minute history meter
+- Switchable Halo center display for multiband lanes, waveform, or combined spectrometer view
 - Correlation meter filtered above 150 Hz so bass energy does not distort the phase read
-- Halo quadrant labels for Punch, Tone, Loudness, and Width
+- Halo quadrant labels, scale ticks, and readable frequency/loudness/correlation labels
 - Center Halo spectrometer matching the website visualizer direction
 - Compare-mode analog-style match VU between the two Halos
 - Dedicated chat module without predetermined fix suggestions
 - Options for theme, layout focus, genre target, reference gate sensitivity, and BYO OpenAI/Ollama endpoint setup
-- Reference mode with genre target color, file picker, and reference mixer lanes
+- Reference mode with pool ring, five reference rings, reference file picker, and five reference volume lanes
 - K-weighted loudness readout with momentary, short-term, integrated, LRA, and estimated 4x true peak fields
 - Local AIFRED engine health detection with deterministic fallback when AI is unavailable
 - Version text in the plugin header so FL Studio cache/install state is visible
@@ -59,7 +59,7 @@ Current v0.3.3 metering surface:
 | `tools/AifredEngine/` | Windows local engine source |
 | `tools/AifredWindowsInstaller/` | Windows installer source |
 | `tools/` | Packaging, installer, and verification utilities |
-| `.github/workflows/build.yml` | Windows plugin/installer, website, and Android validation |
+| `.github/workflows/build.yml` | Windows, macOS, Linux, Arch package builds, website checks, release publishing, and Android validation |
 | `docs/wiki/` | Operational wiki, guides, maps, and troubleshooting |
 
 ## Release Targets
@@ -67,6 +67,10 @@ Current v0.3.3 metering surface:
 The release workflow builds and packages:
 
 - `AIFRED-VST3-Setup.exe` for Windows
+- `AIFRED-VST3-windows.zip`
+- `AIFRED-VST3-macOS.zip`
+- `AIFRED-VST3-linux.zip`
+- `AIFRED-VST3-arch.zip`
 
 The Android admin app is validated by CI but is **not uploaded as a public artifact** and is **not attached to GitHub Releases**.
 
@@ -81,7 +85,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-aifred.ps1 -Bu
 dotnet publish tools\AifredWindowsInstaller\AifredWindowsInstaller.csproj -c Release -o dist\installer\windows
 ```
 
-Run `dist\installer\windows\AIFRED-VST3-Setup.exe` to install. The installer requests administrator elevation, installs `Aifred.vst3` to `C:\Program Files\Common Files\VST3`, installs `AifredEngine.exe` to `C:\Program Files\Aifred\bin`, registers the engine at user login, starts it silently, and checks `http://127.0.0.1:8787/health`.
+Run `dist\installer\windows\AIFRED-VST3-Setup.exe` to install. The installer requests administrator elevation, installs `Aifred.vst3` to `C:\Program Files\Common Files\VST3`, installs `AifredEngine.exe` to `C:\Program Files\Aifred\bin`, registers the engine at user login, starts it silently, checks `http://127.0.0.1:8787/health`, and can save an OpenAI-compatible endpoint/API key into `%AppData%\Aifred\user_settings.json`.
 
 Android local build:
 

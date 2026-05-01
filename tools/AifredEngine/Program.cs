@@ -38,8 +38,12 @@ sealed class AifredRuntime
     {
         var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        var executableRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, ".."));
+        var installRoot = File.Exists(Path.Combine(executableRoot, "config", "config.json"))
+            ? executableRoot
+            : Path.Combine(programFiles, "Aifred");
         return new AifredRuntime(
-            Path.Combine(programFiles, "Aifred"),
+            installRoot,
             Path.Combine(appData, "Aifred"));
     }
 
@@ -122,6 +126,7 @@ sealed class AifredRuntime
     JsonObject Health()
     {
         var modelPath = GetString(config, "model_path", Path.Combine(installRoot, "models", "aifred-assistant-q4.gguf"));
+        if (!Path.IsPathRooted(modelPath)) modelPath = Path.Combine(installRoot, modelPath);
         var provider = EffectiveProvider();
         return new JsonObject
         {
@@ -211,7 +216,7 @@ sealed class AifredRuntime
         ["mode"] = "local",
         ["port"] = DefaultPort,
         ["provider"] = "bundled-local",
-        ["model_path"] = Path.Combine(root, "models", "aifred-assistant-q4.gguf"),
+        ["model_path"] = "models/aifred-assistant-q4.gguf",
         ["openai_api_key"] = "",
         ["custom_endpoint"] = "",
         ["timeout_ms"] = 8000
@@ -233,7 +238,17 @@ sealed class AifredRuntime
             SaveJson(path, fallback);
             return fallback;
         }
-        return JsonNode.Parse(File.ReadAllText(path))?.AsObject() ?? fallback;
+        try
+        {
+            return JsonNode.Parse(File.ReadAllText(path))?.AsObject() ?? fallback;
+        }
+        catch (JsonException)
+        {
+            var backupPath = $"{path}.invalid-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}";
+            File.Move(path, backupPath, true);
+            SaveJson(path, fallback);
+            return fallback;
+        }
     }
 
     static void SaveJson(string path, JsonObject value)

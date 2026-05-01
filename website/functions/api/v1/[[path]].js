@@ -16,6 +16,14 @@ async function readJson(request) {
   }
 }
 
+async function readText(request) {
+  try {
+    return await request.text();
+  } catch (_) {
+    return "";
+  }
+}
+
 function base64Url(bytes) {
   return btoa(String.fromCharCode(...bytes))
     .replace(/\+/g, "-")
@@ -245,27 +253,27 @@ function contentPayload() {
       {
         sku: "aifred_vst3_windows",
         title: "AIFRED VST3 for Windows",
-        description: "FL Studio-first mix alignment plugin with Halo scoring, reference-aware diagnosis, and ranked fix guidance.",
-        price: "$149.99",
-        availability_label: "Windows build first",
-        future_price_label: "Cross-platform builds follow CI validation"
+        description: "A visual mix tool built to help you understand what your mix is actually doing.",
+        price: "$5 one-time beta access",
+        availability_label: "2-week launch beta.",
+        future_price_label: "$5 launch beta access. Later pricing will be set after the final launch window."
       }
     ],
     services: [
       {
         title: "Mixing and Mastering",
-        description: "Pay for Quality not Time.",
-        price: "$99"
+        description: "Pay for quality, not for time.",
+        price: "Project pricing by inquiry"
       },
       {
-        title: "Beat liscenscing",
-        description: "All liscences are non-exclusive unless otherwise written in writing.",
-        price: "$19.99"
+        title: "Beat Licensing",
+        description: "Non-exclusive licenses are $100. Exclusive licenses are handled through inquiry.",
+        price: "$100 non-exclusive / $200 exclusive"
       },
       {
-        title: "VST Sales",
-        description: "AIFRED VST3 plugin.",
-        price: "$149.99"
+        title: "AIFRED VST",
+        description: "Visual feedback for tone, width, loudness, punch, reference alignment, and compare workflow.",
+        price: "$5 one-time beta access"
       }
     ]
   };
@@ -303,7 +311,7 @@ async function askOpenAI(env, message) {
 async function askOllama(env, message) {
   const base = String(env.OLLAMA_BASE_URL || "").replace(/\/+$/, "");
   if (!base) throw new Error("OLLAMA_BASE_URL is not configured");
-  const model = env.OLLAMA_MODEL || "llama3.1";
+  const model = env.OLLAMA_MODEL || "aifred";
   const response = await fetch(`${base}/api/chat`, {
     method: "POST",
     headers: {
@@ -346,12 +354,14 @@ async function handleChat(request, env) {
 function chatSettingsPayload(request, env) {
   const url = new URL(request.url);
   const wsProtocol = url.protocol === "https:" ? "wss:" : "ws:";
+  const ollamaModel = env.OLLAMA_MODEL || "aifred";
+  const openAiModel = env.OPENAI_MODEL || "gpt-5.4-mini";
   return {
     ok: true,
     websocket_url: `${wsProtocol}//${url.host}/ws/chat`,
     persistence: env.AIFRED_CHAT_SESSIONS ? "bound" : "stateless",
-    active_model: env.OPENAI_MODEL || env.OLLAMA_MODEL || "gpt-5.4-mini",
-    models: [env.OPENAI_MODEL || "gpt-5.4-mini", env.OLLAMA_MODEL || "llama3.1"].filter(Boolean),
+    active_model: ollamaModel,
+    models: [ollamaModel, openAiModel].filter(Boolean),
     settings: {
       transport_mode: "websocket",
       webhook: { enabled: false, url: "", secret: "", events: ["chat.completed", "chat.failed"] },
@@ -370,7 +380,8 @@ function commandCatalog() {
     { id: "models:list", description: "Show configured OpenAI/Ollama model routes", command: "models:list" },
     { id: "reference:stats", description: "Show analyzer reference-pool status", command: "reference:stats" },
     { id: "deploy:status", description: "Show Cloudflare Pages deployment status", command: "deploy:status" },
-    { id: "deploy:site", description: "Dispatch GitHub Actions website deployment when GITHUB_TOKEN is configured", command: "deploy:site" }
+    { id: "sales:list", description: "Show recorded PayPal beta sales", command: "sales:list" },
+    { id: "inquiries:list", description: "Show recorded contact inquiries", command: "inquiries:list" }
   ];
 }
 
@@ -378,6 +389,34 @@ function repoConfig(env) {
   const repo = String(env.AIFRED_GITHUB_REPO || "kaeganscott26/AIFRED").trim();
   const branch = String(env.AIFRED_GITHUB_BRANCH || "main").trim();
   return { repo, branch };
+}
+
+function pluginReleaseConfig(env) {
+  return {
+    repo: String(env.AIFRED_PLUGIN_REPO || "kaeganscott26/AIFRED").trim(),
+    tag: String(env.AIFRED_PLUGIN_RELEASE_TAG || "v0.3.2-juce-final").trim()
+  };
+}
+
+function contactEmail(env) {
+  return String(env.AIFRED_CONTACT_EMAIL || "north3rnlight3rofficial@outlook.com").trim();
+}
+
+function paypalBusiness(env) {
+  return String(env.AIFRED_PAYPAL_BUSINESS || contactEmail(env)).trim();
+}
+
+function emailFrom(env) {
+  return String(env.AIFRED_EMAIL_FROM || "sales@north3rnlight3r.com").trim();
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function safeRepoPath(path) {
@@ -420,6 +459,288 @@ async function githubRequest(env, path, init = {}) {
   const payload = raw ? JSON.parse(raw) : {};
   if (!response.ok) throw new Error(payload?.message || `GitHub request failed (${response.status})`);
   return payload;
+}
+
+async function readRepoJsonArray(env, relPath) {
+  if (!env.GITHUB_TOKEN) return [];
+  const { repo, branch } = repoConfig(env);
+  const encodedPath = encodeURIComponent(safeRepoPath(relPath)).replace(/%2F/g, "/");
+  try {
+    const payload = await githubRequest(env, `/repos/${repo}/contents/${encodedPath}?ref=${branch}`);
+    const parsed = JSON.parse(base64ToUtf8(payload.content || "[]"));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+async function writeRepoJsonArray(env, relPath, records, message) {
+  if (!env.GITHUB_TOKEN) return "";
+  const safePath = safeRepoPath(relPath);
+  const { repo, branch } = repoConfig(env);
+  const encodedPath = encodeURIComponent(safePath).replace(/%2F/g, "/");
+  let sha = "";
+  try {
+    const existing = await githubRequest(env, `/repos/${repo}/contents/${encodedPath}?ref=${branch}`);
+    sha = existing.sha || "";
+  } catch (_) {}
+  const payload = await githubRequest(env, `/repos/${repo}/contents/${encodedPath}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      message,
+      content: utf8ToBase64(JSON.stringify(records, null, 2)),
+      branch,
+      ...(sha ? { sha } : {})
+    })
+  });
+  return payload.commit?.sha || "";
+}
+
+async function appendRepoJsonRecord(env, relPath, record, message) {
+  const records = await readRepoJsonArray(env, relPath);
+  records.unshift(record);
+  return {
+    commit: await writeRepoJsonArray(env, relPath, records.slice(0, 400), message),
+    records
+  };
+}
+
+async function sendNotificationEmail(env, payload) {
+  if (env.MAILER && typeof env.MAILER.fetch === "function") {
+    try {
+      const response = await env.MAILER.fetch("https://mailer.internal/send", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(env.MAILER_SHARED_TOKEN ? { "x-aifred-mailer-token": env.MAILER_SHARED_TOKEN } : {})
+        },
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        return { ok: false, error: result?.error || `mailer returned ${response.status}` };
+      }
+      return { ok: true, id: result?.id || "" };
+    } catch (error) {
+      return { ok: false, error: error.message || "mailer request failed" };
+    }
+  }
+
+  if (!env.EMAIL || typeof env.EMAIL.send !== "function") {
+    return { ok: false, error: "EMAIL binding is not configured" };
+  }
+
+  try {
+    const response = await env.EMAIL.send(payload);
+    return { ok: true, id: response?.messageId || "" };
+  } catch (error) {
+    return { ok: false, error: error.message || "email send failed" };
+  }
+}
+
+function salesRepoPath() {
+  return "ops/payments/sales.json";
+}
+
+function inquiriesRepoPath() {
+  return "ops/support/inquiries.json";
+}
+
+function assetNameForKey(key) {
+  if (key === "setup") return "AIFRED-VST3-Setup.exe";
+  if (key === "zip") return "AIFRED-VST3-windows.zip";
+  return "";
+}
+
+function buildDownloadUrl(request, token, assetKey) {
+  const url = new URL("/api/v1/sales/download", request.url);
+  url.searchParams.set("token", token);
+  url.searchParams.set("asset", assetKey);
+  return url.toString();
+}
+
+async function fetchReleaseAssetResponse(env, assetName) {
+  if (!env.GITHUB_TOKEN) throw new Error("GITHUB_TOKEN is not configured");
+  const { repo, tag } = pluginReleaseConfig(env);
+  const release = await githubRequest(env, `/repos/${repo}/releases/tags/${encodeURIComponent(tag)}`);
+  const asset = Array.isArray(release.assets) ? release.assets.find((entry) => entry.name === assetName) : null;
+  if (!asset?.url) throw new Error(`release asset not found: ${assetName}`);
+
+  const response = await fetch(asset.url, {
+    headers: {
+      accept: "application/octet-stream",
+      authorization: `Bearer ${env.GITHUB_TOKEN}`,
+      "user-agent": "aifred-site"
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`asset download failed (${response.status})`);
+  }
+
+  const headers = new Headers();
+  headers.set("cache-control", "no-store");
+  headers.set("content-disposition", `attachment; filename="${assetName}"`);
+  headers.set("content-type", response.headers.get("content-type") || "application/octet-stream");
+  const contentLength = response.headers.get("content-length");
+  if (contentLength) headers.set("content-length", contentLength);
+  return new Response(response.body, { status: 200, headers });
+}
+
+async function handleSalesDownload(request, env) {
+  const url = new URL(request.url);
+  const token = String(url.searchParams.get("token") || "").trim();
+  const assetKey = String(url.searchParams.get("asset") || "").trim();
+  const assetName = assetNameForKey(assetKey);
+  if (!token || !assetName) return json({ ok: false, error: "valid token and asset are required" }, { status: 400 });
+
+  const sales = await readRepoJsonArray(env, salesRepoPath());
+  const sale = sales.find((entry) => entry.download_token === token);
+  if (!sale || sale.payment_status !== "Completed") {
+    return json({ ok: false, error: "download token is invalid" }, { status: 403 });
+  }
+
+  return fetchReleaseAssetResponse(env, assetName);
+}
+
+async function handleManualSaleRecord(request, env) {
+  if (!(await verifyAdmin(request, env))) return json({ ok: false, error: "admin session required" }, { status: 401 });
+  const body = await readJson(request);
+  const record = {
+    id: crypto.randomUUID(),
+    created_at: new Date().toISOString(),
+    source: "admin-manual",
+    payer_email: String(body.payer_email || "").trim(),
+    payer_name: String(body.payer_name || "").trim(),
+    amount: String(body.amount || "5.00").trim(),
+    currency: String(body.currency || "USD").trim(),
+    payment_status: String(body.payment_status || "Completed").trim(),
+    txn_id: String(body.txn_id || crypto.randomUUID()).trim(),
+    custom: String(body.custom || "").trim(),
+    download_token: base64Url(crypto.getRandomValues(new Uint8Array(24)))
+  };
+  const written = await appendRepoJsonRecord(env, salesRepoPath(), record, `Record sale ${record.txn_id} from AIFRED admin`);
+  return json({ ok: true, sale: record, commit: written.commit });
+}
+
+async function handlePayPalIpn(request, env) {
+  const rawBody = await readText(request);
+  if (!rawBody) return new Response("", { status: 200 });
+
+  const params = new URLSearchParams(rawBody);
+  const verificationUrl = params.get("test_ipn") === "1"
+    ? "https://ipnpb.sandbox.paypal.com/cgi-bin/webscr"
+    : "https://ipnpb.paypal.com/cgi-bin/webscr";
+
+  const verification = await fetch(verificationUrl, {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      "user-agent": "AIFRED-PayPal-IPN"
+    },
+    body: `cmd=_notify-validate&${rawBody}`
+  });
+
+  const verificationText = (await verification.text()).trim();
+  if (verificationText !== "VERIFIED") {
+    return new Response("", { status: 200 });
+  }
+
+  const txnId = String(params.get("txn_id") || "").trim();
+  const payerEmail = String(params.get("payer_email") || "").trim();
+  const payerName = [params.get("first_name"), params.get("last_name")].filter(Boolean).join(" ").trim();
+  const paymentStatus = String(params.get("payment_status") || "").trim();
+  const receiverEmail = String(params.get("receiver_email") || "").trim().toLowerCase();
+  const receiverExpected = paypalBusiness(env).toLowerCase();
+  const amount = Number.parseFloat(String(params.get("mc_gross") || params.get("payment_gross") || "0"));
+  const currency = String(params.get("mc_currency") || "").trim().toUpperCase();
+
+  if (!txnId || paymentStatus !== "Completed" || receiverEmail !== receiverExpected || currency !== "USD" || Number.isNaN(amount) || amount.toFixed(2) !== "5.00") {
+    return new Response("", { status: 200 });
+  }
+
+  const sales = await readRepoJsonArray(env, salesRepoPath());
+  if (sales.some((sale) => sale.txn_id === txnId)) {
+    return new Response("", { status: 200 });
+  }
+
+  const downloadToken = base64Url(crypto.getRandomValues(new Uint8Array(24)));
+  const sale = {
+    id: crypto.randomUUID(),
+    created_at: new Date().toISOString(),
+    source: "paypal-ipn",
+    txn_id: txnId,
+    custom: String(params.get("custom") || "").trim(),
+    payer_email: payerEmail,
+    payer_name: payerName,
+    payment_status: paymentStatus,
+    amount: amount.toFixed(2),
+    currency,
+    item_name: String(params.get("item_name") || "AIFRED Plugin (download)").trim(),
+    receiver_email: receiverEmail,
+    download_token: downloadToken,
+    release_tag: pluginReleaseConfig(env).tag
+  };
+
+  await appendRepoJsonRecord(env, salesRepoPath(), sale, `Record PayPal sale ${txnId}`);
+
+  const setupUrl = buildDownloadUrl(request, downloadToken, "setup");
+  const zipUrl = buildDownloadUrl(request, downloadToken, "zip");
+  const ownerRecipient = contactEmail(env);
+  const ownerSubject = `AIFRED sale received: ${payerEmail || txnId}`;
+  const ownerText = [
+    "AIFRED sale received.",
+    `payer: ${payerName || "Unknown payer"} <${payerEmail || "no-email"}>`,
+    `txn_id: ${txnId}`,
+    `amount: ${sale.amount} ${currency}`,
+    `setup link: ${setupUrl}`,
+    `zip link: ${zipUrl}`
+  ].join("\n");
+  const ownerHtml = `
+    <h1>AIFRED sale received</h1>
+    <p><strong>Payer:</strong> ${escapeHtml(payerName || "Unknown payer")} &lt;${escapeHtml(payerEmail || "no-email")}&gt;</p>
+    <p><strong>Transaction:</strong> ${escapeHtml(txnId)}</p>
+    <p><strong>Amount:</strong> ${escapeHtml(sale.amount)} ${escapeHtml(currency)}</p>
+    <p><a href="${escapeHtml(setupUrl)}">Windows installer</a></p>
+    <p><a href="${escapeHtml(zipUrl)}">Windows zip</a></p>
+  `;
+
+  await sendNotificationEmail(env, {
+    to: ownerRecipient,
+    from: emailFrom(env),
+    subject: ownerSubject,
+    text: ownerText,
+    html: ownerHtml
+  });
+
+  if (payerEmail) {
+    const buyerSubject = "AIFRED beta access download links";
+    const buyerText = [
+      "Thanks for purchasing AIFRED beta access.",
+      "",
+      `Windows installer: ${setupUrl}`,
+      `Windows zip: ${zipUrl}`,
+      "",
+      "Lifetime beta updates are included in this beta window."
+    ].join("\n");
+    const buyerHtml = `
+      <h1>AIFRED beta access</h1>
+      <p>Thanks for purchasing AIFRED beta access.</p>
+      <p><a href="${escapeHtml(setupUrl)}">Download the Windows installer</a></p>
+      <p><a href="${escapeHtml(zipUrl)}">Download the Windows zip</a></p>
+      <p>Lifetime beta updates are included in this beta window.</p>
+    `;
+
+    await sendNotificationEmail(env, {
+      to: payerEmail,
+      from: emailFrom(env),
+      subject: buyerSubject,
+      text: buyerText,
+      html: buyerHtml
+    });
+  }
+
+  return new Response("", { status: 200 });
 }
 
 async function handleAdminFileRead(request, env) {
@@ -470,22 +791,15 @@ async function handleAdminFileWrite(request, env) {
   } catch (error) {
     return json({ ok: false, error: `GitHub write failed: ${error.message || "unknown error"}` }, { status: 502 });
   }
-  let deploy = "";
-  let deployError = "";
-  if (shouldDeploy) {
-    try {
-      deploy = await dispatchDeploy(env);
-    } catch (error) {
-      deployError = `Deploy dispatch failed: ${error.message || "unknown error"}`;
-    }
-  }
   return json({
     ok: true,
     path: relPath,
     commit: payload.commit?.sha || "",
-    deploy_dispatched: Boolean(deploy),
-    deploy_error: deployError,
-    message: deploy || deployError || "website file committed; run deploy:site to publish it"
+    deploy_dispatched: false,
+    deploy_error: "",
+    message: shouldDeploy
+      ? "website file committed; Cloudflare Pages deploys from the repository branch configuration"
+      : "website file committed"
   });
 }
 
@@ -601,7 +915,7 @@ async function handleAdminCatalogUpload(request, env) {
     bpm: String(form.get("bpm") || "").trim(),
     genre: String(form.get("pack_type") || "North3rnLight3r").trim(),
     duration_label: "",
-    price: String(form.get("price") || "$19.99").trim(),
+    price: String(form.get("price") || "$100").trim(),
     asset_file_name: fileName,
     stream_url: `assets/audio/catalog/${fileName}`,
     artwork_url: "assets/brand/aifred-mascot.jpg",
@@ -629,15 +943,6 @@ async function handleAdminCatalogUpload(request, env) {
   return json({ ok: true, stored_path: audioWrite.path, track, commit: audioWrite.commit });
 }
 
-async function dispatchDeploy(env) {
-  const { repo, branch } = repoConfig(env);
-  await githubRequest(env, `/repos/${repo}/actions/workflows/build.yml/dispatches`, {
-    method: "POST",
-    body: JSON.stringify({ ref: branch })
-  });
-  return "GitHub Actions workflow dispatched for website deployment.";
-}
-
 async function handleCommand(request, env) {
   if (!(await verifyAdmin(request, env))) return json({ ok: false, error: "admin session required" }, { status: 401 });
   const body = await readJson(request);
@@ -650,14 +955,15 @@ async function handleCommand(request, env) {
     openai: Boolean(env.OPENAI_API_KEY),
     openai_model: env.OPENAI_MODEL || "gpt-5.4-mini",
     ollama: Boolean(env.OLLAMA_BASE_URL),
-    ollama_model: env.OLLAMA_MODEL || "llama3.1"
+    ollama_model: env.OLLAMA_MODEL || "aifred"
   }, null, 2);
   else if (normalized === "reference:stats") stdout = JSON.stringify({
     reference_pool_binding: Boolean(env.AIFRED_REFERENCE_POOL),
     accepted_uploads: env.AIFRED_REFERENCE_POOL ? "stored in KV" : "accepted metadata is reported but not persisted until KV is bound"
   }, null, 2);
-  else if (normalized === "deploy:status") stdout = "Cloudflare Pages production domain: north3rnlight3r.com / www.north3rnlight3r.com";
-  else if (normalized === "deploy:site") stdout = await dispatchDeploy(env);
+  else if (normalized === "deploy:status") stdout = "Cloudflare Pages project: aifred-site. Production domains: north3rnlight3r.com and aifred-site.pages.dev.";
+  else if (normalized === "sales:list") stdout = JSON.stringify(await readRepoJsonArray(env, salesRepoPath()), null, 2);
+  else if (normalized === "inquiries:list") stdout = JSON.stringify(await readRepoJsonArray(env, inquiriesRepoPath()), null, 2);
   else return json({ ok: false, exit_code: 2, stderr: "Unsupported command. Use /api/v1/registry/actions for the allowlist." }, { status: 400 });
   return json({ ok: true, exit_code: 0, stdout, stderr: "" });
 }
@@ -695,7 +1001,7 @@ export async function onRequest({ request, env, params }) {
     traffic: { status: "live", source: "Cloudflare health endpoint" },
     catalog: { tracks: (await loadCatalog(request)).length, source: "website/assets/data/beat_catalog.json" },
     analytics: { configured: Boolean(env.AIFRED_ANALYTICS_API_TOKEN), message: env.AIFRED_ANALYTICS_API_TOKEN ? "analytics provider configured" : "live analytics are not configured" },
-    deploy: { source: repoConfig(env).repo, branch: repoConfig(env).branch, target: "Cloudflare Pages project north3rnlight3r" }
+    deploy: { source: repoConfig(env).repo, branch: repoConfig(env).branch, target: "Cloudflare Pages project aifred-site" }
   });
   if (path === "admin/catalog/list") return json({ ok: true, tracks: await loadCatalog(request) });
   if (path === "admin/files/read" && request.method === "POST") return handleAdminFileRead(request, env);
@@ -705,22 +1011,42 @@ export async function onRequest({ request, env, params }) {
   if (path === "admin/files/upload" && request.method === "POST") return handleAdminFileUpload(request, env);
   if (path === "admin/reference/upload" && request.method === "POST") return handleAdminReferenceUpload(request, env);
   if (path === "admin/catalog/upload" && request.method === "POST") return handleAdminCatalogUpload(request, env);
-  if (path === "admin/inquiries/list") return json({ ok: true, configured: false, inquiries: [], message: "Inquiry persistence is not configured; contact form currently returns an inquiry id and email target only." });
-  if (path === "admin/logs/list") return json({ ok: true, configured: false, logs: [], message: "Live log storage is not configured." });
-  if (path === "admin/sales/list") return json({ ok: true, configured: false, sales: [], message: "Sales storage and PayPal capture records are not configured." });
-  if (path === "admin/sales/record" && request.method === "POST") return json({ ok: false, configured: false, error: "Sales recording is disabled until PayPal capture storage is configured." }, { status: 501 });
-  if (path === "models/list") {
+  if (path === "admin/inquiries/list") {
+    const inquiries = await readRepoJsonArray(env, inquiriesRepoPath());
     return json({
       ok: true,
-      models: [env.OPENAI_MODEL || "gpt-5.4-mini", env.OLLAMA_MODEL || "llama3.1"].filter(Boolean),
-      active_model: env.OPENAI_MODEL || env.OLLAMA_MODEL || "gpt-5.4-mini",
+      configured: Boolean(env.GITHUB_TOKEN),
+      inquiries,
+      message: env.GITHUB_TOKEN ? "Inquiry records loaded from repository storage." : "Inquiry persistence requires GITHUB_TOKEN in Cloudflare Pages."
+    });
+  }
+  if (path === "admin/logs/list") return json({ ok: true, configured: false, logs: [], message: "Live log storage is not configured." });
+  if (path === "admin/sales/list") {
+    const sales = await readRepoJsonArray(env, salesRepoPath());
+    return json({
+      ok: true,
+      configured: Boolean(env.GITHUB_TOKEN),
+      sales,
+      message: env.GITHUB_TOKEN ? "Sales records loaded from repository storage." : "Sales storage requires GITHUB_TOKEN in Cloudflare Pages."
+    });
+  }
+  if (path === "admin/sales/record" && request.method === "POST") return handleManualSaleRecord(request, env);
+  if (path === "models/list") {
+    const ollamaModel = env.OLLAMA_MODEL || "aifred";
+    const openAiModel = env.OPENAI_MODEL || "gpt-5.4-mini";
+    return json({
+      ok: true,
+      models: [ollamaModel, openAiModel].filter(Boolean),
+      active_model: ollamaModel,
       providers: {
-        openai: { configured: Boolean(env.OPENAI_API_KEY), model: env.OPENAI_MODEL || "gpt-5.4-mini" },
-        ollama: { configured: Boolean(env.OLLAMA_BASE_URL), model: env.OLLAMA_MODEL || "llama3.1" }
+        openai: { configured: Boolean(env.OPENAI_API_KEY), model: openAiModel },
+        ollama: { configured: Boolean(env.OLLAMA_BASE_URL), model: ollamaModel }
       }
     });
   }
   if (path === "chat/ask" && request.method === "POST") return handleChat(request, env);
+  if (path === "paypal/ipn" && request.method === "POST") return handlePayPalIpn(request, env);
+  if (path === "sales/download" && request.method === "GET") return handleSalesDownload(request, env);
   if (path === "inquiries/submit" && request.method === "POST") {
     const body = await readJson(request);
     const inquiry = {
@@ -733,7 +1059,35 @@ export async function onRequest({ request, env, params }) {
     if (!inquiry.name || !inquiry.email || !inquiry.message) {
       return json({ ok: false, error: "name, email, and message are required" }, { status: 400 });
     }
-    return json({ ok: true, inquiry_id: inquiry.id, target_email: env.AIFRED_CONTACT_EMAIL || "north3rnlight3rofficial@outlook.com" });
+    const stored = await appendRepoJsonRecord(env, inquiriesRepoPath(), inquiry, `Record inquiry ${inquiry.id}`);
+    const text = [
+      "AIFRED inquiry received.",
+      `name: ${inquiry.name}`,
+      `email: ${inquiry.email}`,
+      "",
+      inquiry.message
+    ].join("\n");
+    const html = `
+      <h1>AIFRED inquiry received</h1>
+      <p><strong>Name:</strong> ${escapeHtml(inquiry.name)}</p>
+      <p><strong>Email:</strong> ${escapeHtml(inquiry.email)}</p>
+      <pre>${escapeHtml(inquiry.message)}</pre>
+    `;
+    const emailResult = await sendNotificationEmail(env, {
+      to: contactEmail(env),
+      from: emailFrom(env),
+      subject: `AIFRED inquiry: ${inquiry.name}`,
+      text,
+      html
+    });
+    const responseBody = {
+      ok: true,
+      inquiry_id: inquiry.id,
+      target_email: contactEmail(env),
+      stored: Boolean(stored.commit),
+      email_sent: emailResult.ok
+    };
+    return json(responseBody);
   }
 
   return json({ ok: false, error: `unknown route: ${path}` }, { status: 404 });

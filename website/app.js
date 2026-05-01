@@ -3,9 +3,8 @@ const API_BASE = String(config.apiBase || window.location.origin || "").replace(
 const CONTACT_EMAIL = String(config.contactEmail || "north3rnlight3rofficial@outlook.com").trim();
 const DEFAULT_ART = "assets/showcase/album-art-02.jpg";
 const CATALOG_ART = ["assets/showcase/album-art-02.jpg", "assets/brand/aifred-mascot.jpg"];
-const RELEASE_URL = String(config.releaseUrl || "https://github.com/kaeganscott26/AIFRED/releases/latest").trim();
 const DOWNLOAD_URLS = config.downloadUrls || {};
-const PRODUCT_PRICE = String(config.productPrice || "$149.99").trim();
+const PAYPAL_CONFIG = config.paypal || {};
 
 const catalogList = document.getElementById("catalog-list");
 const catalogRefresh = document.getElementById("catalog-refresh");
@@ -13,20 +12,12 @@ const catalogToggle = document.getElementById("catalog-toggle");
 const audioPlayer = document.getElementById("audio-player");
 const nowTitle = document.getElementById("now-title");
 const nowMeta = document.getElementById("now-meta");
-const serviceList = document.getElementById("service-list");
-const chatForm = document.getElementById("chat-form");
-const chatInput = document.getElementById("chat-input");
-const chatOutput = document.getElementById("chat-output");
-const chatProvider = document.getElementById("chat-provider");
-const chatEndpoint = document.getElementById("chat-endpoint");
-const chatApiKey = document.getElementById("chat-api-key");
-const chatModel = document.getElementById("chat-model");
 const contactForm = document.getElementById("contact-form");
 const contactStatus = document.getElementById("contact-status");
 const year = document.getElementById("year");
-const aifredBuyButton = document.getElementById("aifred-buy-button");
-const aifredReleaseButton = document.getElementById("aifred-release-button");
+const aifredDownloadButton = document.getElementById("aifred-buy-button");
 const aifredDownloads = document.getElementById("aifred-downloads");
+const aifredPayPalForm = document.getElementById("aifred-paypal-form");
 const analysisUpload = document.getElementById("analysis-upload");
 const spectralCanvas = document.getElementById("spectral-canvas");
 const analysisTitle = document.getElementById("analysis-title");
@@ -60,22 +51,6 @@ function trackTitle(track) {
   return String(track.title || track.file_name || "North3rnLight3r beat").replace(/\.(wav|mp3)$/i, "").trim();
 }
 
-function paypalUrl(itemName, price = "$19.99", returnUrl = "") {
-  const amount = String(price).replace(/[^0-9.]/g, "") || "19.99";
-  const params = new URLSearchParams({
-    cmd: "_xclick",
-    business: CONTACT_EMAIL,
-    item_name: itemName,
-    amount,
-    currency_code: "USD"
-  });
-  if (returnUrl) {
-    params.set("return", returnUrl);
-    params.set("cancel_return", window.location.href.split("#")[0]);
-  }
-  return `https://www.paypal.com/cgi-bin/webscr?${params}`;
-}
-
 async function getJson(path, fallback) {
   try {
     const response = await fetch(apiUrl(path), { cache: "no-store" });
@@ -99,7 +74,7 @@ function renderCatalog() {
     const title = trackTitle(track);
     const bpm = String(track.bpm || track.tempo || "BPM N/A");
     const genre = String(track.genre || "North3rnLight3r");
-    const price = String(track.price || "$19.99");
+    const price = String(track.price || "$100");
     const card = document.createElement("article");
     card.className = "catalog-card";
     card.innerHTML = `
@@ -108,7 +83,6 @@ function renderCatalog() {
       <p>${bpm} · ${genre} · ${price}</p>
       <div class="card-actions">
         <button class="btn" type="button">Play</button>
-        <a class="btn ghost" target="_blank" rel="noreferrer">License</a>
       </div>
     `;
     card.querySelector("img").addEventListener("error", (event) => {
@@ -121,7 +95,6 @@ function renderCatalog() {
       nowTitle.textContent = title;
       nowMeta.textContent = `${bpm} · ${genre}`;
     });
-    card.querySelector("a").href = paypalUrl(title, price);
     catalogList.appendChild(card);
   });
 }
@@ -133,124 +106,46 @@ function setCatalogOpen(open) {
   catalogToggle.setAttribute("aria-expanded", String(catalogOpen));
 }
 
-function renderServices() {
-  const services = [
-    ["Mixing and Mastering", "Pay for Quality not Time.", "$99"],
-    ["Beat liscenscing", "All liscences are non-exclusive unless otherwise written in writing.", "$19.99"],
-    ["VST Sales", "AIFRED VST3 plugin.", PRODUCT_PRICE]
-  ];
-  serviceList.innerHTML = services.map(([name, description, price]) => `
-    <article>
-      <strong>${name}</strong>
-      <span>${description}</span>
-      <p>${price}</p>
-      <a class="btn ghost" href="${paypalUrl(name, price)}" target="_blank" rel="noreferrer">Book</a>
-    </article>
-  `).join("");
-}
-
-async function askAifred(message) {
-  const provider = chatProvider?.value || "backend";
-  const endpoint = String(chatEndpoint?.value || "").replace(/\/+$/, "");
-  const apiKey = String(chatApiKey?.value || "").trim();
-  const model = String(chatModel?.value || (provider === "openai" ? "gpt-5.4-mini" : "llama3.1")).trim();
-  chatOutput.textContent = "Aifred is checking the configured model route...";
-  try {
-    if (provider === "ollama") {
-      if (!endpoint) throw new Error("Enter an Ollama endpoint.");
-      const response = await fetch(`${endpoint}/api/chat`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {})
-        },
-        body: JSON.stringify({
-          model,
-          stream: false,
-          messages: [
-            { role: "system", content: "You are AIFRED for North3rnLight3r. Answer directly." },
-            { role: "user", content: message }
-          ]
-        })
-      });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "Ollama request failed");
-      chatOutput.textContent = `[ollama:${model}]\n${payload.message?.content || payload.response || "No text returned."}`;
-      return;
-    }
-    if (provider === "openai") {
-      if (!endpoint || !apiKey) throw new Error("Enter an OpenAI endpoint and API key.");
-      const response = await fetch(`${endpoint}/responses`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({
-          model,
-          input: [
-            { role: "system", content: "You are AIFRED for North3rnLight3r. Answer directly." },
-            { role: "user", content: message }
-          ]
-        })
-      });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error?.message || "OpenAI request failed");
-      chatOutput.textContent = `[openai:${model}]\n${payload.output_text || "No text returned."}`;
-      return;
-    }
-    const response = await fetch(apiUrl("/api/v1/chat/ask"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message })
-    });
-    const payload = await response.json();
-    if (!response.ok || !payload.ok) throw new Error(payload.error || "chat unavailable");
-    chatOutput.textContent = `[${payload.provider || "model"}]\n${payload.answer}`;
-  } catch (error) {
-    chatOutput.textContent = `Chat route is not configured yet. ${error.message || "Set OPENAI_API_KEY or OLLAMA_BASE_URL in the backend."}`;
-  }
-}
-
-function setupForms() {
-  chatForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const message = chatInput.value.trim();
-    if (message) askAifred(message);
-  });
-
-  contactForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const name = document.getElementById("contact-name").value.trim();
-    const email = document.getElementById("contact-email").value.trim();
-    const message = document.getElementById("contact-message").value.trim();
-    contactStatus.textContent = "Sending...";
-    try {
-      const response = await fetch(apiUrl("/api/v1/inquiries/submit"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, message })
-      });
-      const payload = await response.json();
-      if (!response.ok || !payload.ok) throw new Error(payload.error || "backend unavailable");
-      contactStatus.textContent = "Inquiry received.";
-      contactForm.reset();
-    } catch (_) {
-      const subject = encodeURIComponent(`AIFRED inquiry from ${name}`);
-      const body = encodeURIComponent(`Name: ${name}\nEmail: ${email}\n\n${message}`);
-      window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`;
-      contactStatus.textContent = `Opening email fallback for ${CONTACT_EMAIL}.`;
-    }
-  });
-}
-
 function renderReleaseActions() {
-  aifredBuyButton.href = paypalUrl("AIFRED VST3 Plugin", PRODUCT_PRICE, RELEASE_URL);
-  aifredReleaseButton.href = RELEASE_URL;
-  if (!aifredDownloads) return;
-  const downloads = [
-    ["Windows installer", DOWNLOAD_URLS.windows || `${RELEASE_URL}/download/AIFRED-VST3-Setup.exe`]
-  ];
-  aifredDownloads.innerHTML = downloads.map(([label, url]) => (
-    `<a href="${url}" target="_blank" rel="noreferrer">${label}</a>`
-  )).join("");
+  const releaseNotes = String(DOWNLOAD_URLS.releaseNotes || "assets/docs/aifred-release-notes.txt").trim();
+  const origin = window.location.origin.replace(/\/+$/, "");
+  const paypalBusiness = String(PAYPAL_CONFIG.business || CONTACT_EMAIL).trim();
+  const paypalItemName = String(PAYPAL_CONFIG.itemName || "AIFRED Plugin (download)").trim();
+  const paypalAmount = String(PAYPAL_CONFIG.amount || "5.00").trim();
+  const paypalCurrencyCode = String(PAYPAL_CONFIG.currencyCode || "USD").trim();
+  const purchaseNonce = `aifred-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+  if (aifredPayPalForm) {
+    const field = (name) => aifredPayPalForm.querySelector(`input[name="${name}"]`);
+    field("business").value = paypalBusiness;
+    field("item_name").value = paypalItemName;
+    field("amount").value = paypalAmount;
+    field("currency_code").value = paypalCurrencyCode;
+    field("notify_url").value = `${origin}/api/v1/paypal/ipn`;
+    field("return").value = `${origin}/?purchase=success#vst`;
+    field("cancel_return").value = `${origin}/?purchase=cancelled#vst`;
+    field("custom").value = purchaseNonce;
+  }
+
+  if (aifredDownloadButton) {
+    aifredDownloadButton.href = "#";
+    aifredDownloadButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      if (aifredPayPalForm) {
+        aifredPayPalForm.submit();
+      }
+    });
+  }
+
+  if (!aifredDownloads) {
+    return;
+  }
+
+  const downloads = [["Release notes", releaseNotes]];
+
+  aifredDownloads.innerHTML = downloads
+    .map(([label, url]) => `<a href="${url}" target="_blank" rel="noreferrer">${label}</a>`)
+    .join("");
 }
 
 function clamp(value, min, max) {
@@ -320,6 +215,7 @@ function drawCatalogVisualizer() {
     visualizerFrame = 0;
     return;
   }
+
   const canvas = spectralCanvas;
   const ctx = canvas.getContext("2d");
   const width = canvas.width;
@@ -359,7 +255,7 @@ function drawCatalogVisualizer() {
 
   ctx.fillStyle = "rgba(232,251,255,0.82)";
   ctx.font = "700 14px Space Grotesk, sans-serif";
-  ctx.fillText("LIVE CATALOG VISUALIZER", 18, 28);
+  ctx.fillText("BEAT CATALOG", 18, 28);
   visualizerFrame = requestAnimationFrame(drawCatalogVisualizer);
 }
 
@@ -432,28 +328,31 @@ function analyzeAudioBuffer(buffer, fileName) {
 
 function renderAnalysis(analysis) {
   const rows = [
-    ["Tone balance", `${analysis.metrics.tone_balance}/100`],
-    ["Loudness", `${analysis.metrics.integrated_lufs} LUFS`],
-    ["Peak", `${analysis.metrics.peak_dbfs} dBFS`],
-    ["Dynamics", `${analysis.metrics.crest_factor_db} dB crest`],
-    ["Stereo width", analysis.metrics.stereo_width],
-    ["Low-end control", `${analysis.metrics.low_end_control}/100`],
-    ["Harshness control", `${analysis.metrics.harshness_control}/100`]
+    ["loudness", `${analysis.metrics.integrated_lufs} LUFS`],
+    ["tonal balance", `${analysis.metrics.tone_balance}/100`],
+    ["stereo behavior", analysis.metrics.stereo_width],
+    ["general mix translation", `${analysis.metrics.crest_factor_db} dB crest`],
+    ["peak", `${analysis.metrics.peak_dbfs} dBFS`],
+    ["low-end control", `${analysis.metrics.low_end_control}/100`],
+    ["harshness control", `${analysis.metrics.harshness_control}/100`]
   ];
-  analysisMetrics.innerHTML = rows.map(([label, value]) => `
-    <article>
-      <span>${label}</span>
-      <strong>${value}</strong>
-    </article>
-  `).join("");
+
+  analysisMetrics.innerHTML = rows
+    .map(([label, value]) => `
+      <article>
+        <span>${label}</span>
+        <strong>${value}</strong>
+      </article>
+    `)
+    .join("");
 }
 
 async function handleAnalysisFile(file) {
   if (!file) return;
   analysisTitle.textContent = file.name;
-  analysisStatus.textContent = "Decoding and reading mix behavior...";
+  analysisStatus.textContent = "Running the quick outside read...";
   analysisSubmit.disabled = true;
-  analysisResult.textContent = "Analysis running locally in your browser.";
+  analysisResult.textContent = "The online analyzer is running locally in your browser.";
   try {
     const context = new AudioContext();
     const arrayBuffer = await file.arrayBuffer();
@@ -461,7 +360,7 @@ async function handleAnalysisFile(file) {
     drawSpectrum(buffer);
     currentAnalysis = analyzeAudioBuffer(buffer, file.name);
     renderAnalysis(currentAnalysis);
-    analysisStatus.textContent = "Local analysis complete. Submit the metadata gate to test reference-pool eligibility.";
+    analysisStatus.textContent = "Local analysis complete.";
     analysisSubmit.disabled = false;
     context.close().catch(() => {});
   } catch (error) {
@@ -474,7 +373,7 @@ async function handleAnalysisFile(file) {
 async function submitAnalysisGate() {
   if (!currentAnalysis) return;
   analysisSubmit.disabled = true;
-  analysisResult.textContent = "Checking pro target gate...";
+  analysisResult.textContent = "Submitting the quick direction check...";
   try {
     const response = await fetch(apiUrl("/api/v1/analysis/submit"), {
       method: "POST",
@@ -482,24 +381,49 @@ async function submitAnalysisGate() {
       body: JSON.stringify(currentAnalysis)
     });
     const payload = await response.json();
-    if (!response.ok || !payload.ok) throw new Error(payload.error || "gate failed");
+    if (!response.ok || !payload.ok) throw new Error(payload.error || "analysis unavailable");
     const lines = [
-      `${payload.classification || (payload.accepted ? "Usable Reference" : "Reject")}: ${payload.accepted ? "metadata can enter the reference workflow." : "metadata will not be used as a reference."}`,
+      `${payload.classification || "Analysis result"}`,
       `Reference utility: ${payload.reference_utility ?? payload.score}/100`,
       `Technical caution: ${payload.technical_caution ?? "N/A"}/100`,
       `Style tag: ${payload.style_tag || "unclassified"}`,
-      `Best use: ${payload.best_use || "No use assigned."}`,
+      `Best use: ${payload.best_use || "No note returned."}`,
       `Caution: ${payload.caution || "No caution returned."}`,
       `Why: ${payload.why || "No explanation returned."}`,
-      `Persistence: ${payload.persistence}`,
-      ...payload.checks.map((check) => `${check.ok ? "PASS" : "WATCH"} ${check.score}/100 ${check.target}`)
+      `Persistence: ${payload.persistence || "none"}`
     ];
     analysisResult.textContent = lines.join("\n");
   } catch (error) {
-    analysisResult.textContent = `Gate unavailable: ${error.message || "request failed"}`;
+    analysisResult.textContent = `Analysis unavailable: ${error.message || "request failed"}`;
   } finally {
     analysisSubmit.disabled = false;
   }
+}
+
+function setupForms() {
+  contactForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const name = document.getElementById("contact-name").value.trim();
+    const email = document.getElementById("contact-email").value.trim();
+    const message = document.getElementById("contact-message").value.trim();
+    contactStatus.textContent = "Sending...";
+    try {
+      const response = await fetch(apiUrl("/api/v1/inquiries/submit"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, message })
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error || "backend unavailable");
+      contactStatus.textContent = "Inquiry received.";
+      contactForm.reset();
+    } catch (_) {
+      const subject = encodeURIComponent(`North3rnLight3r inquiry from ${name}`);
+      const body = encodeURIComponent(`Name: ${name}\nEmail: ${email}\n\n${message}`);
+      window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`;
+      contactStatus.textContent = `Opening email fallback for ${CONTACT_EMAIL}.`;
+    }
+  });
 }
 
 year.textContent = new Date().getFullYear();
@@ -510,7 +434,7 @@ catalogRefresh.addEventListener("click", loadCatalog);
 catalogToggle.addEventListener("click", () => setCatalogOpen(!catalogOpen));
 analysisUpload.addEventListener("change", (event) => handleAnalysisFile(event.target.files?.[0]));
 analysisSubmit.addEventListener("click", submitAnalysisGate);
+
 renderReleaseActions();
-renderServices();
 setupForms();
 loadCatalog();

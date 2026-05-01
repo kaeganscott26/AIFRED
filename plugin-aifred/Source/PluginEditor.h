@@ -6,6 +6,7 @@
 #include "PluginProcessor.h"
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include <array>
 #include <memory>
 
 namespace aifred {
@@ -43,6 +44,7 @@ private:
   juce::TextButton compareButton_ {"COMPARE"};
   juce::TextButton optionsButton_ {"OPTIONS"};
   juce::TextButton tutorialButton_ {"TUTORIAL"};
+  juce::TextButton centerModeButton_ {"CENTER"};
   juce::TextButton askAiButton_ {"ASK AI"};
   juce::TextButton saveApiButton_ {"SAVE API"};
   juce::TextButton chatFileButton_ {"CHAT FILE"};
@@ -58,6 +60,7 @@ private:
   juce::ComboBox layoutMenu_;
   juce::ComboBox genreMenu_;
   juce::Slider gateSlider_;
+  std::array<juce::Slider, 5> referenceVolumeSliders_;
   juce::Image mascot_;
   std::unique_ptr<juce::FileChooser> fileChooser_;
   HaloState state_;
@@ -71,6 +74,7 @@ private:
   bool showTutorial_ = true;
   bool showOptions_ = false;
   bool splashDismissedThisEditor_ = false;
+  int haloCenterMode_ = 0;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AifredAudioProcessorEditor)
 };

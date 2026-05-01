@@ -37,6 +37,7 @@ struct DspMetrics {
   float correlation = 1.0f;
   float transientDensity = 0.0f;
   std::array<float, 8> spectrumBands {};
+  std::array<float, 96> waveform {};
   float candleOpen = 0.0f;
   float candleHigh = 0.0f;
   float candleLow = 0.0f;
