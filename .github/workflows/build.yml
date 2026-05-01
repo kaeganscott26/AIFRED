@@ -81,7 +81,7 @@ jobs:
       - name: Install build deps
         run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm git cmake gcc make ninja dotnet-sdk powershell alsa-lib jack2 libx11 libxcomposite libxcursor libxext libxinerama libxrandr libxrender freetype2 curl webkit2gtk-4.1
+          pacman -S --noconfirm git cmake gcc make ninja zip alsa-lib jack2 libx11 libxcomposite libxcursor libxext libxinerama libxrandr libxrender freetype2 curl webkit2gtk-4.1
 
       - uses: actions/checkout@v4
 
@@ -92,8 +92,30 @@ jobs:
         run: cmake --build build/aifred --config Release --parallel
 
       - name: Package Arch VST3
-        shell: pwsh
-        run: ./tools/package-aifred.ps1 -BuildRoot build/aifred -OutputDir dist -Platform arch
+        run: |
+          set -eu
+          plugin="$(find build/aifred -type d -name 'Aifred.vst3' | head -n 1)"
+          test -n "$plugin"
+          rm -rf dist/AIFRED-VST3-arch dist/AIFRED-VST3-arch.zip
+          mkdir -p dist/AIFRED-VST3-arch/Aifred/{bin,config,logs,models}
+          cp -R "$plugin" dist/AIFRED-VST3-arch/Aifred.vst3
+          cat > dist/AIFRED-VST3-arch/Aifred/config/config.json <<'JSON'
+          {
+            "mode": "local",
+            "port": 8787,
+            "provider": "bundled-local",
+            "model_path": "models/aifred-assistant-q4.gguf",
+            "openai_api_key": "",
+            "custom_endpoint": "",
+            "timeout_ms": 8000
+          }
+          JSON
+          cat > dist/AIFRED-VST3-arch/Aifred/models/README.txt <<'TXT'
+          Optional offline model slot: place a licensed GGUF model here as aifred-assistant-q4.gguf.
+          AIFRED works out of the box with deterministic local coaching, and users can configure an OpenAI-compatible API route for online chat.
+          TXT
+          cd dist/AIFRED-VST3-arch
+          zip -r ../AIFRED-VST3-arch.zip .
 
       - uses: actions/upload-artifact@v4
         with:
