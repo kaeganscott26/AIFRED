@@ -14,6 +14,9 @@ public:
   void reset();
   void pushAudioBlock(const juce::AudioBuffer<float>& buffer);
   HaloState snapshot() const;
+  DspMetrics exportSessionCandles() const;
+  void importSessionCandles(const DspMetrics& metrics);
+  void finalizeCurrentSession();
 
 private:
   struct FeatureFrame {
@@ -61,6 +64,7 @@ private:
 
   FeatureFrame live_;
   FeatureFrame smoothed_;
+  CandleFrame liveSessionCandle_;
   std::array<CandleFrame, 10> sessionCandles_ {};
   std::array<CandleFrame, 10> minuteCandles_ {};
   double sampleRate_ = 44100.0;
@@ -102,6 +106,7 @@ private:
   static DomainAlignment makeDomain(float error01, float primary, float secondary, std::string summary, float confidenceSeed);
   void updateCandle(CandleFrame& candle, float value);
   void commitCandle(std::array<CandleFrame, 10>& candles, int& writeIndex, int& count);
+  void pushSessionHistory(const CandleFrame& candle);
   HaloState buildHaloState() const;
 };
 

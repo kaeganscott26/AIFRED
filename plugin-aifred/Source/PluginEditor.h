@@ -66,7 +66,7 @@ private:
   HaloState state_;
   HaloState compareState_;
   DiagnosticPresentation diagnostic_;
-  juce::String fixListText_ = "Chat output.";
+  juce::String fixListText_;
   juce::String apiStatus_ = "API route not connected.";
   juce::String referenceStatus_ = "No reference file selected.";
   juce::String compareStatus_ = "No compare file selected.";

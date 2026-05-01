@@ -15,7 +15,7 @@ The public-facing product is the AIFRED VST3 and North3rnLight3r beat catalog. T
 | Product | Purpose | Distribution |
 | --- | --- | --- |
 | AIFRED VST3 | Mix analysis, reference alignment, compare metering, and chat-guided fix output | Windows installer plus CI-built Windows, macOS, Linux, and Arch packages |
-| AIFRED Engine | Local AI/coaching companion at `127.0.0.1:8787` | Bundled with Windows packages; local deterministic fallback works without a model |
+| AIFRED Engine | Local AI chat companion at `127.0.0.1:8787` | Bundled with Windows packages; local Ollama-backed chat uses the installed aifred:latest model |
 | North3rnLight3r Website | Brand storefront, beat catalog playback, VST sales path, free mix analyzer | Cloudflare Pages custom domain |
 | Android Admin App | Owner-only control panel for chat, catalog uploads, website file control, shell access, and admin operations | Private install only, never public release |
 
@@ -32,7 +32,7 @@ AIFRED converts live audio behavior into a compact release-readiness view:
 
 The VST separates **Analyze**, **Reference**, and **Compare** into distinct surfaces. Analyze focuses on the current mix signature and candlestick metering. Reference uses one Halo with a target overlay. Compare uses two independent Halo routes for Mix A and Mix B.
 
-Current v0.3.2 JUCE metering surface:
+Current v0.3.3 JUCE metering surface:
 
 - Distinct cyan, gold, and redline theme options
 - One-stick session candlestick meter plus 10-minute history meter
@@ -45,7 +45,7 @@ Current v0.3.2 JUCE metering surface:
 - Options for theme, layout focus, genre target, reference gate sensitivity, and BYO OpenAI/Ollama endpoint setup
 - Reference mode with pool ring, five reference rings, reference file picker, and five reference volume lanes
 - K-weighted loudness readout with momentary, short-term, integrated, LRA, and estimated 4x true peak fields
-- Local AIFRED engine health detection with deterministic fallback when AI is unavailable
+- Local AIFRED engine health detection with request-driven Ollama chat
 - Version text in the plugin header so FL Studio cache/install state is visible
 - Theme, layout, genre, gate, and BYO API fields save into the host project state
 
@@ -138,3 +138,7 @@ Start here:
 - [Function Map](docs/wiki/Function-Map.md)
 - [Troubleshooting](docs/wiki/Troubleshooting.md)
 - [Security And Distribution](docs/wiki/Security-And-Distribution.md)
+
+
+
+

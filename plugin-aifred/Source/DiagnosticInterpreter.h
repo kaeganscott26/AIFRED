@@ -8,9 +8,9 @@
 namespace aifred {
 
 struct DiagnosticPresentation {
-  juce::String status = "Signal idle";
-  juce::String summary = "Route audio through AIFRED.";
-  juce::String fixList = "No measured issue yet.";
+  juce::String status = "metrics";
+  juce::String summary = "live DSP snapshot";
+  juce::String fixList;
   juce::String aiContextJson = "{}";
   bool aiConfigured = false;
   bool setupRequired = true;
@@ -43,7 +43,6 @@ private:
   void pushSample(const HaloState& state, double nowMs);
   static juce::String escapeJson(juce::String text);
   juce::String buildContextJson(const HaloState& state, juce::String provider, juce::String endpoint, juce::String model) const;
-  static juce::String buildFixList(const HaloState& state);
 };
 
 } // namespace aifred

@@ -130,12 +130,12 @@ AifredAudioProcessorEditor::AifredAudioProcessorEditor(AifredAudioProcessor& pro
   apiEndpoint_.setTextToShowWhenEmpty("http://127.0.0.1:11434 or https://api.openai.com/v1", Colours::muted);
   apiKey_.setPasswordCharacter('*');
   apiKey_.setTextToShowWhenEmpty("OpenAI key or local proxy token", Colours::muted);
-  aiModel_.setTextToShowWhenEmpty("gpt-5.4-mini, llama3.1, or compatible model", Colours::muted);
+  aiModel_.setTextToShowWhenEmpty("aifred:latest, llama3.2:3b, or compatible model", Colours::muted);
   addAndMakeVisible(apiEndpoint_);
   addAndMakeVisible(apiKey_);
   addAndMakeVisible(aiModel_);
 
-  fixList_.setText(fixListText_, juce::dontSendNotification);
+  fixList_.setText({}, juce::dontSendNotification);
   fixList_.setColour(juce::Label::textColourId, Colours::ink);
   fixList_.setJustificationType(juce::Justification::topLeft);
   addAndMakeVisible(fixList_);
@@ -220,13 +220,12 @@ void AifredAudioProcessorEditor::buttonClicked(juce::Button* button) {
   if (button == &askAiButton_) {
     const auto prompt = chatInput_.getText().trim();
     diagnostic_ = DiagnosticInterpreter::instance().update(state_, providerMenu_.getText(), apiEndpoint_.getText(), apiKey_.getText(), aiModel_.getText());
-    if (!AifredEngineClient::instance().isAvailable()) {
-      fixListText_ = "AI engine unavailable - core analysis still active.\n" + diagnostic_.fixList;
+    if (prompt.isEmpty()) {
+      fixListText_.clear();
     } else {
-      fixListText_ = (prompt.isNotEmpty() ? "AI context prepared for: " + prompt : "AI context prepared from current DSP state.")
-        + "\n\n" + diagnostic_.aiContextJson;
+      fixListText_ = "Reading current mix snapshot...";
+      AifredEngineClient::instance().askAsync(prompt, diagnostic_.aiContextJson);
     }
-    if (chatFileStatus_ != "No chat file selected.") fixListText_ += "\n" + chatFileStatus_;
     fixList_.setText(fixListText_, juce::dontSendNotification);
   }
   if (button == &saveApiButton_) {
@@ -257,8 +256,10 @@ void AifredAudioProcessorEditor::timerCallback() {
   if (juce::Time::getMillisecondCounter() % 3000 < 40) {
     AifredEngineClient::instance().pingHealthAsync();
   }
-  if (!chatInput_.hasKeyboardFocus(true)) {
-    fixList_.setText(diagnostic_.fixList, juce::dontSendNotification);
+  const auto engineResponse = AifredEngineClient::instance().lastResponse();
+  if (engineResponse.isNotEmpty() && engineResponse != fixListText_ && !AifredEngineClient::instance().hasPendingChat()) {
+    fixListText_ = engineResponse;
+    fixList_.setText(fixListText_, juce::dontSendNotification);
   }
   repaint();
 }
@@ -363,7 +364,7 @@ void AifredAudioProcessorEditor::paint(juce::Graphics& g) {
     g.drawText("LOCAL AI ENGINE UNAVAILABLE", inner.removeFromTop(28), juce::Justification::centredLeft);
     g.setFont(juce::FontOptions(12.5f));
     g.setColour(Colours::muted);
-    g.drawFittedText("Core analysis is still active. The installer normally starts AifredEngine.exe at login and exposes http://127.0.0.1:8787/health for local coaching.", inner, juce::Justification::topLeft, 4);
+    g.drawFittedText("Meters continue to update. Local chat route: http://127.0.0.1:8787.", inner, juce::Justification::topLeft, 3);
   }
 }
 
@@ -516,6 +517,28 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
                major ? 1.5f : 1.0f);
   }
 
+  struct ScaleLabel { float angle; juce::String text; juce::Colour colour; };
+  const std::array<ScaleLabel, 8> scaleLabels {{
+    {-150.0f, "DRY", Colours::cyan},
+    {-78.0f, "PUNCH " + juce::String(state.metrics.crestDb, 1) + " dB", Colours::cyan},
+    {-60.0f, "DARK", Colours::green},
+    {12.0f, "TONE " + juce::String(state.metrics.tone01 * 100.0f, 0) + "%", Colours::green},
+    {30.0f, "-24", Colours::yellow},
+    {102.0f, "LUFS " + juce::String(state.metrics.shortTermLufs, 1) + " / TP " + juce::String(state.metrics.truePeakDb, 1), Colours::yellow},
+    {120.0f, "-1", Colours::violet},
+    {192.0f, "CORR " + juce::String(state.metrics.correlation, 2), Colours::violet}
+  }};
+  for (const auto& item : scaleLabels) {
+    const auto angle = juce::degreesToRadians(item.angle);
+    const auto labelRadius = radius + 111.0f;
+    const auto p = juce::Point<float>(centre.x + std::cos(angle) * labelRadius,
+                                      centre.y + std::sin(angle) * labelRadius);
+    g.setFont(juce::FontOptions(9.2f, juce::Font::bold));
+    g.setColour(item.colour.withAlpha(0.88f));
+    g.drawFittedText(item.text, juce::Rectangle<float>(p.x - 58.0f, p.y - 8.0f, 116.0f, 17.0f).toNearestInt(),
+                     juce::Justification::centred, 1);
+  }
+
   if (referenceOverlay) {
     const std::array<juce::Colour, 6> ringColours {Colours::green, Colours::cyan, Colours::violet, Colours::yellow, Colours::red, juce::Colour(0xfff7f2e7)};
     for (int ring = 0; ring < 6; ++ring) {
@@ -604,7 +627,7 @@ void AifredAudioProcessorEditor::drawCandles(juce::Graphics& g, juce::Rectangle<
   g.drawText("CANDLESTICK METERS", inner.removeFromTop(28), juce::Justification::centredLeft);
   g.setFont(juce::FontOptions(11.5f));
   g.setColour(Colours::muted);
-  g.drawText("Left: current session open/close. Right: ten minute history, one candle per minute.", inner.removeFromTop(20), juce::Justification::centredLeft);
+  g.drawText("Left: ten saved sessions. Right: current session timeline, one candle per minute.", inner.removeFromTop(20), juce::Justification::centredLeft);
 
   auto top = inner.removeFromTop(juce::roundToInt(inner.getHeight() * 0.46f));
   drawCandleStrip(g, top.removeFromLeft(top.getWidth() / 2).reduced(0, 10), state, false);
@@ -650,26 +673,7 @@ void AifredAudioProcessorEditor::drawCandleStrip(juce::Graphics& g, juce::Rectan
     g.drawHorizontalLine(juce::roundToInt(y), plot.getX(), plot.getRight());
   }
 
-  if (!minuteView) {
-    const auto mapY = [&](float value) { return plot.getBottom() - clamp01(value) * plot.getHeight(); };
-    const auto open = state.metrics.sessionCandleOpen[9] > 0.0f ? state.metrics.sessionCandleOpen[9] : state.metrics.candleOpen;
-    const auto high = state.metrics.sessionCandleHigh[9] > 0.0f ? state.metrics.sessionCandleHigh[9] : state.metrics.candleHigh;
-    const auto low = state.metrics.sessionCandleLow[9] > 0.0f ? state.metrics.sessionCandleLow[9] : state.metrics.candleLow;
-    const auto close = state.metrics.sessionCandleClose[9] > 0.0f ? state.metrics.sessionCandleClose[9] : state.metrics.candleClose;
-    const auto x = plot.getCentreX();
-    g.setColour(Colours::ink.withAlpha(0.42f));
-    g.drawLine(x, mapY(high), x, mapY(low), 2.0f);
-    auto body = juce::Rectangle<float>(x - 22.0f, std::min(mapY(open), mapY(close)), 44.0f, std::max(5.0f, std::abs(mapY(close) - mapY(open))));
-    g.setColour(close >= open ? Colours::green.withAlpha(0.78f) : Colours::red.withAlpha(0.78f));
-    g.fillRoundedRectangle(body, 4.0f);
-    g.setColour(Colours::muted);
-    g.setFont(juce::FontOptions(9.0f));
-    g.drawText("O " + candleDb(open), plot.toNearestInt().removeFromTop(14), juce::Justification::centredLeft);
-    g.drawText("C " + candleDb(close), plot.toNearestInt().removeFromBottom(14), juce::Justification::centredRight);
-    return;
-  }
-
-  const auto count = state.metrics.minuteCandleCount;
+  const auto count = minuteView ? state.metrics.minuteCandleCount : state.metrics.sessionCandleCount;
   const auto width = plot.getWidth() / 10.0f;
   for (int i = 0; i < 10; ++i) {
     const auto open = minuteView ? state.metrics.minuteCandleOpen[static_cast<size_t>(i)] : state.metrics.sessionCandleOpen[static_cast<size_t>(i)];
@@ -697,9 +701,9 @@ void AifredAudioProcessorEditor::drawChatPanel(juce::Graphics& g, juce::Rectangl
   g.setFont(juce::FontOptions(12.0f));
   const auto engineReady = AifredEngineClient::instance().isAvailable();
   g.setColour(engineReady ? Colours::green : Colours::yellow);
-  g.drawFittedText(engineReady ? "AI ready: local AIFRED engine." : AifredEngineClient::instance().statusText(), inner.removeFromBottom(38), juce::Justification::bottomLeft, 2);
+  g.drawFittedText(engineReady ? "Local AI ready." : AifredEngineClient::instance().statusText(), inner.removeFromBottom(38), juce::Justification::bottomLeft, 2);
   g.setColour(Colours::muted);
-  g.drawFittedText(diagnostic_.summary, inner.removeFromBottom(44), juce::Justification::bottomLeft, 2);
+  g.drawFittedText("Chat is request-only. Metrics update live; AIFRED answers only after ASK AI.", inner.removeFromBottom(44), juce::Justification::bottomLeft, 2);
 }
 
 void AifredAudioProcessorEditor::drawReferenceMixer(juce::Graphics& g, juce::Rectangle<int> bounds) {

@@ -62,6 +62,7 @@ try
 
         CopyDirectory(sourcePlugin, targetPlugin);
         CopyDirectory(Path.Combine(extractedRoot, "Aifred"), productRoot);
+        EnsureOllamaReady();
         ConfigureAiProvider(productRoot);
         RegisterStartup(engineTarget);
         StartEngine(engineTarget);
@@ -130,19 +131,20 @@ static void RegisterStartup(string enginePath)
 static void ConfigureAiProvider(string productRoot)
 {
     var result = MessageBox.Show(
-        "Configure online AI chat now?\n\nChoose Yes to enter an OpenAI-compatible endpoint and API key. Choose No to use local offline AIFRED coaching.",
+        "AIFRED uses local Ollama by default.\n\nChoose Yes to enter an online/OpenAI-compatible endpoint and API key instead. Choose No to keep the local setup.",
         "AIFRED AI Setup",
         MessageBoxButtons.YesNo,
         MessageBoxIcon.Question);
 
     if (result != DialogResult.Yes)
     {
+        SaveAiSettings("ollama", "http://127.0.0.1:11434", "", "aifred:latest");
         return;
     }
 
     using var form = new Form
     {
-        Text = "AIFRED Online AI Setup",
+        Text = "AIFRED AI Setup",
         Width = 560,
         Height = 260,
         FormBorderStyle = FormBorderStyle.FixedDialog,
@@ -168,17 +170,102 @@ static void ConfigureAiProvider(string productRoot)
         return;
     }
 
+    SaveAiSettings("openai-compatible", endpoint.Text.Trim(), apiKey.Text.Trim(), model.Text.Trim());
+}
+
+static void SaveAiSettings(string provider, string endpoint, string apiKey, string model)
+{
     var settingsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Aifred", "user_settings.json");
     Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
     File.WriteAllText(settingsPath, $$"""
     {
       "provider_override_enabled": true,
-      "provider_mode": "openai-compatible",
-      "api_key": "{{JsonEscape(apiKey.Text.Trim())}}",
-      "custom_endpoint": "{{JsonEscape(endpoint.Text.Trim())}}",
-      "model_name": "{{JsonEscape(model.Text.Trim())}}"
+      "provider_mode": "{{JsonEscape(provider)}}",
+      "api_key": "{{JsonEscape(apiKey)}}",
+      "custom_endpoint": "{{JsonEscape(endpoint)}}",
+      "model_name": "{{JsonEscape(model)}}"
     }
     """);
+}
+
+static void EnsureOllamaReady()
+{
+    if (!CommandWorks("ollama", "--version"))
+    {
+        TryRun("winget", "install --id Ollama.Ollama -e --accept-package-agreements --accept-source-agreements --silent", waitMs: 180000);
+    }
+    TryRun("ollama", "serve", waitMs: 1500, allowBackground: true);
+    if (CommandWorks("ollama", "--version"))
+    {
+        if (!OllamaModelExists("aifred:latest"))
+        {
+            TryRun("ollama", "pull llama3.2:3b", waitMs: 600000);
+        }
+    }
+}
+
+static bool OllamaModelExists(string modelName)
+{
+    try
+    {
+        using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "ollama",
+            Arguments = "list",
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            CreateNoWindow = true
+        });
+        if (process == null) return false;
+        var output = process.StandardOutput.ReadToEnd();
+        process.WaitForExit(5000);
+        return output.Contains(modelName, StringComparison.OrdinalIgnoreCase);
+    }
+    catch
+    {
+        return false;
+    }
+}
+
+static bool CommandWorks(string fileName, string arguments)
+{
+    try
+    {
+        using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = fileName,
+            Arguments = arguments,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        });
+        if (process == null) return false;
+        process.WaitForExit(5000);
+        return process.ExitCode == 0;
+    }
+    catch
+    {
+        return false;
+    }
+}
+
+static void TryRun(string fileName, string arguments, int waitMs, bool allowBackground = false)
+{
+    try
+    {
+        var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = fileName,
+            Arguments = arguments,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden
+        });
+        if (process != null && !allowBackground) process.WaitForExit(waitMs);
+    }
+    catch
+    {
+        // Setup continues and reports engine health after install.
+    }
 }
 
 static string JsonEscape(string value)

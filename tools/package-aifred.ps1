@@ -46,16 +46,17 @@ if ($IsWindows -or $env:OS -eq "Windows_NT") {
 {
   "mode": "local",
   "port": 8787,
-  "provider": "bundled-local",
+  "provider": "ollama",
   "model_path": "models/aifred-assistant-q4.gguf",
+  "model_name": "aifred:latest",
   "openai_api_key": "",
-  "custom_endpoint": "",
-  "timeout_ms": 8000
+  "custom_endpoint": "http://127.0.0.1:11434",
+  "timeout_ms": 180000
 }
 '@ | Set-Content -Encoding UTF8 (Join-Path $productRoot "config\config.json")
 @'
 Optional offline model slot: place a licensed GGUF model here as aifred-assistant-q4.gguf.
-AIFRED works out of the box with deterministic local coaching, and the setup program can save an OpenAI-compatible API route for online chat.
+AIFRED works out of the box with local Ollama chat. The plugin sends measured DSP snapshots to the local engine only when the user asks a question.
 '@ | Set-Content -Encoding UTF8 (Join-Path $productRoot "models\README.txt")
 
 Compress-Archive -Path (Join-Path $packagePath "*") -DestinationPath $zipPath

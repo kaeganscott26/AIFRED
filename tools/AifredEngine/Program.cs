@@ -93,7 +93,7 @@ sealed class AifredRuntime
             else if (context.Request.HttpMethod == "POST" && path == "/chat")
             {
                 var body = await ReadJsonAsync(context.Request);
-                await JsonAsync(context, Chat(body));
+                await JsonAsync(context, await ChatAsync(body));
             }
             else if (context.Request.HttpMethod == "GET" && path == "/v1/settings")
             {
@@ -134,6 +134,8 @@ sealed class AifredRuntime
             ["engine_version"] = EngineVersion,
             ["model_loaded"] = File.Exists(modelPath),
             ["provider_mode"] = provider,
+            ["chat_model"] = EffectiveModelName(),
+            ["chat_endpoint"] = EffectiveEndpoint(),
             ["model_path"] = modelPath
         };
     }
@@ -150,33 +152,27 @@ sealed class AifredRuntime
 
         var issues = new JsonArray();
         var actions = new JsonArray();
-        var summary = "Core analysis is active. No critical coaching move is needed yet.";
+        var summary = "DSP metrics received.";
         var confidence = 0.72;
 
         if (width < 0.25 && corr > 0.75)
         {
-            summary = "Your mix is controlled and mono-safe, but the stereo image is tighter than the target.";
             issues.Add("Stereo image is too centered");
-            actions.Add("Widen non-bass elements first");
-            actions.Add("Keep kick and sub centered");
             confidence = 0.84;
         }
         if (truePeak > 0.0)
         {
             issues.Add("True peak is over 0 dBTP");
-            actions.Add("Lower limiter output or reduce clip gain before export");
             confidence = Math.Max(confidence, 0.9);
         }
         if (crest < 8.0 && lufs > -14.0)
         {
-            issues.Add("Crest factor suggests over-compression");
-            actions.Add("Back off limiting or restore transient contrast");
+            issues.Add("Crest factor is low for the current loudness");
             confidence = Math.Max(confidence, 0.82);
         }
         if (issues.Count == 0)
         {
-            issues.Add("No high-priority issue detected");
-            actions.Add("Check the loudest section before final export");
+            issues.Add("No threshold flag");
         }
 
         return new JsonObject
@@ -189,21 +185,130 @@ sealed class AifredRuntime
         };
     }
 
-    JsonObject Chat(JsonObject body)
+    async Task<JsonObject> ChatAsync(JsonObject body)
     {
         var message = GetString(body, "message", "").Trim();
         var context = body["context"]?.AsObject() ?? new JsonObject();
-        var dominant = GetString(context, "dominant_diagnosis", "current diagnosis");
-        var response = message.Length == 0
-            ? "Ask a mix question after audio has played through AIFRED."
-            : $"Based on {dominant}, AIFRED will only explain measured behavior. Core DSP stays authoritative; the assistant is here to translate the diagnosis into next moves.";
-        return new JsonObject { ["response"] = response };
+        if (message.Length == 0)
+        {
+            return new JsonObject { ["response"] = "" };
+        }
+
+        var provider = EffectiveProvider();
+        var model = EffectiveModelName();
+        var endpoint = EffectiveEndpoint();
+        try
+        {
+            if (provider.Contains("ollama", StringComparison.OrdinalIgnoreCase) || endpoint.Contains("11434", StringComparison.OrdinalIgnoreCase))
+            {
+                return new JsonObject { ["response"] = await AskOllamaAsync(endpoint, model, message, context) };
+            }
+            if (provider.Contains("openai", StringComparison.OrdinalIgnoreCase) || provider.Contains("compatible", StringComparison.OrdinalIgnoreCase))
+            {
+                return new JsonObject { ["response"] = await AskOpenAiCompatibleAsync(endpoint, model, message, context) };
+            }
+        }
+        catch (Exception ex)
+        {
+            Log("chat provider error: " + ex.Message);
+        }
+
+        return new JsonObject
+        {
+            ["response"] = "Local model response unavailable."
+        };
+    }
+
+    async Task<string> AskOllamaAsync(string endpoint, string model, string message, JsonObject context)
+    {
+        endpoint = endpoint.TrimEnd('/');
+        using var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(GetInt(config, "timeout_ms", 30000)) };
+        var body = new JsonObject
+        {
+            ["model"] = model,
+            ["stream"] = false,
+            ["prompt"] = BuildMixPrompt(message, context),
+            ["options"] = new JsonObject
+            {
+                ["num_predict"] = 120,
+                ["temperature"] = 0.55
+            }
+        };
+        var response = await client.PostAsync($"{endpoint}/api/generate", new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json"));
+        response.EnsureSuccessStatusCode();
+        var json = JsonNode.Parse(await response.Content.ReadAsStringAsync())?.AsObject() ?? new JsonObject();
+        return CleanAiText(GetString(json, "response", ""));
+    }
+
+    async Task<string> AskOpenAiCompatibleAsync(string endpoint, string model, string message, JsonObject context)
+    {
+        endpoint = endpoint.TrimEnd('/');
+        using var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(GetInt(config, "timeout_ms", 30000)) };
+        var apiKey = EffectiveApiKey();
+        if (!string.IsNullOrWhiteSpace(apiKey)) client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+        var body = new JsonObject
+        {
+            ["model"] = model,
+            ["messages"] = new JsonArray
+            {
+                new JsonObject { ["role"] = "system", ["content"] = SystemPrompt() },
+                new JsonObject { ["role"] = "user", ["content"] = BuildMixPrompt(message, context) }
+            },
+            ["temperature"] = 0.55
+        };
+        var response = await client.PostAsync($"{endpoint}/chat/completions", new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json"));
+        response.EnsureSuccessStatusCode();
+        var json = JsonNode.Parse(await response.Content.ReadAsStringAsync())?.AsObject() ?? new JsonObject();
+        var content = json["choices"]?[0]?["message"]?["content"]?.GetValue<string>() ?? "";
+        return CleanAiText(content);
+    }
+
+    string BuildMixPrompt(string message, JsonObject context)
+    {
+        return $"""
+        {SystemPrompt()}
+        Snapshot: {context.ToJsonString(new JsonSerializerOptions { WriteIndented = false })}
+        Question: {message}
+        """;
+    }
+
+    static string SystemPrompt() =>
+        "You are AIFRED, a mix-aware assistant inside an audio plugin. Answer naturally in plain English. Use only the measured DSP snapshot, reference-pool metadata, compare-mode data, and the user's question. Compare each numeric value against the supplied reference target before judging it; for LUFS, -9.2 is louder/hotter than -11.5, not quieter, and for crest, 6.1 is below 10.4, not above. If true_peak_dbtp is above 0, treat clipping/headroom as the first priority. If crest_db is far below the reference crest target, treat dynamics as compressed/low-contrast. Do not output JSON, tables, canned scripts, or generic talk. Give accurate, actionable mix advice with units when useful. If the snapshot is idle or insufficient, say what measurement is missing.";
+
+    static string CleanAiText(string value)
+    {
+        value = value.Trim();
+        if (value.StartsWith("{") || value.StartsWith("["))
+        {
+            return "Local model returned structured data instead of a normal answer.";
+        }
+        return value.Length == 0 ? "AIFRED did not receive a usable model response." : value;
     }
 
     string EffectiveProvider()
     {
         var overrideEnabled = GetBool(userSettings, "provider_override_enabled", false);
-        return overrideEnabled ? GetString(userSettings, "provider_mode", "bundled-local") : GetString(config, "provider", "bundled-local");
+        return overrideEnabled ? GetString(userSettings, "provider_mode", "ollama") : GetString(config, "provider", "ollama");
+    }
+
+    string EffectiveEndpoint()
+    {
+        var overrideEnabled = GetBool(userSettings, "provider_override_enabled", false);
+        var endpoint = overrideEnabled ? GetString(userSettings, "custom_endpoint", "") : GetString(config, "custom_endpoint", "");
+        return string.IsNullOrWhiteSpace(endpoint) ? "http://127.0.0.1:11434" : endpoint;
+    }
+
+    string EffectiveModelName()
+    {
+        var overrideEnabled = GetBool(userSettings, "provider_override_enabled", false);
+        var model = overrideEnabled ? GetString(userSettings, "model_name", "") : GetString(config, "model_name", "");
+        return string.IsNullOrWhiteSpace(model) ? "aifred:latest" : model;
+    }
+
+    string EffectiveApiKey()
+    {
+        var overrideEnabled = GetBool(userSettings, "provider_override_enabled", false);
+        return overrideEnabled ? GetString(userSettings, "api_key", "") : GetString(config, "openai_api_key", "");
     }
 
     void Log(string line)
@@ -215,20 +320,21 @@ sealed class AifredRuntime
     {
         ["mode"] = "local",
         ["port"] = DefaultPort,
-        ["provider"] = "bundled-local",
+        ["provider"] = "ollama",
         ["model_path"] = "models/aifred-assistant-q4.gguf",
+        ["model_name"] = "aifred:latest",
         ["openai_api_key"] = "",
-        ["custom_endpoint"] = "",
-        ["timeout_ms"] = 8000
+        ["custom_endpoint"] = "http://127.0.0.1:11434",
+        ["timeout_ms"] = 180000
     };
 
     static JsonObject DefaultUserSettings() => new()
     {
         ["provider_override_enabled"] = false,
-        ["provider_mode"] = "bundled-local",
+        ["provider_mode"] = "ollama",
         ["api_key"] = "",
-        ["custom_endpoint"] = "",
-        ["model_name"] = ""
+        ["custom_endpoint"] = "http://127.0.0.1:11434",
+        ["model_name"] = "aifred:latest"
     };
 
     static JsonObject LoadJson(string path, JsonObject fallback)

@@ -1,6 +1,6 @@
 # AIFRED Release Architecture
 
-AIFRED is a JUCE mix-analysis plugin with a local companion engine. The plugin remains the product: it performs deterministic DSP, metering, Halo rendering, and rule-based diagnosis inside the DAW. The companion engine explains the measured state and handles chat without running model work inside the host process.
+AIFRED is a JUCE mix-analysis plugin with a local companion engine. The plugin remains the product: it performs DSP, metering, Halo rendering, and measured diagnosis inside the DAW. The companion engine explains the measured state and handles chat without running model work inside the host process.
 
 ## Project Structure
 
@@ -41,9 +41,9 @@ AIFRED/
 
 | Component | Responsibility |
 | --- | --- |
-| `Aifred.vst3` | Real-time audio pass-through, DSP feature extraction, Halo UI, deterministic diagnosis, offline rule-based messaging. |
-| `AifredEngine.exe` | Localhost AI orchestration, session memory, settings, rule-based fallback, future GGUF/llama.cpp bridge. |
-| Bundled model | A compact GGUF model named `aifred-assistant-q4.gguf`, used only for explanation and coaching. |
+| `Aifred.vst3` | Real-time audio pass-through, DSP feature extraction, Halo UI, DSP diagnosis, request-driven local AI chat. |
+| `AifredEngine.exe` | Localhost AI orchestration, session memory, settings, Ollama routing, future GGUF/llama.cpp bridge. |
+| Bundled model | A compact GGUF model named `aifred-assistant-q4.gguf`, replaced by Ollama chat routing through the local engine. |
 | Installer | Installs the VST3, engine, config, logs/model folders, startup registration, optional API endpoint settings, and health validation. |
 
 ## Local API Contract
@@ -88,7 +88,7 @@ Installed config:
 {
   "mode": "local",
   "port": 8787,
-  "provider": "bundled-local",
+  "provider": "ollama",
   "model_path": "C:\\Program Files\\Aifred\\models\\aifred-assistant-q4.gguf",
   "openai_api_key": "",
   "custom_endpoint": "",
@@ -101,7 +101,7 @@ User override:
 ```json
 {
   "provider_override_enabled": false,
-  "provider_mode": "bundled-local",
+  "provider_mode": "ollama",
   "api_key": "",
   "custom_endpoint": "",
   "model_name": ""
@@ -112,11 +112,11 @@ User override:
 
 | State | Trigger | User-facing behavior |
 | --- | --- | --- |
-| Core analysis | Always available | Meters, Halo, LUFS, true peak, crest, width, spectrum, and rule-based diagnosis remain active. |
-| Engine ready | `/health.ok = true` | AI coaching/chat can use local engine responses. |
-| Engine unavailable | Connection refused, timeout, missing process | UI says `AI engine unavailable - core analysis still active`; no broken-state language. |
-| Model missing | Engine reachable but `model_loaded = false` | Engine returns deterministic coaching and logs missing model; plugin remains usable. |
-| Provider override error | Bad key or endpoint | Engine keeps bundled-local/rule fallback and reports provider status in settings/logs. |
+| Core metering | Always available | Meters, Halo, LUFS, true peak, crest, width, spectrum, and measured diagnosis remain active. |
+| Engine ready | `/health.ok = true` | AI chat can use local Ollama responses. |
+| Engine unavailable | Connection refused, timeout, missing process | UI says `Local AI route unavailable`; no broken-state language. |
+| Model missing | Engine reachable but `model_loaded = false` | Engine keeps metering active and reports model routing status; chat requires Ollama or a configured API route. |
+| Provider override error | Bad key or endpoint | Engine keeps metering active and reports provider status in settings/logs. |
 
 ## Installer Design
 
@@ -145,7 +145,7 @@ Preferred runtime:
 
 Current scaffold:
 
-- `AifredEngine.exe` exposes the API and deterministic fallback behavior.
+- `AifredEngine.exe` exposes the API and Ollama chat routing behavior.
 - `model_loaded` is `true` only when the GGUF file exists.
 - Public installer production must add the licensed GGUF model before release.
 
@@ -171,7 +171,11 @@ analysisEngine.pushAudioBlock(buffer);
 // UI/timer/background path:
 auto contextJson = DiagnosticInterpreter::instance().update(state, ...).aiContextJson;
 // POST contextJson to http://127.0.0.1:8787/analyze with timeout.
-// If request fails, keep DiagnosticInterpreter rule output.
+// If request fails, keep DiagnosticInterpreter metrics-only output.
 ```
 
 Never call HTTP, start processes, or wait on model output from `processBlock`.
+
+
+
+

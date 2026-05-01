@@ -32,7 +32,7 @@ void AnalysisEngine::prepare(double sampleRate) {
 void AnalysisEngine::reset() {
   live_ = {};
   smoothed_ = {};
-  sessionCandles_ = {};
+  liveSessionCandle_ = {};
   minuteCandles_ = {};
   sessionWindowSamples_ = 0.0;
   minuteWindowSamples_ = 0.0;
@@ -188,6 +188,50 @@ void AnalysisEngine::commitCandle(std::array<CandleFrame, 10>& candles, int& wri
   candle.active = false;
   writeIndex = (writeIndex + 1) % static_cast<int>(candles.size());
   count = std::min(static_cast<int>(candles.size()), count + 1);
+}
+
+void AnalysisEngine::pushSessionHistory(const CandleFrame& candle) {
+  if (!candle.active && candle.high <= 0.0f && candle.close <= 0.0f) return;
+  sessionCandles_[static_cast<size_t>(sessionCandleWrite_)] = candle;
+  sessionCandles_[static_cast<size_t>(sessionCandleWrite_)].active = false;
+  sessionCandleWrite_ = (sessionCandleWrite_ + 1) % static_cast<int>(sessionCandles_.size());
+  sessionCandleCount_ = std::min(static_cast<int>(sessionCandles_.size()), sessionCandleCount_ + 1);
+}
+
+void AnalysisEngine::finalizeCurrentSession() {
+  pushSessionHistory(liveSessionCandle_);
+}
+
+DspMetrics AnalysisEngine::exportSessionCandles() const {
+  DspMetrics metrics;
+  metrics.sessionCandleCount = sessionCandleCount_;
+  for (int i = 0; i < 10; ++i) {
+    const auto index = (sessionCandleWrite_ + i) % 10;
+    const auto& c = sessionCandles_[static_cast<size_t>(index)];
+    metrics.sessionCandleOpen[static_cast<size_t>(i)] = c.open;
+    metrics.sessionCandleHigh[static_cast<size_t>(i)] = c.high;
+    metrics.sessionCandleLow[static_cast<size_t>(i)] = c.low;
+    metrics.sessionCandleClose[static_cast<size_t>(i)] = c.close;
+  }
+  return metrics;
+}
+
+void AnalysisEngine::importSessionCandles(const DspMetrics& metrics) {
+  sessionCandles_ = {};
+  sessionCandleWrite_ = 0;
+  sessionCandleCount_ = juce::jlimit(0, 10, metrics.sessionCandleCount);
+  const auto first = 10 - sessionCandleCount_;
+  for (int i = first; i < 10; ++i) {
+    CandleFrame candle;
+    candle.open = clamp01(metrics.sessionCandleOpen[static_cast<size_t>(i)]);
+    candle.high = clamp01(metrics.sessionCandleHigh[static_cast<size_t>(i)]);
+    candle.low = clamp01(metrics.sessionCandleLow[static_cast<size_t>(i)]);
+    candle.close = clamp01(metrics.sessionCandleClose[static_cast<size_t>(i)]);
+    if (candle.high > 0.0f || candle.close > 0.0f) {
+      sessionCandles_[static_cast<size_t>(sessionCandleWrite_)] = candle;
+      sessionCandleWrite_ = (sessionCandleWrite_ + 1) % 10;
+    }
+  }
 }
 
 void AnalysisEngine::pushAudioBlock(const juce::AudioBuffer<float>& buffer) {
@@ -377,9 +421,9 @@ void AnalysisEngine::pushAudioBlock(const juce::AudioBuffer<float>& buffer) {
   smoothed_.candleLow = smooth(smoothed_.candleLow, live_.candleLow, amount);
   smoothed_.candleClose = smooth(smoothed_.candleClose, live_.candleClose, amount);
 
-  updateCandle(sessionCandles_[0], live_.candleClose);
-  sessionCandleCount_ = live_.signal01 > 0.02f ? 1 : sessionCandleCount_;
+  updateCandle(liveSessionCandle_, live_.candleClose);
   updateCandle(minuteCandles_[static_cast<size_t>(minuteCandleWrite_)], live_.candleClose);
+  if (live_.signal01 > 0.02f) minuteCandleCount_ = std::max(1, minuteCandleCount_);
   minuteWindowSamples_ += samples;
   if (minuteWindowSamples_ >= sampleRate_ * 60.0) {
     minuteWindowSamples_ = 0.0;
@@ -418,7 +462,7 @@ HaloState AnalysisEngine::buildHaloState() const {
   state.metrics.sessionCandleCount = sessionCandleCount_;
   state.metrics.minuteCandleCount = minuteCandleCount_;
   for (int i = 0; i < 10; ++i) {
-    const auto sessionIndex = i == 9 ? 0 : i;
+    const auto sessionIndex = (sessionCandleWrite_ + i) % 10;
     const auto minuteIndex = (minuteCandleWrite_ + i) % 10;
     const auto& s = sessionCandles_[static_cast<size_t>(sessionIndex)];
     const auto& m = minuteCandles_[static_cast<size_t>(minuteIndex)];

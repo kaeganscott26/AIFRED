@@ -12,6 +12,11 @@ AifredAudioProcessor::AifredAudioProcessor()
   loadLocalSettings();
 }
 
+AifredAudioProcessor::~AifredAudioProcessor() {
+  analysis_.finalizeCurrentSession();
+  saveSessionHistory();
+}
+
 juce::AudioProcessorValueTreeState::ParameterLayout AifredAudioProcessor::createParameterLayout() {
   std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
   params.push_back(std::make_unique<juce::AudioParameterBool>(
@@ -21,11 +26,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout AifredAudioProcessor::create
 
 void AifredAudioProcessor::prepareToPlay(double sampleRate, int) {
   analysis_.prepare(sampleRate);
+  loadSessionHistory();
   compareAnalysis_.prepare(sampleRate);
 }
 
 void AifredAudioProcessor::releaseResources() {
-  analysis_.reset();
   compareAnalysis_.reset();
 }
 
@@ -164,6 +169,44 @@ void AifredAudioProcessor::saveLocalSettings() const {
   file.setValue("apiKey", settings_.apiKey);
   file.setValue("aiModel", settings_.aiModel);
   file.setValue("genreId", settings_.genreId);
+  file.saveIfNeeded();
+}
+
+void AifredAudioProcessor::loadSessionHistory() {
+  juce::PropertiesFile::Options options;
+  options.applicationName = "AIFRED";
+  options.filenameSuffix = "config";
+  options.folderName = "AIFRED";
+  options.osxLibrarySubFolder = "Application Support";
+  options.storageFormat = juce::PropertiesFile::storeAsXML;
+  juce::PropertiesFile file(options);
+  DspMetrics metrics;
+  metrics.sessionCandleCount = juce::jlimit(0, 10, file.getIntValue("sessionCandleCount", 0));
+  for (int i = 0; i < 10; ++i) {
+    metrics.sessionCandleOpen[static_cast<size_t>(i)] = static_cast<float>(file.getDoubleValue("sessionOpen" + juce::String(i), 0.0));
+    metrics.sessionCandleHigh[static_cast<size_t>(i)] = static_cast<float>(file.getDoubleValue("sessionHigh" + juce::String(i), 0.0));
+    metrics.sessionCandleLow[static_cast<size_t>(i)] = static_cast<float>(file.getDoubleValue("sessionLow" + juce::String(i), 0.0));
+    metrics.sessionCandleClose[static_cast<size_t>(i)] = static_cast<float>(file.getDoubleValue("sessionClose" + juce::String(i), 0.0));
+  }
+  analysis_.importSessionCandles(metrics);
+}
+
+void AifredAudioProcessor::saveSessionHistory() {
+  auto metrics = analysis_.exportSessionCandles();
+  juce::PropertiesFile::Options options;
+  options.applicationName = "AIFRED";
+  options.filenameSuffix = "config";
+  options.folderName = "AIFRED";
+  options.osxLibrarySubFolder = "Application Support";
+  options.storageFormat = juce::PropertiesFile::storeAsXML;
+  juce::PropertiesFile file(options);
+  file.setValue("sessionCandleCount", metrics.sessionCandleCount);
+  for (int i = 0; i < 10; ++i) {
+    file.setValue("sessionOpen" + juce::String(i), metrics.sessionCandleOpen[static_cast<size_t>(i)]);
+    file.setValue("sessionHigh" + juce::String(i), metrics.sessionCandleHigh[static_cast<size_t>(i)]);
+    file.setValue("sessionLow" + juce::String(i), metrics.sessionCandleLow[static_cast<size_t>(i)]);
+    file.setValue("sessionClose" + juce::String(i), metrics.sessionCandleClose[static_cast<size_t>(i)]);
+  }
   file.saveIfNeeded();
 }
 

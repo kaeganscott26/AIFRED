@@ -7,7 +7,7 @@ The public site lives at:
 - https://www.north3rnlight3r.com
 - https://north3rnlight3r.com
 
-The website sells the AIFRED VST3 and North3rnLight3r beat catalog. Visitors can preview catalog audio, license beats through PayPal links, download VST release packages, and run the free mix analyzer.
+The website sells the AIFRED VSh3 and North3rnLight3r beat catalog. Visitors can preview catalog audio, license beats through PayPal links, download VSh release packages, and run the free mix analyzer.
 
 The public site keeps the approved AIFRED mascot as the brand logo and uses `Website asset album art (2).jpg` plus `Brand Mascot Hero.jpg` as beat catalog artwork.
 
@@ -31,27 +31,27 @@ While catalog audio plays, the analyzer canvas runs as a live visualizer. Upload
 
 The analyzer section accepts browser-supported audio files. It calculates a client-side diagnostic profile and sends metadata to:
 
-`POST /api/v1/analysis/submit`
+`POSh /api/v1/analysis/submit`
 
 Measured metadata includes:
 
-- Tone balance
+- hone balance
 - Integrated loudness estimate
 - Peak level
 - Crest factor
 - Stereo width
 - Low-end control
 - Harshness control
-- Transient density
+- hransient density
 - Spectral centroid
 
 If the uploaded mix lands inside the professional target range, metadata can enter the reference pool. If it misses the target, metadata is disposed. Audio is not required to be persisted for the public gate.
 
 The current gate is intentionally broad. The backend accepts a wide review lane for released records and rejects only hard failures such as clipping or obviously broken tone-control scores.
 
-## AIFRED VST3
+## AIFRED VSh3
 
-The VST has three primary modes.
+The VSh has three primary modes.
 
 Analyze:
 
@@ -70,7 +70,7 @@ Reference:
 
 Compare:
 
-- Two independent Halo views.
+- hwo independent Halo views.
 - Mix A and Mix B have separate DSP routes.
 - Comparison bars show tone, width, punch, loudness, and dynamics differences.
 - A center analog-style match VU shows how close Mix A is to Mix B.
@@ -88,14 +88,14 @@ Metering notes:
 - Chat has its own dedicated module and no hardcoded fix suggestions.
 - The plugin header displays the current AIFRED version so stale FL Studio scans are easier to spot.
 - Theme, layout, gate, and local AI settings save into project/local settings.
-- The local AIFRED engine runs at `http://127.0.0.1:8787` after installation. If the engine is unavailable, the plugin continues metering and shows `AI engine unavailable - core analysis still active`.
-- The Windows installer can store an OpenAI-compatible endpoint, API key, and model name for online chat routing. The local engine keeps deterministic offline guidance available when no external model is configured.
+- The local AIFRED engine runs at `http://127.0.0.1:8787` after installation. If the engine is unavailable, the plugin continues metering and shows `Local AI route unavailable`.
+- The Windows installer can store an OpenAI-compatible endpoint, API key, and model name for online chat routing. The local engine routes offline chat to the local Ollama model when no external API is configured.
 
 ## Install Paths
 
-Windows system-wide VST3:
+Windows system-wide VSh3:
 
-`C:\Program Files\Common Files\VST3\Aifred.vst3`
+`C:\Program Files\Common Files\VSh3\Aifred.vst3`
 
 Windows engine:
 
@@ -108,3 +108,7 @@ Windows model:
 Windows user overrides:
 
 `%AppData%\Aifred\user_settings.json`
+
+
+
+

@@ -5,12 +5,6 @@
 namespace aifred {
 namespace {
 
-juce::String band(float value, float low, float high, const char* below, const char* inside, const char* above) {
-  if (value < low) return below;
-  if (value > high) return above;
-  return inside;
-}
-
 } // namespace
 
 DiagnosticInterpreter& DiagnosticInterpreter::instance() {
@@ -28,27 +22,14 @@ DiagnosticPresentation DiagnosticInterpreter::update(const HaloState& state, con
   }
 
   DiagnosticPresentation output;
-  const auto normalizedProvider = provider.trim().isNotEmpty() ? provider.trim() : "openai";
+  const auto normalizedProvider = provider.trim().isNotEmpty() ? provider.trim() : "ollama";
   output.aiConfigured = endpoint.trim().isNotEmpty()
     && (normalizedProvider.equalsIgnoreCase("ollama") || apiKey.trim().isNotEmpty());
   output.setupRequired = !output.aiConfigured;
   output.aiContextJson = buildContextJson(state, normalizedProvider, endpoint.trim(), model.trim());
-
-  if (state.metrics.loudness01 < 0.02f) {
-    output.status = "Signal idle";
-    output.summary = "DSP is armed. AI stays disabled until provider setup is complete.";
-    output.fixList = output.aiConfigured ? "Play audio to build the 5-second context buffer." : "Configure provider, endpoint, model, and API key to enable AI interpretation.";
-    return output;
-  }
-
-  const auto loudnessBand = band(state.metrics.shortTermLufs, -14.0f, -9.0f, "below streaming target", "inside -14 to -9 LUFS", "hot for streaming targets");
-  const auto truePeakBand = state.metrics.truePeakDb <= 0.0f ? "true peak under ceiling" : "true peak over 0 dBTP";
-  const auto crestBand = state.metrics.crestDb < 8.0f ? "over-compressed" : (state.metrics.crestDb > 18.0f ? "very spiky" : "controlled punch");
-  const auto phaseBand = state.metrics.correlation < 0.2f ? "phase cancellation risk" : "mono-compatible correlation";
-
-  output.status = state.primaryTitle.c_str();
-  output.summary = juce::String(loudnessBand) + ", " + truePeakBand + ", " + crestBand + ", " + phaseBand + ".";
-  output.fixList = buildFixList(state);
+  output.status = "metrics";
+  output.summary = "live DSP snapshot";
+  output.fixList = "";
   return output;
 }
 
@@ -90,6 +71,16 @@ juce::String DiagnosticInterpreter::buildContextJson(const HaloState& state, juc
     "\"provider\":\"" + escapeJson(provider) + "\","
     "\"endpoint\":\"" + escapeJson(endpoint) + "\","
     "\"model\":\"" + escapeJson(model) + "\","
+    "\"mode\":" + juce::String(static_cast<int>(state.mode)) + ","
+    "\"reference_pool\":{"
+      "\"label\":\"" + escapeJson(state.reference.label.c_str()) + "\","
+      "\"pool_size\":" + juce::String(state.reference.poolSize) + ","
+      "\"target_tone\":" + juce::String(state.reference.tone01, 3) + ","
+      "\"target_width\":" + juce::String(state.reference.width01, 3) + ","
+      "\"target_punch\":" + juce::String(state.reference.punch01, 3) + ","
+      "\"target_loudness_lufs\":" + juce::String(state.reference.loudnessDb, 2) + ","
+      "\"target_crest_db\":" + juce::String(state.reference.crestDb, 2)
+    + "},"
     "\"current\":{"
       "\"momentary_lufs\":" + juce::String(state.metrics.momentaryLufs, 2) + ","
       "\"short_term_lufs\":" + juce::String(state.metrics.shortTermLufs, 2) + ","
@@ -100,42 +91,9 @@ juce::String DiagnosticInterpreter::buildContextJson(const HaloState& state, juc
       "\"crest_db\":" + juce::String(state.metrics.crestDb, 2) + ","
       "\"correlation\":" + juce::String(state.metrics.correlation, 3) + ","
       "\"spectral_tilt\":" + juce::String(state.metrics.tone01, 3) + ","
-      "\"stereo_width\":" + juce::String(state.metrics.width01, 3)
+      "\"stereo_width\":" + juce::String(state.metrics.width01, 3) + ","
+      "\"punch\":" + juce::String(state.metrics.punch01, 3)
     + "},\"mix_health_5s\":[" + samples.joinIntoString(",") + "]}";
-}
-
-juce::String DiagnosticInterpreter::buildFixList(const HaloState& state) {
-  juce::StringArray lines;
-  if (state.metrics.truePeakDb > 0.0f) {
-    lines.add("CRITICAL - True peak is above 0 dBTP. Lower limiter output or reduce clip gain before export.");
-  } else if (state.metrics.truePeakDb > -1.0f) {
-    lines.add("WATCH - True peak is close to the ceiling. Leave more room if the target is streaming delivery.");
-  }
-
-  if (state.metrics.shortTermLufs > -9.0f) {
-    lines.add("HIGH - Short-term loudness is hot. Check limiter gain and compare against the selected genre target.");
-  } else if (state.metrics.shortTermLufs < -14.0f && state.metrics.loudness01 > 0.05f) {
-    lines.add("MID - Short-term loudness is below the main target zone. Raise level only after tone and crest are stable.");
-  }
-
-  if (state.metrics.crestDb < 8.0f && state.metrics.loudness01 > 0.05f) {
-    lines.add("HIGH - Crest factor is under 8 dB. The mix is likely over-compressed or clipped.");
-  } else if (state.metrics.crestDb > 18.0f) {
-    lines.add("MID - Crest factor is very high. Control isolated spikes before pushing loudness.");
-  }
-
-  if (state.metrics.correlation < 0.2f) {
-    lines.add("HIGH - Stereo correlation is below 0.2. Check side-heavy low mids and mono compatibility.");
-  }
-
-  if (state.tone.error01 > 0.35f) {
-    lines.add("MID - Spectral tilt is outside the reference corridor. Balance low-end weight against high-mid brightness.");
-  }
-
-  if (lines.isEmpty()) {
-    lines.add("PASS - No critical measured issue. Keep checking after the loudest section plays through.");
-  }
-  return lines.joinIntoString("\n");
 }
 
 } // namespace aifred

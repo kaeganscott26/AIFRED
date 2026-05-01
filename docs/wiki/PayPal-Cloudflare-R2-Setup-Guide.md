@@ -164,10 +164,10 @@ aifred-downloads
 The bucket should hold release files like:
 
 ```text
-releases/v0.3.2-juce-final/AIFRED-VST3-Setup.exe
-releases/v0.3.2-juce-final/AIFRED-VST3-windows.zip
-releases/v0.3.2-juce-final/AIFRED-VST3-macOS.zip
-releases/v0.3.2-juce-final/AIFRED-VST3-arch.zip
+releases/v0.3.3-juce-final/AIFRED-VST3-Setup.exe
+releases/v0.3.3-juce-final/AIFRED-VST3-windows.zip
+releases/v0.3.3-juce-final/AIFRED-VST3-macOS.zip
+releases/v0.3.3-juce-final/AIFRED-VST3-arch.zip
 ```
 
 ### Step 2 - Upload files to R2
@@ -176,21 +176,21 @@ Use Wrangler:
 
 ```powershell
 cd C:\Users\Scott\Projects\AIFRED
-npx wrangler r2 object put aifred-downloads/releases/v0.3.2-juce-final/AIFRED-VST3-Setup.exe --file dist\installer\windows\AIFRED-VST3-Setup.exe
+npx wrangler r2 object put aifred-downloads/releases/v0.3.3-juce-final/AIFRED-VST3-Setup.exe --file dist\installer\windows\AIFRED-VST3-Setup.exe
 ```
 
 Upload the other installers after they are available locally:
 
 ```powershell
-npx wrangler r2 object put aifred-downloads/releases/v0.3.2-juce-final/AIFRED-VST3-windows.zip --file dist\AIFRED-VST3-windows.zip
-npx wrangler r2 object put aifred-downloads/releases/v0.3.2-juce-final/AIFRED-VST3-macOS.zip --file dist\AIFRED-VST3-macOS.zip
-npx wrangler r2 object put aifred-downloads/releases/v0.3.2-juce-final/AIFRED-VST3-arch.zip --file dist\AIFRED-VST3-arch.zip
+npx wrangler r2 object put aifred-downloads/releases/v0.3.3-juce-final/AIFRED-VST3-windows.zip --file dist\AIFRED-VST3-windows.zip
+npx wrangler r2 object put aifred-downloads/releases/v0.3.3-juce-final/AIFRED-VST3-macOS.zip --file dist\AIFRED-VST3-macOS.zip
+npx wrangler r2 object put aifred-downloads/releases/v0.3.3-juce-final/AIFRED-VST3-arch.zip --file dist\AIFRED-VST3-arch.zip
 ```
 
 Confirm the bucket contents:
 
 ```powershell
-npx wrangler r2 object list aifred-downloads --prefix releases/v0.3.2-juce-final/
+npx wrangler r2 object list aifred-downloads --prefix releases/v0.3.3-juce-final/
 ```
 
 ### Step 3 - Bind R2 to the website backend
@@ -276,7 +276,7 @@ PAYPAL_CLIENT_SECRET=your live PayPal secret
 PAYPAL_ENV=live
 AIFRED_PRODUCT_PRICE=49.00
 AIFRED_PRODUCT_CURRENCY=USD
-AIFRED_RELEASE_VERSION=v0.3.2-juce-final
+AIFRED_RELEASE_VERSION=v0.3.3-juce-final
 ```
 
 For sandbox testing, use:
@@ -529,3 +529,4 @@ GitHub private repo
   -> public-facing website deploys through Cloudflare
   -> paid downloads served from R2 after PayPal capture
 ```
+

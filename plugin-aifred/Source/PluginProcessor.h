@@ -12,16 +12,16 @@ struct PluginSettings {
   int layoutId = 1;
   int genreId = 1;
   double gate = 0.35;
-  juce::String aiProvider = "openai";
-  juce::String apiEndpoint;
+  juce::String aiProvider = "ollama";
+  juce::String apiEndpoint = "http://127.0.0.1:11434";
   juce::String apiKey;
-  juce::String aiModel = "gpt-5.4-mini";
+  juce::String aiModel = "aifred:latest";
 };
 
 class AifredAudioProcessor : public juce::AudioProcessor {
 public:
   AifredAudioProcessor();
-  ~AifredAudioProcessor() override = default;
+  ~AifredAudioProcessor() override;
 
   void prepareToPlay(double sampleRate, int samplesPerBlock) override;
   void releaseResources() override;
@@ -59,6 +59,8 @@ private:
   static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
   void loadLocalSettings();
   void saveLocalSettings() const;
+  void loadSessionHistory();
+  void saveSessionHistory();
 
   AnalysisEngine analysis_;
   AnalysisEngine compareAnalysis_;
