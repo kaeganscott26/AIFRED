@@ -19,6 +19,27 @@ float toLoudness01(float rmsDb) {
   return clamp01((rmsDb + 42.0f) / 34.0f);
 }
 
+bool finite(float value) {
+  return std::isfinite(value);
+}
+
+float distanceError(float value, float target, float tolerance) {
+  if (!finite(value) || !finite(target) || tolerance <= 0.0f) return 1.0f;
+  return clamp01(std::abs(value - target) / tolerance);
+}
+
+float capNearPerfect(float score, float value, float target, float perfectDelta) {
+  if (!finite(value) || !finite(target)) return 0.0f;
+  score = clamp01(score);
+  if (score > 0.99f && std::abs(value - target) > perfectDelta) return 0.99f;
+  return score;
+}
+
+int percentFromScore(float score, bool valid) {
+  if (!valid) return 0;
+  return juce::roundToInt(clamp01(score) * 100.0f);
+}
+
 } // namespace
 
 void AnalysisEngine::prepare(double sampleRate) {
@@ -439,6 +460,16 @@ HaloState AnalysisEngine::buildHaloState() const {
   HaloState state;
   const auto confidence = clamp01(smoothed_.signal01 * 1.35f);
   state.reference = ReferenceTarget{};
+  state.currentSnapshotTimestampMs = juce::Time::getMillisecondCounterHiRes();
+  state.historyWindowMs = 5000.0;
+  state.hasSignal = smoothed_.signal01 >= 0.02f;
+  state.hasReference = state.reference.poolSize > 0;
+  state.valuesValid = finite(smoothed_.shortTermLufs) && finite(smoothed_.integratedLufs)
+    && finite(smoothed_.truePeakDb) && finite(smoothed_.peakDb) && finite(smoothed_.crestDb)
+    && finite(smoothed_.stereoWidth) && finite(smoothed_.correlation)
+    && finite(smoothed_.spectralTilt) && finite(smoothed_.transientDensity);
+  state.isStale = !state.hasSignal || !state.valuesValid;
+  state.isUsingFallbackScore = !state.hasSignal || !state.hasReference || !state.valuesValid;
   state.metrics.tone01 = smoothed_.spectralTilt;
   state.metrics.width01 = smoothed_.stereoWidth;
   state.metrics.punch01 = smoothed_.transientDensity;
@@ -476,27 +507,65 @@ HaloState AnalysisEngine::buildHaloState() const {
     state.metrics.minuteCandleClose[static_cast<size_t>(i)] = m.close;
   }
 
-  const auto toneError = deviationOutsideCorridor(smoothed_.spectralTilt, 0.48f, 0.30f, 0.56f);
-  const auto loudnessError = 0.58f * deviationOutsideCorridor(smoothed_.shortTermLufs, state.reference.loudnessDb, 2.5f, 14.0f)
-                           + 0.42f * deviationOutsideCorridor(smoothed_.truePeakDb, -1.0f, 3.8f, 9.0f);
-  const auto dynamicsError = 0.58f * deviationOutsideCorridor(smoothed_.crestDb, state.reference.crestDb, 4.6f, 17.0f)
-                           + 0.42f * deviationOutsideCorridor(smoothed_.transientDensity, 0.42f, 0.42f, 0.86f);
-  const auto stereoWidthError = deviationOutsideCorridor(smoothed_.stereoWidth, 0.52f, 0.42f, 0.74f);
-  const auto phaseError = smoothed_.correlation < 0.0f ? clamp01(-smoothed_.correlation) : 0.0f;
-  const auto stereoError = 0.72f * stereoWidthError + 0.28f * phaseError;
+  const bool canScore = state.hasSignal && state.hasReference && state.valuesValid;
+  const auto toneError = canScore ? distanceError(smoothed_.spectralTilt, state.reference.tone01, 0.42f) : 1.0f;
+  const auto lufsWindowMismatch = canScore ? distanceError(smoothed_.shortTermLufs, smoothed_.integratedLufs, 7.0f) : 1.0f;
+  const auto loudnessError = canScore
+    ? clamp01(0.58f * distanceError(smoothed_.integratedLufs, state.reference.loudnessDb, 8.0f)
+            + 0.24f * distanceError(smoothed_.truePeakDb, -1.0f, 7.0f)
+            + 0.18f * lufsWindowMismatch)
+    : 1.0f;
+  const auto dynamicsError = canScore
+    ? clamp01(0.62f * distanceError(smoothed_.crestDb, state.reference.crestDb, 10.0f)
+            + 0.38f * distanceError(smoothed_.transientDensity, state.reference.punch01, 0.62f))
+    : 1.0f;
+  const auto phaseRisk = smoothed_.correlation <= 0.02f ? 0.70f : (smoothed_.correlation < 0.20f ? 0.35f : 0.0f);
+  const auto stereoError = canScore
+    ? clamp01(0.70f * distanceError(smoothed_.stereoWidth, state.reference.width01, 0.54f) + 0.30f * phaseRisk)
+    : 1.0f;
 
   state.tone = makeDomain(toneError, smoothed_.spectralTilt, smoothed_.rmsDb, "Spectral shape against a balanced production corridor.", confidence);
   state.stereo = makeDomain(stereoError, smoothed_.stereoWidth, smoothed_.correlation, "Width and mono safety above the protected low end.", confidence);
   state.loudness = makeDomain(loudnessError, smoothed_.shortTermLufs, smoothed_.truePeakDb, "Short-term LUFS, integrated trend, LRA, and 4x estimated dBTP headroom.", confidence);
   state.dynamics = makeDomain(dynamicsError, smoothed_.crestDb, smoothed_.transientDensity, "Crest, transient motion, and controlled punch.", confidence);
+  state.tone.alignment01 = capNearPerfect(state.tone.alignment01, smoothed_.spectralTilt, state.reference.tone01, 0.005f);
+  state.stereo.alignment01 = capNearPerfect(state.stereo.alignment01, smoothed_.stereoWidth, state.reference.width01, 0.005f);
+  state.loudness.alignment01 = capNearPerfect(state.loudness.alignment01, smoothed_.integratedLufs, state.reference.loudnessDb, 0.05f);
+  state.dynamics.alignment01 = capNearPerfect(state.dynamics.alignment01, smoothed_.crestDb, state.reference.crestDb, 0.05f);
+  state.tone.error01 = 1.0f - state.tone.alignment01;
+  state.stereo.error01 = 1.0f - state.stereo.alignment01;
+  state.loudness.error01 = 1.0f - state.loudness.alignment01;
+  state.dynamics.error01 = 1.0f - state.dynamics.alignment01;
+  state.toneScore01 = state.tone.alignment01;
+  state.widthScore01 = state.stereo.alignment01;
+  state.punchScore01 = state.dynamics.alignment01;
+  state.loudnessScore01 = state.loudness.alignment01;
+  state.displayedTonePercent = percentFromScore(state.toneScore01, canScore);
+  state.displayedWidthPercent = percentFromScore(state.widthScore01, canScore);
+  state.displayedPunchPercent = percentFromScore(state.punchScore01, canScore);
+  state.displayedLoudnessPercent = percentFromScore(state.loudnessScore01, canScore);
+  state.humanSummary = ("Current short-term LUFS " + juce::String(smoothed_.shortTermLufs, 1)
+    + ", integrated LUFS " + juce::String(smoothed_.integratedLufs, 1)
+    + ", true peak " + juce::String(smoothed_.truePeakDb, 1) + " dBTP"
+    + ", sample peak " + juce::String(smoothed_.peakDb, 1) + " dBFS"
+    + ", crest " + juce::String(smoothed_.crestDb, 1) + " dB"
+    + ", width " + juce::String(smoothed_.stereoWidth, 3)
+    + ", correlation " + juce::String(smoothed_.correlation, 3)
+    + ", 5s history tracked separately.").toStdString();
 
   const auto totalError = 0.35f * state.tone.error01 + 0.25f * state.stereo.error01
                         + 0.20f * state.loudness.error01 + 0.20f * state.dynamics.error01;
-  state.totalAlignment01 = 1.0f - clamp01(totalError);
+  state.totalAlignment01 = canScore ? (1.0f - clamp01(totalError)) : 0.0f;
 
-  if (smoothed_.signal01 < 0.02f) {
+  if (!state.hasSignal) {
     state.primaryTitle = "Signal idle";
     state.primaryCause = "Route audio through AIFRED.";
+    return state;
+  }
+  if (!state.valuesValid) {
+    state.primaryTitle = "Metrics invalid";
+    state.primaryCause = "Current analysis window contains missing or invalid values.";
+    state.primarySeverity = Severity::High;
     return state;
   }
 

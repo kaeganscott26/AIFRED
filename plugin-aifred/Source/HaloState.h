@@ -13,7 +13,7 @@ enum class Confidence { Low, Moderate, High };
 
 struct DomainAlignment {
   float error01 = 0.0f;
-  float alignment01 = 1.0f;
+  float alignment01 = 0.0f;
   Severity severity = Severity::Minor;
   Confidence confidence = Confidence::Low;
   float rawPrimaryMetric = 0.0f;
@@ -72,7 +72,24 @@ struct HaloState {
   DomainAlignment dynamics;
   DspMetrics metrics;
   ReferenceTarget reference;
-  float totalAlignment01 = 1.0f;
+  float totalAlignment01 = 0.0f;
+  float toneScore01 = 0.0f;
+  float widthScore01 = 0.0f;
+  float punchScore01 = 0.0f;
+  float loudnessScore01 = 0.0f;
+  int displayedTonePercent = 0;
+  int displayedWidthPercent = 0;
+  int displayedPunchPercent = 0;
+  int displayedLoudnessPercent = 0;
+  bool hasSignal = false;
+  bool hasReference = false;
+  bool valuesValid = false;
+  bool isStale = true;
+  bool isUsingFallbackScore = false;
+  double currentSnapshotTimestampMs = 0.0;
+  double uiRenderTimestampMs = 0.0;
+  double historyWindowMs = 5000.0;
+  std::string humanSummary;
   std::string primaryTitle = "Signal idle";
   std::string primaryCause = "Play audio through AIFRED.";
   Severity primarySeverity = Severity::Minor;

@@ -14,6 +14,25 @@ namespace aifred {
 namespace {
 
 bool gTutorialShownThisSession = false;
+float gLayoutScale = 1.0f;
+float gFontScale = 1.0f;
+float gPaddingScale = 1.0f;
+
+void updateUiScale(juce::Rectangle<int> bounds) {
+  constexpr float baseWidth = 1280.0f;
+  constexpr float baseHeight = 760.0f;
+  gLayoutScale = juce::jlimit(0.90f, 1.25f, std::min(bounds.getWidth() / baseWidth, bounds.getHeight() / baseHeight));
+  gFontScale = juce::jlimit(1.0f, 1.24f, gLayoutScale);
+  gPaddingScale = juce::jlimit(0.90f, 1.20f, gLayoutScale);
+}
+
+int scaledInt(int value) {
+  return juce::roundToInt(static_cast<float>(value) * gPaddingScale);
+}
+
+juce::FontOptions uiFont(float basePx, float minPx, int style = juce::Font::plain) {
+  return juce::FontOptions(juce::jmax(minPx, basePx * gFontScale), style);
+}
 
 juce::Colour accentForMode(AnalysisMode mode) {
   if (mode == AnalysisMode::Compare) return Colours::green;
@@ -89,16 +108,28 @@ juce::String cleanAiDisplayText(juce::String text) {
   }
   text = text.replace("```json", "").replace("```", "");
   text = text.replace("\\n", "\n").replace("\\\"", "\"");
+  text = text.replace("\\u2019", "'").replace("u2019", "'");
+  text = text.replace("\\u2018", "'").replace("u2018", "'");
+  text = text.replace("\\u201c", "\"").replace("u201c", "\"");
+  text = text.replace("\\u201d", "\"").replace("u201d", "\"");
+  text = text.replace("NaN", "unavailable").replace("undefined", "unavailable").replace("Infinity", "unavailable");
   return text.trim();
 }
 
 float metricValue(const HaloState& state, int index) {
   switch (index) {
-    case 0: return state.metrics.tone01;
-    case 1: return state.metrics.width01;
-    case 2: return state.metrics.punch01;
-    default: return state.metrics.loudness01;
+    case 0: return state.toneScore01;
+    case 1: return state.widthScore01;
+    case 2: return state.punchScore01;
+    default: return state.loudnessScore01;
   }
+}
+
+juce::String scoreText(float score, const HaloState& state) {
+  if (!state.hasSignal) return "Waiting";
+  if (!state.valuesValid) return "--";
+  if (!state.hasReference) return "No Ref";
+  return pct(score);
 }
 
 const char* metricLabel(int index) {
@@ -306,6 +337,7 @@ void AifredAudioProcessorEditor::pushSettingsToProcessor() {
 }
 
 void AifredAudioProcessorEditor::paint(juce::Graphics& g) {
+  state_.uiRenderTimestampMs = juce::Time::getMillisecondCounterHiRes();
   auto bounds = getLocalBounds();
   const auto mode = processor_.getMode();
   auto accent = accentForMode(mode);
@@ -325,9 +357,9 @@ void AifredAudioProcessorEditor::paint(juce::Graphics& g) {
     g.drawHorizontalLine(y, 0.0f, static_cast<float>(getWidth()));
   }
 
-  drawHeader(g, bounds.removeFromTop(88).reduced(18, 12));
+  drawHeader(g, bounds.removeFromTop(scaledInt(88)).reduced(scaledInt(18), scaledInt(12)));
 
-  auto main = bounds.reduced(18, 10);
+  auto main = bounds.reduced(scaledInt(18), scaledInt(10));
   if (mode == AnalysisMode::Compare) {
     drawCompare(g, main);
   } else {
@@ -346,11 +378,11 @@ void AifredAudioProcessorEditor::paint(juce::Graphics& g) {
     if (mode == AnalysisMode::Reference) {
       drawReferenceMixer(g, right.removeFromTop(236).reduced(0, 0));
     } else {
-      drawDomainCard(g, right.removeFromTop(76).reduced(0, 0), "TONE", state_.tone);
-      drawDomainCard(g, right.removeFromTop(76).reduced(0, 8), "WIDTH", state_.stereo);
+      drawDomainCard(g, right.removeFromTop(76).reduced(0, 0), "TONE", state_.tone, state_);
+      drawDomainCard(g, right.removeFromTop(76).reduced(0, 8), "WIDTH", state_.stereo, state_);
     }
-    drawDomainCard(g, right.removeFromTop(76).reduced(0, 8), "PUNCH", state_.dynamics);
-    drawDomainCard(g, right.removeFromTop(76).reduced(0, 8), "LOUDNESS", state_.loudness);
+    drawDomainCard(g, right.removeFromTop(76).reduced(0, 8), "PUNCH", state_.dynamics, state_);
+    drawDomainCard(g, right.removeFromTop(76).reduced(0, 8), "LOUDNESS", state_.loudness, state_);
     drawChatPanel(g, right.reduced(0, 8));
   }
 
@@ -396,19 +428,26 @@ void AifredAudioProcessorEditor::paint(juce::Graphics& g) {
 }
 
 void AifredAudioProcessorEditor::resized() {
-  auto header = getLocalBounds().removeFromTop(88).reduced(18, 12);
-  auto modes = header.removeFromRight(390).reduced(4, 14);
-  analyzeButton_.setBounds(modes.removeFromLeft(122).reduced(5, 0));
-  referenceButton_.setBounds(modes.removeFromLeft(132).reduced(5, 0));
-  compareButton_.setBounds(modes.removeFromLeft(122).reduced(5, 0));
-  auto leftTools = header.removeFromRight(220).reduced(4, 14);
-  auto centerTool = header.removeFromRight(100).reduced(4, 14);
-  centerModeButton_.setBounds(centerTool.reduced(5, 0));
-  optionsButton_.setBounds(leftTools.removeFromLeft(104).reduced(5, 0));
-  tutorialButton_.setBounds(leftTools.removeFromLeft(112).reduced(5, 0));
+  updateUiScale(getLocalBounds());
+  chatInput_.applyFontToAllText(juce::Font(uiFont(13.5f, 13.0f)));
+  chatOutput_.applyFontToAllText(juce::Font(uiFont(13.5f, 13.0f)));
+  apiEndpoint_.applyFontToAllText(juce::Font(uiFont(13.0f, 13.0f)));
+  apiKey_.applyFontToAllText(juce::Font(uiFont(13.0f, 13.0f)));
+  aiModel_.applyFontToAllText(juce::Font(uiFont(13.0f, 13.0f)));
+
+  auto header = getLocalBounds().removeFromTop(scaledInt(88)).reduced(scaledInt(18), scaledInt(12));
+  auto modes = header.removeFromRight(scaledInt(390)).reduced(scaledInt(4), scaledInt(14));
+  analyzeButton_.setBounds(modes.removeFromLeft(scaledInt(122)).reduced(scaledInt(5), 0));
+  referenceButton_.setBounds(modes.removeFromLeft(scaledInt(132)).reduced(scaledInt(5), 0));
+  compareButton_.setBounds(modes.removeFromLeft(scaledInt(122)).reduced(scaledInt(5), 0));
+  auto leftTools = header.removeFromRight(scaledInt(220)).reduced(scaledInt(4), scaledInt(14));
+  auto centerTool = header.removeFromRight(scaledInt(100)).reduced(scaledInt(4), scaledInt(14));
+  centerModeButton_.setBounds(centerTool.reduced(scaledInt(5), 0));
+  optionsButton_.setBounds(leftTools.removeFromLeft(scaledInt(104)).reduced(scaledInt(5), 0));
+  tutorialButton_.setBounds(leftTools.removeFromLeft(scaledInt(112)).reduced(scaledInt(5), 0));
 
   const auto mode = processor_.getMode();
-  auto body = getLocalBounds().withTrimmedTop(88).reduced(18, 10);
+  auto body = getLocalBounds().withTrimmedTop(scaledInt(88)).reduced(scaledInt(18), scaledInt(10));
   if (mode != AnalysisMode::Compare) {
     auto right = body.removeFromRight(juce::roundToInt(body.getWidth() * 0.40f)).reduced(0, 8);
     if (mode == AnalysisMode::Reference) {
@@ -504,7 +543,7 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
   auto centre = area.getCentre();
   const auto radius = std::min(area.getWidth(), area.getHeight()) * 0.36f;
   auto accent = referenceOverlay ? genreColour(genreMenu_.getSelectedId()) : accentForMode(processor_.getMode());
-  const auto dynamicPulse = clamp01(0.28f * state.metrics.loudness01 + 0.26f * state.metrics.width01 + 0.20f * state.metrics.punch01 + 0.18f * (1.0f - std::abs(state.metrics.crestDb - 11.0f) / 18.0f));
+  const auto dynamicPulse = clamp01(0.28f * state.loudnessScore01 + 0.26f * state.widthScore01 + 0.20f * state.punchScore01 + 0.18f * state.toneScore01);
   const auto pulse = 0.82f + dynamicPulse * 0.14f;
 
   g.setColour(accent.withAlpha(referenceOverlay ? 0.18f : 0.10f));
@@ -512,7 +551,7 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
   g.setColour(accent.withAlpha(0.10f));
   g.drawEllipse(centre.x - radius * pulse, centre.y - radius * pulse, radius * 2.0f * pulse, radius * 2.0f * pulse, 3.0f + 3.0f * state.metrics.width01);
 
-  const std::array<float, 4> values {state.metrics.punch01, state.metrics.tone01, state.metrics.loudness01, state.metrics.width01};
+  const std::array<float, 4> values {state.punchScore01, state.toneScore01, state.loudnessScore01, state.widthScore01};
   const std::array<juce::Colour, 4> colours {Colours::cyan, Colours::green, Colours::yellow, Colours::violet};
   const std::array<const char*, 4> labels {"Punch", "Tone", "Loudness", "Width"};
   for (int i = 0; i < 4; ++i) {
@@ -531,7 +570,7 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
     const auto labelRadius = radius + 58.0f;
     const auto labelCentre = juce::Point<float>(centre.x + std::cos(labelAngle) * labelRadius,
                                                 centre.y + std::sin(labelAngle) * labelRadius);
-    g.setFont(juce::FontOptions(13.0f, juce::Font::bold));
+    g.setFont(uiFont(13.0f, 13.0f, juce::Font::bold));
     g.setColour(Colours::ink);
     g.drawText(labels[static_cast<size_t>(i)], juce::Rectangle<float>(labelCentre.x - 42.0f, labelCentre.y - 11.0f, 84.0f, 22.0f).toNearestInt(), juce::Justification::centred);
   }
@@ -552,9 +591,9 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
     {-150.0f, "DRY", Colours::cyan},
     {-78.0f, "PUNCH " + juce::String(state.metrics.crestDb, 1) + " dB", Colours::cyan},
     {-60.0f, "DARK", Colours::green},
-    {12.0f, "TONE " + juce::String(state.metrics.tone01 * 100.0f, 0) + "%", Colours::green},
+    {12.0f, "TONE " + scoreText(state.toneScore01, state), Colours::green},
     {30.0f, "-24", Colours::yellow},
-    {102.0f, "LUFS " + juce::String(state.metrics.shortTermLufs, 1) + " / TP " + juce::String(state.metrics.truePeakDb, 1), Colours::yellow},
+    {102.0f, "ST " + juce::String(state.metrics.shortTermLufs, 1) + " / TP " + juce::String(state.metrics.truePeakDb, 1), Colours::yellow},
     {120.0f, "-1", Colours::violet},
     {192.0f, "CORR " + juce::String(state.metrics.correlation, 2), Colours::violet}
   }};
@@ -563,7 +602,7 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
     const auto labelRadius = radius + 111.0f;
     const auto p = juce::Point<float>(centre.x + std::cos(angle) * labelRadius,
                                       centre.y + std::sin(angle) * labelRadius);
-    g.setFont(juce::FontOptions(9.2f, juce::Font::bold));
+    g.setFont(uiFont(9.2f, 11.0f, juce::Font::bold));
     g.setColour(item.colour.withAlpha(0.88f));
     g.drawFittedText(item.text, juce::Rectangle<float>(p.x - 58.0f, p.y - 8.0f, 116.0f, 17.0f).toNearestInt(),
                      juce::Justification::centred, 1);
@@ -581,7 +620,7 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
   }
 
   drawHaloSpectrometer(g, juce::Rectangle<float>(centre.x - radius * 0.74f, centre.y - radius * 0.26f, radius * 1.48f, radius * 0.52f), state);
-  g.setFont(juce::FontOptions(14.0f, juce::Font::bold));
+  g.setFont(uiFont(14.0f, 13.0f, juce::Font::bold));
   g.setColour(colourForAlignment(state.totalAlignment01));
   g.drawText(title, juce::Rectangle<float>(centre.x - 130.0f, centre.y - radius * 0.58f, 260.0f, 22.0f).toNearestInt(), juce::Justification::centred);
 }
@@ -625,10 +664,10 @@ void AifredAudioProcessorEditor::drawHaloSpectrometer(juce::Graphics& g, juce::R
   g.drawText(haloCenterMode_ == 0 ? "MULTIBAND" : (haloCenterMode_ == 1 ? "WAVEFORM" : "BANDS + WAVE"), bounds.toNearestInt().removeFromTop(14), juce::Justification::centred);
 }
 
-void AifredAudioProcessorEditor::drawDomainCard(juce::Graphics& g, juce::Rectangle<int> bounds, const char* name, const DomainAlignment& alignment) {
+void AifredAudioProcessorEditor::drawDomainCard(juce::Graphics& g, juce::Rectangle<int> bounds, const char* name, const DomainAlignment& alignment, const HaloState& state) {
   drawPanel(g, bounds.toFloat(), 8.0f);
   auto inner = bounds.reduced(12, 8);
-  g.setFont(juce::FontOptions(13.0f, juce::Font::bold));
+  g.setFont(uiFont(13.0f, 13.0f, juce::Font::bold));
   g.setColour(Colours::green);
   g.drawText(name, inner.removeFromTop(18), juce::Justification::centredLeft);
   auto bar = inner.removeFromBottom(12).toFloat();
@@ -636,10 +675,10 @@ void AifredAudioProcessorEditor::drawDomainCard(juce::Graphics& g, juce::Rectang
   g.fillRoundedRectangle(bar, 5.0f);
   g.setColour(colourForAlignment(alignment.alignment01));
   g.fillRoundedRectangle(bar.withWidth(bar.getWidth() * alignment.alignment01), 5.0f);
-  g.setFont(juce::FontOptions(22.0f, juce::Font::bold));
+  g.setFont(uiFont(22.0f, 18.0f, juce::Font::bold));
   g.setColour(Colours::ink);
-  g.drawText(pct(alignment.alignment01), inner.removeFromTop(32), juce::Justification::centredLeft);
-  g.setFont(juce::FontOptions(11.5f));
+  g.drawText(scoreText(alignment.alignment01, state), inner.removeFromTop(32), juce::Justification::centredLeft);
+  g.setFont(uiFont(11.5f, 13.0f));
   g.setColour(Colours::muted);
   juce::String units = juce::String(alignment.rawPrimaryMetric, 2) + " primary / " + juce::String(alignment.rawSecondaryMetric, 2) + " secondary";
   if (juce::String(name) == "LOUDNESS") units = dbText(alignment.rawPrimaryMetric, "LUFS ST") + " / " + dbText(alignment.rawSecondaryMetric, "dBTP");
@@ -725,10 +764,10 @@ void AifredAudioProcessorEditor::drawCandleStrip(juce::Graphics& g, juce::Rectan
 void AifredAudioProcessorEditor::drawChatPanel(juce::Graphics& g, juce::Rectangle<int> bounds) {
   drawPanel(g, bounds.toFloat(), 8.0f);
   auto inner = bounds.reduced(16);
-  g.setFont(juce::FontOptions(18.0f, juce::Font::bold));
+  g.setFont(uiFont(18.0f, 18.0f, juce::Font::bold));
   g.setColour(Colours::ink);
   g.drawText("CHAT", inner.removeFromTop(30), juce::Justification::centredLeft);
-  g.setFont(juce::FontOptions(12.0f));
+  g.setFont(uiFont(12.0f, 13.0f));
   const auto engineReady = AifredEngineClient::instance().isAvailable();
   g.setColour(engineReady ? Colours::green : Colours::yellow);
   g.drawFittedText(engineReady ? "Local AI ready." : AifredEngineClient::instance().statusText(), inner.removeFromBottom(38), juce::Justification::bottomLeft, 2);
@@ -811,12 +850,12 @@ void AifredAudioProcessorEditor::drawCompare(juce::Graphics& g, juce::Rectangle<
 void AifredAudioProcessorEditor::drawCompareVu(juce::Graphics& g, juce::Rectangle<int> bounds, const HaloState& a, const HaloState& b) {
   drawPanel(g, bounds.toFloat(), 8.0f);
   auto inner = bounds.reduced(14);
-  const auto diff = 0.28f * std::abs(a.metrics.tone01 - b.metrics.tone01)
-                  + 0.24f * std::abs(a.metrics.width01 - b.metrics.width01)
-                  + 0.22f * std::abs(a.metrics.punch01 - b.metrics.punch01)
-                  + 0.16f * std::abs(a.metrics.loudness01 - b.metrics.loudness01)
+  const auto diff = 0.28f * std::abs(a.toneScore01 - b.toneScore01)
+                  + 0.24f * std::abs(a.widthScore01 - b.widthScore01)
+                  + 0.22f * std::abs(a.punchScore01 - b.punchScore01)
+                  + 0.16f * std::abs(a.loudnessScore01 - b.loudnessScore01)
                   + 0.10f * clamp01(std::abs(a.metrics.peakDb - b.metrics.peakDb) / 12.0f);
-  const auto closeness = 1.0f - clamp01(diff);
+  const auto closeness = (a.hasSignal && b.hasSignal && a.valuesValid && b.valuesValid) ? (1.0f - clamp01(diff)) : 0.0f;
   g.setFont(juce::FontOptions(15.0f, juce::Font::bold));
   g.setColour(Colours::ink);
   g.drawText("MATCH VU", inner.removeFromTop(24), juce::Justification::centred);
@@ -838,7 +877,7 @@ void AifredAudioProcessorEditor::drawCompareVu(juce::Graphics& g, juce::Rectangl
   g.fillEllipse(centre.x - 5.0f, centre.y - 5.0f, 10.0f, 10.0f);
   g.setFont(juce::FontOptions(24.0f, juce::Font::bold));
   g.setColour(colourForAlignment(closeness));
-  g.drawText(pct(closeness), inner.removeFromTop(34), juce::Justification::centred);
+  g.drawText((a.hasSignal && b.hasSignal && a.valuesValid && b.valuesValid) ? pct(closeness) : "--", inner.removeFromTop(34), juce::Justification::centred);
   g.setFont(juce::FontOptions(11.0f));
   g.setColour(Colours::muted);
   g.drawFittedText("A/B distance: tone, width, punch, LUFS, dBFS peak", inner, juce::Justification::centred, 3);

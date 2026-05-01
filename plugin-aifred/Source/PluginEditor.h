@@ -24,7 +24,7 @@ private:
   void buttonClicked(juce::Button*);
   void drawHeader(juce::Graphics&, juce::Rectangle<int>);
   void drawHalo(juce::Graphics&, juce::Rectangle<int>, const HaloState&, const char* title, bool referenceOverlay);
-  void drawDomainCard(juce::Graphics&, juce::Rectangle<int>, const char*, const DomainAlignment&);
+  void drawDomainCard(juce::Graphics&, juce::Rectangle<int>, const char*, const DomainAlignment&, const HaloState&);
   void drawCandles(juce::Graphics&, juce::Rectangle<int>, const HaloState&);
   void drawCandleStrip(juce::Graphics&, juce::Rectangle<int>, const HaloState&, bool minuteView);
   void drawChatPanel(juce::Graphics&, juce::Rectangle<int>);

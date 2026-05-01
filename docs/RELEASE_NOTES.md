@@ -1,10 +1,17 @@
-# AIFRED v0.3.4 Chat Focus Release
+# AIFRED v0.3.5 Canonical Snapshot Release
 
-This release keeps the distributable JUCE VST3 line and tightens the Chat Focus layout, natural AI response display, five-slot reference loading, and Windows uninstall path.
+This release keeps the distributable JUCE VST3 line and corrects the analysis data flow so the UI and Ask AI chat consume the same interpreted AIFRED analysis snapshot.
 
 ## Plugin
 
-- JUCE VST3 build target versioned as `0.3.4`.
+- JUCE VST3 build target versioned as `0.3.5`.
+- Tone, Width, Punch, Loudness bars, Halo quadrants, Compare view, Mix Signature, and chat context now read the canonical interpreted `HaloState` analysis snapshot.
+- Score formulas now use distance-from-reference/target scoring instead of "more is better" magnitude scoring.
+- No-signal, invalid, stale, or no-reference states display `Waiting`, `--`, or `No Ref` instead of perfect scores.
+- Current values, loudness windows, and 5-second history values are labeled separately in the chat context.
+- Chat context includes displayed percentages, raw current metrics, reference targets, validity flags, stale/fallback flags, timestamps, and a human-readable metric summary.
+- Chat text cleaning decodes escaped unicode apostrophes/quotes and blocks JSON/code remnants from visible output.
+- Added analysis regression checks for false 100% Width/Punch/Loudness-style states and chat sanitizer leaks.
 - Chat output is now a scrollable read-only text window.
 - AI responses are cleaned before display so JSON/code-fence remnants are not shown as the chat answer.
 - Theme/layout choices were removed from the options surface; the plugin uses the Chat Focus layout.
@@ -22,7 +29,7 @@ This release keeps the distributable JUCE VST3 line and tightens the Chat Focus 
 
 - Website config uses the $5 PayPal purchase path.
 - Cloudflare backend records PayPal IPN sales and issues tokenized download links for the configured release package.
-- Download defaults target `kaeganscott26/AIFRED` tag `v0.3.4-chat-scroll`.
+- Download defaults target `kaeganscott26/AIFRED` tag `v0.3.5-canonical-snapshot`.
 - Notification email support remains environment-variable driven.
 
 ## Packaging

@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.3.5-canonical-snapshot
+
+- Added a canonical interpreted AIFRED analysis snapshot on `HaloState` with raw current metrics, reference targets, interpreted scores, displayed percentages, and validity/stale/fallback flags.
+- Rewired score bars, Halo quadrants, Compare VU, Mix Signature, and chat context to consume the same interpreted snapshot instead of separate UI-only score calculations.
+- Replaced magnitude-based score behavior with distance-from-reference scoring for Tone, Width, Punch, and Loudness.
+- Prevented no-signal, no-reference, invalid, stale, NaN, and missing values from becoming 100% UI scores.
+- Labeled current metrics, momentary/short-term/integrated LUFS, and 5-second history values distinctly in the chat context.
+- Improved chat text cleanup for escaped unicode, JSON/code-fence remnants, NaN, infinity, and undefined text.
+- Added regression checks for false perfect Width/Punch scores, no-signal/no-reference handling, canonical chat context fields, and sanitizer leaks.
+
 ## v0.3.4-chat-scroll
 
 - Replaced the chat answer label with a scrollable read-only chat output window.

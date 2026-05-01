@@ -5,6 +5,18 @@
 namespace aifred {
 namespace {
 
+juce::String boolJson(bool value) {
+  return value ? "true" : "false";
+}
+
+juce::String numberJson(float value, int decimals) {
+  return std::isfinite(value) ? juce::String(value, decimals) : "null";
+}
+
+juce::String percentJson(int value) {
+  return juce::String(juce::jlimit(0, 100, value));
+}
+
 } // namespace
 
 DiagnosticInterpreter& DiagnosticInterpreter::instance() {
@@ -60,11 +72,11 @@ juce::String DiagnosticInterpreter::buildContextJson(const HaloState& state, juc
     const auto index = (writeIndex_ - count_ + i + static_cast<int>(buffer_.size())) % static_cast<int>(buffer_.size());
     const auto& sample = buffer_[static_cast<size_t>(index)];
     if (nowMs - sample.timeMs > 5000.0) continue;
-    samples.add("{\"alignment\":" + juce::String(sample.alignment, 3)
-      + ",\"short_term_lufs\":" + juce::String(sample.lufs, 2)
-      + ",\"true_peak_dbtp\":" + juce::String(sample.truePeak, 2)
-      + ",\"crest_db\":" + juce::String(sample.crest, 2)
-      + ",\"correlation\":" + juce::String(sample.correlation, 3) + "}");
+    samples.add("{\"window\":\"5s_history\",\"alignment\":" + numberJson(sample.alignment, 3)
+      + ",\"short_term_lufs\":" + numberJson(sample.lufs, 1)
+      + ",\"true_peak_dbtp\":" + numberJson(sample.truePeak, 1)
+      + ",\"crest_db\":" + numberJson(sample.crest, 1)
+      + ",\"correlation\":" + numberJson(sample.correlation, 3) + "}");
   }
 
   return "{"
@@ -72,6 +84,25 @@ juce::String DiagnosticInterpreter::buildContextJson(const HaloState& state, juc
     "\"endpoint\":\"" + escapeJson(endpoint) + "\","
     "\"model\":\"" + escapeJson(model) + "\","
     "\"mode\":" + juce::String(static_cast<int>(state.mode)) + ","
+    "\"analysis_snapshot\":{"
+      "\"human_summary\":\"" + escapeJson(state.humanSummary.c_str()) + "\","
+      "\"has_signal\":" + boolJson(state.hasSignal) + ","
+      "\"has_reference\":" + boolJson(state.hasReference) + ","
+      "\"values_valid\":" + boolJson(state.valuesValid) + ","
+      "\"is_stale\":" + boolJson(state.isStale) + ","
+      "\"is_using_fallback_score\":" + boolJson(state.isUsingFallbackScore) + ","
+      "\"current_snapshot_timestamp_ms\":" + juce::String(state.currentSnapshotTimestampMs, 0) + ","
+      "\"history_window_ms\":" + juce::String(state.historyWindowMs, 0) + ","
+      "\"tone_score01\":" + numberJson(state.toneScore01, 3) + ","
+      "\"width_score01\":" + numberJson(state.widthScore01, 3) + ","
+      "\"punch_score01\":" + numberJson(state.punchScore01, 3) + ","
+      "\"loudness_score01\":" + numberJson(state.loudnessScore01, 3) + ","
+      "\"overall_score01\":" + numberJson(state.totalAlignment01, 3) + ","
+      "\"displayed_tone_percent\":" + percentJson(state.displayedTonePercent) + ","
+      "\"displayed_width_percent\":" + percentJson(state.displayedWidthPercent) + ","
+      "\"displayed_punch_percent\":" + percentJson(state.displayedPunchPercent) + ","
+      "\"displayed_loudness_percent\":" + percentJson(state.displayedLoudnessPercent)
+    + "},"
     "\"reference_pool\":{"
       "\"label\":\"" + escapeJson(state.reference.label.c_str()) + "\","
       "\"pool_size\":" + juce::String(state.reference.poolSize) + ","
@@ -82,17 +113,18 @@ juce::String DiagnosticInterpreter::buildContextJson(const HaloState& state, juc
       "\"target_crest_db\":" + juce::String(state.reference.crestDb, 2)
     + "},"
     "\"current\":{"
-      "\"momentary_lufs\":" + juce::String(state.metrics.momentaryLufs, 2) + ","
-      "\"short_term_lufs\":" + juce::String(state.metrics.shortTermLufs, 2) + ","
-      "\"integrated_lufs\":" + juce::String(state.metrics.integratedLufs, 2) + ","
-      "\"lra\":" + juce::String(state.metrics.loudnessRange, 2) + ","
-      "\"sample_peak_dbfs\":" + juce::String(state.metrics.peakDb, 2) + ","
-      "\"true_peak_dbtp\":" + juce::String(state.metrics.truePeakDb, 2) + ","
-      "\"crest_db\":" + juce::String(state.metrics.crestDb, 2) + ","
-      "\"correlation\":" + juce::String(state.metrics.correlation, 3) + ","
-      "\"spectral_tilt\":" + juce::String(state.metrics.tone01, 3) + ","
-      "\"stereo_width\":" + juce::String(state.metrics.width01, 3) + ","
-      "\"punch\":" + juce::String(state.metrics.punch01, 3)
+      "\"window\":\"current_analysis_window\","
+      "\"momentary_lufs\":" + numberJson(state.metrics.momentaryLufs, 1) + ","
+      "\"short_term_lufs\":" + numberJson(state.metrics.shortTermLufs, 1) + ","
+      "\"integrated_lufs\":" + numberJson(state.metrics.integratedLufs, 1) + ","
+      "\"lra\":" + numberJson(state.metrics.loudnessRange, 1) + ","
+      "\"sample_peak_dbfs\":" + numberJson(state.metrics.peakDb, 1) + ","
+      "\"true_peak_dbtp\":" + numberJson(state.metrics.truePeakDb, 1) + ","
+      "\"crest_db\":" + numberJson(state.metrics.crestDb, 1) + ","
+      "\"correlation\":" + numberJson(state.metrics.correlation, 3) + ","
+      "\"spectral_tilt\":" + numberJson(state.metrics.tone01, 3) + ","
+      "\"stereo_width\":" + numberJson(state.metrics.width01, 3) + ","
+      "\"punch\":" + numberJson(state.metrics.punch01, 3)
     + "},\"mix_health_5s\":[" + samples.joinIntoString(",") + "]}";
 }
 

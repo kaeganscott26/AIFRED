@@ -276,8 +276,24 @@ sealed class AifredRuntime
     static string BuildInterpretationNotes(JsonObject context)
     {
         var notes = new List<string>();
-        var metrics = context["metrics"]?.AsObject();
+        var metrics = context["metrics"]?.AsObject() ?? context["current"]?.AsObject();
         var reference = context["reference_pool"]?.AsObject();
+        var snapshot = context["analysis_snapshot"]?.AsObject();
+        if (snapshot != null)
+        {
+            var hasSignal = GetBool(snapshot, "has_signal", false);
+            var hasReference = GetBool(snapshot, "has_reference", false);
+            var valid = GetBool(snapshot, "values_valid", false);
+            if (!hasSignal) notes.Add("AIFRED currently marks the signal as waiting/no usable input, so do not present scores as perfect.");
+            if (!hasReference) notes.Add("No reference target is active, so reference-match scores should be treated as unavailable instead of perfect.");
+            if (!valid) notes.Add("The current analysis snapshot is invalid or stale; be explicit about uncertainty.");
+            if (TryGetDouble(snapshot, "width_score01", out var widthScore) && TryGetDouble(snapshot, "displayed_width_percent", out var widthShown))
+                notes.Add($"Canonical width score is {widthScore * 100.0:0}% and the UI displays {widthShown:0}%.");
+            if (TryGetDouble(snapshot, "punch_score01", out var punchScore) && TryGetDouble(snapshot, "displayed_punch_percent", out var punchShown))
+                notes.Add($"Canonical punch score is {punchScore * 100.0:0}% and the UI displays {punchShown:0}%.");
+            if (TryGetDouble(snapshot, "loudness_score01", out var loudScore) && TryGetDouble(snapshot, "displayed_loudness_percent", out var loudShown))
+                notes.Add($"Canonical loudness score is {loudScore * 100.0:0}% and the UI displays {loudShown:0}%.");
+        }
         if (TryGetDouble(metrics, "integrated_lufs", out var lufs) && TryGetDouble(reference, "target_loudness_lufs", out var targetLufs))
         {
             notes.Add($"{lufs:0.0} LUFS is {(lufs > targetLufs ? "louder/hotter" : "quieter/softer")} than the {targetLufs:0.0} LUFS reference target.");
@@ -333,6 +349,15 @@ sealed class AifredRuntime
                      .Replace("```", "")
                      .Replace("\\n", "\n")
                      .Replace("\\\"", "\"")
+                     .Replace("\\u2019", "'").Replace("u2019", "'")
+                     .Replace("\\u2018", "'").Replace("u2018", "'")
+                     .Replace("\\u201c", "\"").Replace("u201c", "\"")
+                     .Replace("\\u201d", "\"").Replace("u201d", "\"")
+                     .Replace("\\u2013", "-").Replace("u2013", "-")
+                     .Replace("\\u2014", "-").Replace("u2014", "-")
+                     .Replace("NaN", "unavailable", StringComparison.OrdinalIgnoreCase)
+                     .Replace("Infinity", "unavailable", StringComparison.OrdinalIgnoreCase)
+                     .Replace("undefined", "unavailable", StringComparison.OrdinalIgnoreCase)
                      .Trim();
         return value.Length == 0 ? "AIFRED did not receive a usable model response." : value;
     }
