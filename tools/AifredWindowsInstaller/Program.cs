@@ -226,10 +226,37 @@ static void EnsureOllamaReady()
     TryRun("ollama", "serve", waitMs: 1500, allowBackground: true);
     if (CommandWorks("ollama", "--version"))
     {
-        if (!OllamaModelExists("aifred:latest"))
+        EnsureAifredOllamaModel();
+    }
+}
+
+static void EnsureAifredOllamaModel()
+{
+    if (OllamaModelExists("aifred:latest")) return;
+
+    if (!OllamaModelExists("llama3.2:3b"))
+    {
+        TryRun("ollama", "pull llama3.2:3b", waitMs: 600000);
+    }
+
+    if (!OllamaModelExists("llama3.2:3b")) return;
+
+    var modelFile = Path.Combine(Path.GetTempPath(), "AIFRED-Ollama-Modelfile-" + Guid.NewGuid().ToString("N"));
+    try
+    {
+        File.WriteAllText(modelFile, """
+        FROM llama3.2:3b
+        SYSTEM You are AIFRED, a natural mix-aware assistant inside an audio plugin. Answer conversationally from the supplied audio analysis snapshot when it is relevant. Do not output JSON, code fences, raw structs, or implementation details.
+        PARAMETER temperature 0.35
+        """);
+        TryRun("ollama", $"create aifred -f \"{modelFile}\"", waitMs: 600000);
+    }
+    finally
+    {
+        try
         {
-            TryRun("ollama", "pull llama3.2:3b", waitMs: 600000);
-        }
+            if (File.Exists(modelFile)) File.Delete(modelFile);
+        } catch {}
     }
 }
 

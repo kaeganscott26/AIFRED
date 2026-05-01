@@ -1,10 +1,11 @@
-# AIFRED v0.3.5 Canonical Snapshot Release
+# AIFRED v0.3.6 Canonical Snapshot Release
 
 This release keeps the distributable JUCE VST3 line and corrects the analysis data flow so the UI and Ask AI chat consume the same interpreted AIFRED analysis snapshot.
 
 ## Plugin
 
-- JUCE VST3 build target versioned as `0.3.5`.
+- JUCE VST3 build target versioned as `0.3.6`.
+- Windows setup now creates the local `aifred:latest` Ollama model alias from `llama3.2:3b` on clean machines.
 - Tone, Width, Punch, Loudness bars, Halo quadrants, Compare view, Mix Signature, and chat context now read the canonical interpreted `HaloState` analysis snapshot.
 - Score formulas now use distance-from-reference/target scoring instead of "more is better" magnitude scoring.
 - No-signal, invalid, stale, or no-reference states display `Waiting`, `--`, or `No Ref` instead of perfect scores.
@@ -29,7 +30,7 @@ This release keeps the distributable JUCE VST3 line and corrects the analysis da
 
 - Website config uses the $5 PayPal purchase path.
 - Cloudflare backend records PayPal IPN sales and issues tokenized download links for the configured release package.
-- Download defaults target `kaeganscott26/AIFRED` tag `v0.3.5-canonical-snapshot`.
+- Download defaults target `kaeganscott26/AIFRED` tag `v0.3.6-installer-ai-alias`.
 - Notification email support remains environment-variable driven.
 
 ## Packaging

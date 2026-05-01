@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.3.6-installer-ai-alias
+
+- Fixed the Windows installer so a clean local Ollama setup creates the `aifred:latest` model alias from `llama3.2:3b` instead of only pulling the base model.
+- Updated engine health reporting so Ollama-backed installs report the configured chat model as available when `aifred:latest` exists.
+
 ## v0.3.5-canonical-snapshot
 
 - Added a canonical interpreted AIFRED analysis snapshot on `HaloState` with raw current metrics, reference targets, interpreted scores, displayed percentages, and validity/stale/fallback flags.

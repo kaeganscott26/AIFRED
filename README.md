@@ -32,7 +32,7 @@ AIFRED converts live audio behavior into a compact release-readiness view:
 
 The VST separates **Analyze**, **Reference**, and **Compare** into distinct surfaces. Analyze focuses on the current mix signature and candlestick metering. Reference uses one Halo with a target overlay. Compare uses two independent Halo routes for Mix A and Mix B.
 
-Current v0.3.5 JUCE metering surface:
+Current v0.3.6 JUCE metering surface:
 
 - One-stick session candlestick meter plus 10-minute history meter
 - Switchable Halo center display for multiband lanes, waveform, or combined spectrometer view

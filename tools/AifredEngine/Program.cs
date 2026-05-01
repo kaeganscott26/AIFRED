@@ -128,13 +128,17 @@ sealed class AifredRuntime
         var modelPath = GetString(config, "model_path", Path.Combine(installRoot, "models", "aifred-assistant-q4.gguf"));
         if (!Path.IsPathRooted(modelPath)) modelPath = Path.Combine(installRoot, modelPath);
         var provider = EffectiveProvider();
+        var modelName = EffectiveModelName();
+        var ollamaModelAvailable = provider.Contains("ollama", StringComparison.OrdinalIgnoreCase) && OllamaModelExists(modelName);
+        var fileModelAvailable = File.Exists(modelPath);
         return new JsonObject
         {
             ["ok"] = true,
             ["engine_version"] = EngineVersion,
-            ["model_loaded"] = File.Exists(modelPath),
+            ["model_loaded"] = fileModelAvailable || ollamaModelAvailable,
+            ["ollama_model_available"] = ollamaModelAvailable,
             ["provider_mode"] = provider,
-            ["chat_model"] = EffectiveModelName(),
+            ["chat_model"] = modelName,
             ["chat_endpoint"] = EffectiveEndpoint(),
             ["model_path"] = modelPath
         };
@@ -321,6 +325,29 @@ sealed class AifredRuntime
         catch
         {
             return double.TryParse(obj[key]!.ToString(), out value);
+        }
+    }
+
+    static bool OllamaModelExists(string modelName)
+    {
+        try
+        {
+            using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "ollama",
+                Arguments = "list",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                CreateNoWindow = true
+            });
+            if (process == null) return false;
+            var output = process.StandardOutput.ReadToEnd();
+            process.WaitForExit(5000);
+            return output.Contains(modelName, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
         }
     }
 
