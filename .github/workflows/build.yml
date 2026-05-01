@@ -81,7 +81,7 @@ jobs:
       - name: Install build deps
         run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm git cmake gcc make ninja zip alsa-lib jack2 libx11 libxcomposite libxcursor libxext libxinerama libxrandr libxrender freetype2 curl webkit2gtk-4.1
+          pacman -S --noconfirm git cmake gcc make ninja pkgconf zip alsa-lib jack2 libx11 libxcomposite libxcursor libxext libxinerama libxrandr libxrender freetype2 curl webkit2gtk-4.1
 
       - uses: actions/checkout@v4
 
