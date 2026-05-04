@@ -19,3 +19,8 @@ android_admin/build/
 android_admin/app/build/
 tools/**/bin/
 tools/**/obj/
+
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
