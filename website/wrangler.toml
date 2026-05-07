@@ -24,5 +24,14 @@ binding = "AIFRED_DOWNLOADS"
 bucket_name = "aifred-downloads"
 
 [[r2_buckets]]
+binding = "AIFRED_CATALOG"
+bucket_name = "aifred-catalog"
+
+[[r2_buckets]]
 binding = "AIFRED_REFERENCE_BUCKET"
 bucket_name = "aifred-reference-pool"
+
+[[d1_databases]]
+binding = "AIFRED_DB"
+database_name = "aifred-db"
+database_id = "f4c9a59b-1234-5678-90ab-cdef12345678"

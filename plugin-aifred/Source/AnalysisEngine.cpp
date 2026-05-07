@@ -417,19 +417,24 @@ void AnalysisEngine::pushAudioBlock(const juce::AudioBuffer<float>& buffer) {
   live_.candleHigh = std::max(live_.candleOpen, clamp01((live_.peakDb + 18.0f) / 18.0f));
   live_.candleLow = std::min(live_.candleOpen, clamp01((live_.rmsDb - live_.crestDb + 42.0f) / 34.0f));
 
+  // Human-perceptual smoothing: 0.982f for slower, stable readout. 
+  // Standard smoothing 0.965f is used for internal scoring logic.
+  const float displaySmoothing = 0.982f;
   const auto amount = live_.signal01 > 0.02f ? smoothing_ : 0.98f;
-  smoothed_.rmsDb = smooth(smoothed_.rmsDb, live_.rmsDb, amount);
+  const auto displayAmount = live_.signal01 > 0.02f ? displaySmoothing : 0.99f;
+
+  smoothed_.rmsDb = smooth(smoothed_.rmsDb, live_.rmsDb, displayAmount);
   smoothed_.momentaryLufs = smooth(smoothed_.momentaryLufs, live_.momentaryLufs, amount);
-  smoothed_.shortTermLufs = smooth(smoothed_.shortTermLufs, live_.shortTermLufs, amount);
-  smoothed_.integratedLufs = smooth(smoothed_.integratedLufs, live_.integratedLufs, amount);
-  smoothed_.loudnessRange = smooth(smoothed_.loudnessRange, live_.loudnessRange, amount);
-  smoothed_.peakDb = smooth(smoothed_.peakDb, live_.peakDb, amount);
-  smoothed_.truePeakDb = smooth(smoothed_.truePeakDb, live_.truePeakDb, amount);
-  smoothed_.crestDb = smooth(smoothed_.crestDb, live_.crestDb, amount);
-  smoothed_.stereoWidth = smooth(smoothed_.stereoWidth, live_.stereoWidth, amount);
-  smoothed_.correlation = smooth(smoothed_.correlation, live_.correlation, amount);
-  smoothed_.spectralTilt = smooth(smoothed_.spectralTilt, live_.spectralTilt, amount);
-  smoothed_.transientDensity = smooth(smoothed_.transientDensity, live_.transientDensity, amount);
+  smoothed_.shortTermLufs = smooth(smoothed_.shortTermLufs, live_.shortTermLufs, displayAmount);
+  smoothed_.integratedLufs = smooth(smoothed_.integratedLufs, live_.integratedLufs, 0.995f); // Very slow for integrated
+  smoothed_.loudnessRange = smooth(smoothed_.loudnessRange, live_.loudnessRange, 0.99f);
+  smoothed_.peakDb = smooth(smoothed_.peakDb, live_.peakDb, displayAmount);
+  smoothed_.truePeakDb = smooth(smoothed_.truePeakDb, live_.truePeakDb, displayAmount);
+  smoothed_.crestDb = smooth(smoothed_.crestDb, live_.crestDb, displayAmount);
+  smoothed_.stereoWidth = smooth(smoothed_.stereoWidth, live_.stereoWidth, displayAmount);
+  smoothed_.correlation = smooth(smoothed_.correlation, live_.correlation, displayAmount);
+  smoothed_.spectralTilt = smooth(smoothed_.spectralTilt, live_.spectralTilt, displayAmount);
+  smoothed_.transientDensity = smooth(smoothed_.transientDensity, live_.transientDensity, displayAmount);
   for (size_t band = 0; band < smoothed_.spectrumBands.size(); ++band) {
     smoothed_.spectrumBands[band] = smooth(smoothed_.spectrumBands[band], live_.spectrumBands[band], amount);
   }

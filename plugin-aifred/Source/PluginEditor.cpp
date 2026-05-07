@@ -128,10 +128,27 @@ float metricValue(const HaloState& state, int index) {
   }
 }
 
-juce::String scoreText(float score, const HaloState& state) {
+juce::String AifredAudioProcessorEditor::scoreText(float score, const HaloState& state, Domain domain) {
   if (!state.hasSignal) return "Waiting";
   if (!state.valuesValid) return "--";
-  if (!state.hasReference) return "No Ref";
+
+  const auto mode = processor_.getMode();
+  if (mode != AnalysisMode::Analyze) {
+    if (!state.hasReference) return "No Ref";
+    return pct(score);
+  }
+
+  // Raw technical metrics for Analyze mode
+  switch (domain) {
+    case Domain::Tone:
+      return juce::String(state.metrics.spectralTilt, 2) + " tilt";
+    case Domain::Stereo:
+      return juce::String(state.metrics.stereoWidth, 2) + " width";
+    case Domain::Dynamics:
+      return juce::String(state.metrics.crestDb, 1) + " crest";
+    case Domain::Loudness:
+      return juce::String(state.metrics.integratedLufs, 1) + " LUFS";
+  }
   return pct(score);
 }
 
@@ -381,11 +398,11 @@ void AifredAudioProcessorEditor::paint(juce::Graphics& g) {
     if (mode == AnalysisMode::Reference) {
       drawReferenceMixer(g, right.removeFromTop(236).reduced(0, 0));
     } else {
-      drawDomainCard(g, right.removeFromTop(68).reduced(0, 0), "TONE", state_.tone, state_);
-      drawDomainCard(g, right.removeFromTop(68).reduced(0, 8), "WIDTH", state_.stereo, state_);
+      drawDomainCard(g, right.removeFromTop(68).reduced(0, 0), "TONE", Domain::Tone, state_.tone, state_);
+      drawDomainCard(g, right.removeFromTop(68).reduced(0, 8), "WIDTH", Domain::Stereo, state_.stereo, state_);
     }
-    drawDomainCard(g, right.removeFromTop(68).reduced(0, 8), "PUNCH", state_.dynamics, state_);
-    drawDomainCard(g, right.removeFromTop(68).reduced(0, 8), "LOUDNESS", state_.loudness, state_);
+    drawDomainCard(g, right.removeFromTop(68).reduced(0, 8), "PUNCH", Domain::Dynamics, state_.dynamics, state_);
+    drawDomainCard(g, right.removeFromTop(68).reduced(0, 8), "LOUDNESS", Domain::Loudness, state_.loudness, state_);
     drawChatPanel(g, right.reduced(0, 8));
   }
 
@@ -455,19 +472,18 @@ void AifredAudioProcessorEditor::resized() {
     auto right = body.removeFromRight(juce::roundToInt(body.getWidth() * 0.44f)).reduced(0, 8);
     if (mode == AnalysisMode::Reference) {
       auto mixer = right.removeFromTop(236).reduced(16);
-      mixer.removeFromTop(30);
-      auto firstRow = mixer.removeFromTop(34);
-      for (int i = 0; i < 3; ++i) {
-        referenceFileButtons_[static_cast<size_t>(i)].setBounds(firstRow.removeFromLeft(firstRow.getWidth() / (3 - i)).reduced(3, 3));
-      }
-      auto secondRow = mixer.removeFromTop(34);
-      for (int i = 3; i < 5; ++i) {
-        referenceFileButtons_[static_cast<size_t>(i)].setBounds(secondRow.removeFromLeft(secondRow.getWidth() / (5 - i)).reduced(3, 3));
-      }
-      auto sliderArea = mixer.reduced(0, 4);
-      const auto laneWidth = sliderArea.getWidth() / 5;
-      for (int i = 0; i < 5; ++i) {
-        referenceVolumeSliders_[static_cast<size_t>(i)].setBounds(sliderArea.removeFromLeft(laneWidth).reduced(4, 0));
+      mixer.removeFromTop(50); // Header + meta
+      
+      const auto totalLanes = 5;
+      const auto laneW = mixer.getWidth() / totalLanes;
+      
+      auto buttonRow = mixer.removeFromTop(32);
+      auto sliderArea = mixer;
+
+      for (int i = 0; i < totalLanes; ++i) {
+        auto laneX = mixer.getX() + (i * laneW);
+        referenceFileButtons_[static_cast<size_t>(i)].setBounds(laneX + 4, buttonRow.getY(), laneW - 8, buttonRow.getHeight());
+        referenceVolumeSliders_[static_cast<size_t>(i)].setBounds(laneX + 4, sliderArea.getY(), laneW - 8, sliderArea.getHeight());
       }
     }
     else {
@@ -594,7 +610,7 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
     {-150.0f, "DRY", Colours::cyan},
     {-78.0f, "PUNCH " + juce::String(state.metrics.crestDb, 1) + " dB", Colours::cyan},
     {-60.0f, "DARK", Colours::green},
-    {12.0f, "TONE " + scoreText(state.toneScore01, state), Colours::green},
+    {12.0f, "TONE " + scoreText(state.toneScore01, state, Domain::Tone), Colours::green},
     {30.0f, "-24", Colours::yellow},
     {102.0f, "ST " + juce::String(state.metrics.shortTermLufs, 1) + " / TP " + juce::String(state.metrics.truePeakDb, 1), Colours::yellow},
     {120.0f, "-1", Colours::violet},
@@ -819,34 +835,55 @@ void AifredAudioProcessorEditor::drawReferenceMixer(juce::Graphics& g, juce::Rec
   g.setFont(juce::FontOptions(17.0f, juce::Font::bold));
   g.setColour(Colours::ink);
   g.drawText("REFERENCE MIXER", inner.removeFromTop(30), juce::Justification::centredLeft);
-  inner.removeFromTop(76);
+  
+  // Header area for metadata
+  auto header = inner.removeFromTop(20);
+  g.setFont(juce::FontOptions(11.0f));
+  g.setColour(Colours::muted);
+  g.drawText("5-Track Parallel Reference Bus", header, juce::Justification::centredLeft);
+
+  inner.removeFromTop(10); // Spacing
 
   const int lanes = 5;
   const auto laneWidth = inner.getWidth() / lanes;
+  const auto accent = genreColour(genreMenu_.getSelectedId());
+
   for (int lane = 0; lane < lanes; ++lane) {
-    auto strip = inner.removeFromLeft(laneWidth).reduced(5, 0).toFloat();
-    g.setColour(Colours::line.withAlpha(0.24f));
+    auto strip = inner.removeFromLeft(laneWidth).reduced(4, 0).toFloat();
+    
+    // Track backing
+    g.setColour(Colours::line.withAlpha(0.18f));
     g.fillRoundedRectangle(strip, 6.0f);
-    auto fader = strip.reduced(8.0f, 10.0f);
-    g.setColour(Colours::muted.withAlpha(0.32f));
-    g.fillRoundedRectangle(fader.withWidth(5.0f).withCentre({strip.getCentreX(), fader.getCentreY()}), 2.5f);
-    const auto volume = static_cast<float>(referenceVolumeSliders_[static_cast<size_t>(lane)].getValue() / 100.0);
-    const auto pos = fader.getBottom() - fader.getHeight() * volume;
-    g.setColour(genreColour(genreMenu_.getSelectedId()).withAlpha(0.9f));
-    g.fillRoundedRectangle(juce::Rectangle<float>(strip.getCentreX() - 18.0f, pos - 5.0f, 36.0f, 10.0f), 4.0f);
-    g.setFont(juce::FontOptions(9.5f, juce::Font::bold));
-    g.setColour(Colours::ink);
-    g.drawText("REF " + juce::String(lane + 1), strip.toNearestInt().removeFromTop(18), juce::Justification::centred);
+    
+    auto content = strip.reduced(6.0f, 8.0f);
+    
+    // Slot Label
+    g.setFont(juce::FontOptions(10.0f, juce::Font::bold));
+    g.setColour(Colours::muted);
+    g.drawText("SLOT " + juce::String(lane + 1), content.removeFromTop(16).toNearestInt(), juce::Justification::centred);
+    
+    // File Name (Middle)
+    auto fileArea = content.removeFromTop(content.getHeight() * 0.4f).reduced(2);
     const auto loadedName = referenceFileNames_[static_cast<size_t>(lane)].isNotEmpty()
       ? referenceFileNames_[static_cast<size_t>(lane)]
-      : "empty";
-    g.setFont(juce::FontOptions(8.8f));
-    g.setColour(Colours::muted);
-    g.drawFittedText(loadedName, strip.toNearestInt().removeFromBottom(22), juce::Justification::centred, 2);
+      : "(empty)";
+    g.setFont(juce::FontOptions(9.0f));
+    g.setColour(loadedName == "(empty)" ? Colours::muted : Colours::ink);
+    g.drawFittedText(loadedName, fileArea.toNearestInt(), juce::Justification::centred, 3);
+
+    // Fader Area (Bottom)
+    auto faderTrack = content.reduced(8.0f, 4.0f);
+    g.setColour(Colours::line.withAlpha(0.3f));
+    g.fillRoundedRectangle(faderTrack.withWidth(4.0f).withCentre({strip.getCentreX(), faderTrack.getCentreY()}), 2.0f);
+    
+    const auto volume = static_cast<float>(referenceVolumeSliders_[static_cast<size_t>(lane)].getValue() / 100.0);
+    const auto pos = faderTrack.getBottom() - faderTrack.getHeight() * volume;
+    
+    g.setColour(accent.withAlpha(0.92f));
+    g.fillRoundedRectangle(juce::Rectangle<float>(strip.getCentreX() - 15.0f, pos - 4.0f, 30.0f, 8.0f), 3.0f);
+    g.setColour(Colours::ink);
+    g.drawRoundedRectangle(juce::Rectangle<float>(strip.getCentreX() - 15.0f, pos - 4.0f, 30.0f, 8.0f), 3.0f, 1.0f);
   }
-  g.setFont(juce::FontOptions(11.0f));
-  g.setColour(Colours::muted);
-  g.drawFittedText(referenceStatus_, bounds.reduced(16).removeFromBottom(24), juce::Justification::centredLeft, 1);
 }
 
 void AifredAudioProcessorEditor::drawCompare(juce::Graphics& g, juce::Rectangle<int> bounds) {

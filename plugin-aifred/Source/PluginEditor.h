@@ -24,7 +24,7 @@ private:
   void buttonClicked(juce::Button*);
   void drawHeader(juce::Graphics&, juce::Rectangle<int>);
   void drawHalo(juce::Graphics&, juce::Rectangle<int>, const HaloState&, const char* title, bool referenceOverlay);
-  void drawDomainCard(juce::Graphics&, juce::Rectangle<int>, const char*, const DomainAlignment&, const HaloState&);
+  void drawDomainCard(juce::Graphics&, juce::Rectangle<int>, const char*, Domain, const DomainAlignment&, const HaloState&);
   void drawCandles(juce::Graphics&, juce::Rectangle<int>, const HaloState&);
   void drawCandleStrip(juce::Graphics&, juce::Rectangle<int>, const HaloState&, bool minuteView);
   void drawChatPanel(juce::Graphics&, juce::Rectangle<int>);
@@ -36,6 +36,7 @@ private:
   void drawSpectrumMeter(juce::Graphics&, juce::Rectangle<int>, const HaloState&);
   void drawCorrelationMeter(juce::Graphics&, juce::Rectangle<int>, const HaloState&);
   void pushSettingsToProcessor();
+  juce::String scoreText(float score, const HaloState& state, Domain domain);
 
   AifredAudioProcessor& processor_;
   AifredLookAndFeel lookAndFeel_;

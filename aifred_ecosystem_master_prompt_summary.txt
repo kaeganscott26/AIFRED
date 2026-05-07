@@ -1,9 +1,0 @@
-A downloadable master prompt was created for rebuilding the AIFR3D / Aifred ecosystem from scratch on Windows.
-
-Included:
-- Windows dependency installation requirements
-- strict scope lock
-- plugin, website, admin app specs
-- phased execution plan from zero to distribution
-- Cloudflare deployment requirements
-- packaging and QA requirements

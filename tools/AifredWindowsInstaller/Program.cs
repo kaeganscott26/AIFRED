@@ -11,7 +11,8 @@ var targetRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolde
 var targetPlugin = Path.Combine(targetRoot, PluginFolderName);
 var productRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Aifred");
 var engineTarget = Path.Combine(productRoot, "bin", EngineExeName);
-var aiConfig = ResolveAiConfig(args);
+var aiConfig = args.Length > 0 ? ResolveAiConfig(args) : ShowSetupDialog();
+if (aiConfig == null) return 0; // User cancelled
 
 try
 {
@@ -369,6 +370,74 @@ static async Task<bool> ValidateEngineHealth()
         await Task.Delay(350);
     }
     return false;
+}
+
+static InstallerAiConfig? ShowSetupDialog()
+{
+    using var form = new Form
+    {
+        Text = "AIFRED AI Setup",
+        Width = 450,
+        Height = 420,
+        FormBorderStyle = FormBorderStyle.FixedDialog,
+        StartPosition = FormStartPosition.CenterScreen,
+        MaximizeBox = false,
+        MinimizeBox = false,
+        BackColor = System.Drawing.Color.FromArgb(2, 6, 11),
+        ForeColor = System.Drawing.Color.FromArgb(247, 242, 231)
+    };
+
+    var title = new Label { Text = "CONFIGURE AI ASSISTANT", Top = 20, Left = 20, Width = 400, Font = new System.Drawing.Font("Segoe UI", 14, System.Drawing.FontStyle.Bold) };
+    var desc = new Label { Text = "AIFRED works best with local Ollama (pre-configured). You can also use OpenAI or a compatible API.", Top = 55, Left = 20, Width = 390, Height = 40, Font = new System.Drawing.Font("Segoe UI", 9) };
+
+    var providerLabel = new Label { Text = "Provider:", Top = 105, Left = 20, Width = 100 };
+    var providerCombo = new ComboBox { Top = 102, Left = 130, Width = 280, DropDownStyle = ComboBoxStyle.DropDownList };
+    providerCombo.Items.AddRange(new object[] { "Ollama (Local / Default)", "OpenAI", "OpenAI-Compatible" });
+    providerCombo.SelectedIndex = 0;
+
+    var endpointLabel = new Label { Text = "Endpoint:", Top = 145, Left = 20, Width = 100 };
+    var endpointText = new TextBox { Top = 142, Left = 130, Width = 280, Text = "http://127.0.0.1:11434" };
+
+    var modelLabel = new Label { Text = "Model:", Top = 185, Left = 20, Width = 100 };
+    var modelText = new TextBox { Top = 182, Left = 130, Width = 280, Text = "aifred:latest" };
+
+    var keyLabel = new Label { Text = "API Key:", Top = 225, Left = 20, Width = 100 };
+    var keyText = new TextBox { Top = 222, Left = 130, Width = 280, PasswordChar = '*' };
+
+    providerCombo.SelectedIndexChanged += (s, e) =>
+    {
+        if (providerCombo.SelectedIndex == 0)
+        {
+            endpointText.Text = "http://127.0.0.1:11434";
+            modelText.Text = "aifred:latest";
+            keyText.Text = "";
+            keyText.Enabled = false;
+        }
+        else if (providerCombo.SelectedIndex == 1)
+        {
+            endpointText.Text = "https://api.openai.com/v1";
+            modelText.Text = "gpt-5.4-mini";
+            keyText.Enabled = true;
+        }
+        else
+        {
+            endpointText.Text = "";
+            modelText.Text = "";
+            keyText.Enabled = true;
+        }
+    };
+
+    var installBtn = new Button { Text = "Install AIFRED", Top = 280, Left = 130, Width = 130, Height = 40, DialogResult = DialogResult.OK };
+    var cancelBtn = new Button { Text = "Cancel", Top = 280, Left = 280, Width = 130, Height = 40, DialogResult = DialogResult.Cancel };
+
+    form.Controls.AddRange(new Control[] { title, desc, providerLabel, providerCombo, endpointLabel, endpointText, modelLabel, modelText, keyLabel, keyText, installBtn, cancelBtn });
+    form.AcceptButton = installBtn;
+    form.CancelButton = cancelBtn;
+
+    if (form.ShowDialog() != DialogResult.OK) return null;
+
+    var provider = providerCombo.SelectedIndex == 0 ? "ollama" : "openai-compatible";
+    return new InstallerAiConfig(provider, endpointText.Text, keyText.Text, modelText.Text);
 }
 
 static Dictionary<string, string> ParseArgs(string[] args)

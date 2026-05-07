@@ -21,12 +21,6 @@ jobs:
           - name: windows
             os: windows-latest
             package_platform: windows
-          - name: macos
-            os: macos-latest
-            package_platform: macos
-          - name: linux
-            os: ubuntu-latest
-            package_platform: linux
 
     steps:
       - uses: actions/checkout@v4
@@ -76,57 +70,6 @@ jobs:
           path: release-assets/*
           if-no-files-found: error
 
-  arch:
-    name: VST3 arch
-    runs-on: ubuntu-latest
-    container: archlinux:latest
-    steps:
-      - name: Install build deps
-        run: |
-          pacman -Syu --noconfirm
-          pacman -S --noconfirm git cmake gcc make ninja pkgconf zip alsa-lib jack2 libx11 libxcomposite libxcursor libxext libxinerama libxrandr libxrender freetype2 curl webkit2gtk-4.1
-
-      - uses: actions/checkout@v4
-
-      - name: Configure
-        run: cmake -S . -B build/aifred -DCMAKE_BUILD_TYPE=Release -G Ninja
-
-      - name: Build
-        run: cmake --build build/aifred --config Release --parallel
-
-      - name: Package Arch VST3
-        run: |
-          set -eu
-          plugin="$(find build/aifred -type d -name 'Aifred.vst3' | head -n 1)"
-          test -n "$plugin"
-          rm -rf dist/AIFRED-VST3-arch dist/AIFRED-VST3-arch.zip
-          mkdir -p dist/AIFRED-VST3-arch/Aifred/{bin,config,logs,models}
-          cp -R "$plugin" dist/AIFRED-VST3-arch/Aifred.vst3
-          cat > dist/AIFRED-VST3-arch/Aifred/config/config.json <<'JSON'
-          {
-            "mode": "local",
-            "port": 8787,
-            "provider": "ollama",
-            "model_path": "models/aifred-assistant-q4.gguf",
-            "model_name": "aifred:latest",
-            "openai_api_key": "",
-            "custom_endpoint": "http://127.0.0.1:11434",
-            "timeout_ms": 420000
-          }
-          JSON
-          cat > dist/AIFRED-VST3-arch/Aifred/models/README.txt <<'TXT'
-          Optional offline model slot: place a licensed GGUF model here as aifred-assistant-q4.gguf.
-          AIFRED uses local Ollama chat by default, and users can configure an OpenAI-compatible API route for online chat.
-          TXT
-          cd dist/AIFRED-VST3-arch
-          zip -r ../AIFRED-VST3-arch.zip .
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: AIFRED-VST3-arch
-          path: dist/AIFRED-VST3-arch.zip
-          if-no-files-found: error
-
   website:
     name: Website checks
     runs-on: ubuntu-latest
@@ -158,7 +101,7 @@ jobs:
     name: Publish GitHub release
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
-    needs: [vst3, arch, website]
+    needs: [vst3, website]
     steps:
       - uses: actions/checkout@v4
 
