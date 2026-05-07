@@ -21,9 +21,12 @@ float gPaddingScale = 1.0f;
 void updateUiScale(juce::Rectangle<int> bounds) {
   constexpr float baseWidth = 1280.0f;
   constexpr float baseHeight = 760.0f;
-  gLayoutScale = juce::jlimit(0.90f, 1.25f, std::min(bounds.getWidth() / baseWidth, bounds.getHeight() / baseHeight));
-  gFontScale = juce::jlimit(1.0f, 1.24f, gLayoutScale);
-  gPaddingScale = juce::jlimit(0.90f, 1.20f, gLayoutScale);
+  const auto* display = juce::Desktop::getInstance().getDisplays().getDisplayForRect(bounds);
+  const float dpiScale = juce::jlimit(0.85f, 1.35f, static_cast<float>(display != nullptr ? display->scale : 1.0));
+  const float sizeScale = std::min(bounds.getWidth() / baseWidth, bounds.getHeight() / baseHeight);
+  gLayoutScale = juce::jlimit(0.88f, 1.42f, sizeScale * dpiScale);
+  gFontScale = juce::jlimit(1.0f, 1.30f, gLayoutScale);
+  gPaddingScale = juce::jlimit(0.88f, 1.16f, gLayoutScale);
 }
 
 int scaledInt(int value) {
@@ -219,8 +222,8 @@ AifredAudioProcessorEditor::AifredAudioProcessorEditor(AifredAudioProcessor& pro
   aiModel_.setText(settings.aiModel, juce::dontSendNotification);
 
   setResizable(true, true);
-  setResizeLimits(980, 620, 1700, 1040);
-  setSize(1280, 760);
+  setResizeLimits(1080, 680, 1820, 1120);
+  setSize(1360, 820);
   showTutorial_ = !processor_.isSessionInitialized() && !gTutorialShownThisSession;
   AifredEngineClient::instance().pingHealthAsync();
   startTimerHz(30);
@@ -364,7 +367,7 @@ void AifredAudioProcessorEditor::paint(juce::Graphics& g) {
     drawCompare(g, main);
   } else {
     const auto leftFraction = 0.23f;
-    const auto rightFraction = 0.40f;
+    const auto rightFraction = 0.44f;
     auto left = main.removeFromLeft(juce::roundToInt(main.getWidth() * leftFraction));
     auto right = main.removeFromRight(juce::roundToInt(main.getWidth() * rightFraction));
     auto center = main.reduced(14, 0);
@@ -378,11 +381,11 @@ void AifredAudioProcessorEditor::paint(juce::Graphics& g) {
     if (mode == AnalysisMode::Reference) {
       drawReferenceMixer(g, right.removeFromTop(236).reduced(0, 0));
     } else {
-      drawDomainCard(g, right.removeFromTop(76).reduced(0, 0), "TONE", state_.tone, state_);
-      drawDomainCard(g, right.removeFromTop(76).reduced(0, 8), "WIDTH", state_.stereo, state_);
+      drawDomainCard(g, right.removeFromTop(68).reduced(0, 0), "TONE", state_.tone, state_);
+      drawDomainCard(g, right.removeFromTop(68).reduced(0, 8), "WIDTH", state_.stereo, state_);
     }
-    drawDomainCard(g, right.removeFromTop(76).reduced(0, 8), "PUNCH", state_.dynamics, state_);
-    drawDomainCard(g, right.removeFromTop(76).reduced(0, 8), "LOUDNESS", state_.loudness, state_);
+    drawDomainCard(g, right.removeFromTop(68).reduced(0, 8), "PUNCH", state_.dynamics, state_);
+    drawDomainCard(g, right.removeFromTop(68).reduced(0, 8), "LOUDNESS", state_.loudness, state_);
     drawChatPanel(g, right.reduced(0, 8));
   }
 
@@ -429,11 +432,11 @@ void AifredAudioProcessorEditor::paint(juce::Graphics& g) {
 
 void AifredAudioProcessorEditor::resized() {
   updateUiScale(getLocalBounds());
-  chatInput_.applyFontToAllText(juce::Font(uiFont(13.5f, 13.0f)));
-  chatOutput_.applyFontToAllText(juce::Font(uiFont(13.5f, 13.0f)));
-  apiEndpoint_.applyFontToAllText(juce::Font(uiFont(13.0f, 13.0f)));
-  apiKey_.applyFontToAllText(juce::Font(uiFont(13.0f, 13.0f)));
-  aiModel_.applyFontToAllText(juce::Font(uiFont(13.0f, 13.0f)));
+  chatInput_.applyFontToAllText(juce::Font(uiFont(14.0f, 13.5f)));
+  chatOutput_.applyFontToAllText(juce::Font(uiFont(14.0f, 13.5f)));
+  apiEndpoint_.applyFontToAllText(juce::Font(uiFont(13.5f, 13.0f)));
+  apiKey_.applyFontToAllText(juce::Font(uiFont(13.5f, 13.0f)));
+  aiModel_.applyFontToAllText(juce::Font(uiFont(13.5f, 13.0f)));
 
   auto header = getLocalBounds().removeFromTop(scaledInt(88)).reduced(scaledInt(18), scaledInt(12));
   auto modes = header.removeFromRight(scaledInt(390)).reduced(scaledInt(4), scaledInt(14));
@@ -449,7 +452,7 @@ void AifredAudioProcessorEditor::resized() {
   const auto mode = processor_.getMode();
   auto body = getLocalBounds().withTrimmedTop(scaledInt(88)).reduced(scaledInt(18), scaledInt(10));
   if (mode != AnalysisMode::Compare) {
-    auto right = body.removeFromRight(juce::roundToInt(body.getWidth() * 0.40f)).reduced(0, 8);
+    auto right = body.removeFromRight(juce::roundToInt(body.getWidth() * 0.44f)).reduced(0, 8);
     if (mode == AnalysisMode::Reference) {
       auto mixer = right.removeFromTop(236).reduced(16);
       mixer.removeFromTop(30);
@@ -468,16 +471,16 @@ void AifredAudioProcessorEditor::resized() {
       }
     }
     else {
-      right.removeFromTop(76);
-      right.removeFromTop(76);
+      right.removeFromTop(68);
+      right.removeFromTop(68);
       for (auto& button : referenceFileButtons_) button.setBounds({});
       for (auto& slider : referenceVolumeSliders_) slider.setBounds({});
     }
-    right.removeFromTop(76);
-    right.removeFromTop(76);
+    right.removeFromTop(68);
+    right.removeFromTop(68);
     auto chat = right.reduced(0, 8).reduced(16);
     chat.removeFromTop(30);
-    chatInput_.setBounds(chat.removeFromTop(74));
+    chatInput_.setBounds(chat.removeFromTop(84));
     auto buttons = chat.removeFromTop(38);
     chatFileButton_.setBounds(buttons.removeFromLeft(buttons.getWidth() / 2).reduced(0, 4));
     askAiButton_.setBounds(buttons.reduced(6, 4));
@@ -764,15 +767,50 @@ void AifredAudioProcessorEditor::drawCandleStrip(juce::Graphics& g, juce::Rectan
 void AifredAudioProcessorEditor::drawChatPanel(juce::Graphics& g, juce::Rectangle<int> bounds) {
   drawPanel(g, bounds.toFloat(), 8.0f);
   auto inner = bounds.reduced(16);
+  auto header = inner.removeFromTop(30);
   g.setFont(uiFont(18.0f, 18.0f, juce::Font::bold));
   g.setColour(Colours::ink);
-  g.drawText("CHAT", inner.removeFromTop(30), juce::Justification::centredLeft);
-  g.setFont(uiFont(12.0f, 13.0f));
+  g.drawText("CHAT", header, juce::Justification::centredLeft);
+
   const auto engineReady = AifredEngineClient::instance().isAvailable();
-  g.setColour(engineReady ? Colours::green : Colours::yellow);
-  g.drawFittedText(engineReady ? "Local AI ready." : AifredEngineClient::instance().statusText(), inner.removeFromBottom(38), juce::Justification::bottomLeft, 2);
+  auto metricRow = inner.removeFromTop(66);
+  auto left = metricRow.removeFromLeft(metricRow.getWidth() / 2).reduced(0, 2);
+  auto right = metricRow.reduced(8, 2);
+
+  auto drawMetric = [&g](juce::Rectangle<int> area, const juce::String& label, const juce::String& value, juce::Colour accent) {
+    g.setColour(Colours::line.withAlpha(0.55f));
+    g.fillRoundedRectangle(area.toFloat(), 6.0f);
+    g.setColour(accent.withAlpha(0.16f));
+    g.fillRoundedRectangle(area.toFloat().reduced(1.0f), 6.0f);
+    g.setColour(Colours::ink);
+    g.setFont(uiFont(10.5f, 10.0f, juce::Font::bold));
+    g.drawText(label, area.removeFromTop(18), juce::Justification::centredLeft);
+    g.setFont(uiFont(14.0f, 13.0f, juce::Font::bold));
+    g.drawText(value, area, juce::Justification::centredLeft);
+  };
+
+  auto topLeft = left.removeFromTop(30);
+  auto bottomLeft = left.reduced(0, 0);
+  drawMetric(topLeft, "Integrated LUFS", juce::String(state_.metrics.integratedLufs, 1), Colours::cyan);
+  drawMetric(bottomLeft, "True Peak", juce::String(state_.metrics.truePeakDb, 1) + " dB", Colours::green);
+
+  auto topRight = right.removeFromTop(30);
+  auto bottomRight = right.reduced(0, 0);
+  drawMetric(topRight, "Crest / Corr", juce::String(state_.metrics.crestDb, 1) + " dB / " + juce::String(state_.metrics.correlation, 2), Colours::yellow);
+  drawMetric(bottomRight, "Tone / Width / Punch", pct(state_.metrics.tone01) + " / " + pct(state_.metrics.width01) + " / " + pct(state_.metrics.punch01), Colours::violet);
+
+  auto summary = inner.removeFromTop(56);
   g.setColour(Colours::muted);
-  g.drawFittedText("Chat is request-only. Metrics update live; AIFRED answers only after ASK AI.", inner.removeFromBottom(44), juce::Justification::bottomLeft, 2);
+  g.setFont(uiFont(12.5f, 12.0f));
+  g.drawFittedText(juce::String(state_.humanSummary).isNotEmpty() ? juce::String(state_.humanSummary) : juce::String(diagnostic_.summary), summary, juce::Justification::topLeft, 4);
+
+  auto footer = inner.removeFromBottom(40);
+  g.setColour(engineReady ? Colours::green : Colours::yellow);
+  g.setFont(uiFont(12.0f, 12.0f, juce::Font::bold));
+  g.drawFittedText(engineReady ? "Local AI ready." : AifredEngineClient::instance().statusText(), footer.removeFromTop(18), juce::Justification::bottomLeft, 1);
+  g.setColour(Colours::muted);
+  g.setFont(uiFont(11.0f, 11.0f));
+  g.drawFittedText(juce::String(diagnostic_.fixList).isNotEmpty() ? diagnostic_.fixList : "Ask AI for a live mix readout. Output scrolls in the response panel below.", footer, juce::Justification::bottomLeft, 3);
 }
 
 void AifredAudioProcessorEditor::drawReferenceMixer(juce::Graphics& g, juce::Rectangle<int> bounds) {

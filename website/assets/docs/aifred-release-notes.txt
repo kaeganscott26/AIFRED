@@ -9,3 +9,6 @@ Current build target:
 - $5 PayPal purchase path with tokenized backend download delivery.
 - Local Ollama chat using current DSP context and reference-pool metadata.
 - Optional OpenAI-compatible endpoint setup when the user supplies private credentials.
+- Website activity records now persist to the admin log feed and notify the Android app for buy clicks, order events, catalog plays, inquiries, downloads, and admin uploads.
+- Catalog audio uploads auto-sync the repo catalog JSON plus the audio file so the website and admin app stay aligned.
+- VST chat now shows real DSP values in the chat panel and uses a larger scrollable response area.

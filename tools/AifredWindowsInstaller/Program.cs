@@ -11,6 +11,7 @@ var targetRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolde
 var targetPlugin = Path.Combine(targetRoot, PluginFolderName);
 var productRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Aifred");
 var engineTarget = Path.Combine(productRoot, "bin", EngineExeName);
+var aiConfig = ResolveAiConfig(args);
 
 try
 {
@@ -69,7 +70,7 @@ try
         CopyDirectory(Path.Combine(extractedRoot, "Aifred"), productRoot);
         ClearPreviousBackendSettings();
         EnsureOllamaReady();
-        ConfigureAiProvider(productRoot);
+        ConfigureAiProvider(aiConfig);
         RegisterStartup(engineTarget);
         StartEngine(engineTarget);
         var health = await ValidateEngineHealth();
@@ -157,49 +158,52 @@ static void RegisterStartup(string enginePath)
     key?.SetValue("AIFRED Engine", $"\"{enginePath}\"");
 }
 
-static void ConfigureAiProvider(string productRoot)
+static InstallerAiConfig ResolveAiConfig(string[] args)
 {
-    var result = MessageBox.Show(
-        "AIFRED uses local Ollama by default.\n\nChoose Yes to enter an online/OpenAI-compatible endpoint and API key instead. Choose No to keep the local setup.",
-        "AIFRED AI Setup",
-        MessageBoxButtons.YesNo,
-        MessageBoxIcon.Question);
-
-    if (result != DialogResult.Yes)
+    var values = ParseArgs(args);
+    string Pick(string key, params string[] envNames)
     {
-        SaveAiSettings("ollama", "http://127.0.0.1:11434", "", "aifred:latest");
-        return;
+        if (values.TryGetValue(key, out var argValue) && !string.IsNullOrWhiteSpace(argValue)) return argValue.Trim();
+        foreach (var envName in envNames)
+        {
+            var envValue = Environment.GetEnvironmentVariable(envName);
+            if (!string.IsNullOrWhiteSpace(envValue)) return envValue.Trim();
+        }
+        return "";
     }
 
-    using var form = new Form
-    {
-        Text = "AIFRED AI Setup",
-        Width = 560,
-        Height = 260,
-        FormBorderStyle = FormBorderStyle.FixedDialog,
-        StartPosition = FormStartPosition.CenterScreen,
-        MaximizeBox = false,
-        MinimizeBox = false
-    };
+    var providerRaw = Pick("ai-provider", "AIFRED_AI_PROVIDER", "AIFRED_CHAT_PROVIDER");
+    var apiKey = Pick("ai-key", "AIFRED_OPENAI_API_KEY", "OPENAI_API_KEY", "AIFRED_AI_API_KEY");
+    var endpoint = Pick("ai-endpoint", "AIFRED_OPENAI_ENDPOINT", "OPENAI_BASE_URL", "AIFRED_AI_ENDPOINT");
+    var model = Pick("ai-model", "AIFRED_OPENAI_MODEL", "OPENAI_MODEL", "AIFRED_OLLAMA_MODEL", "OLLAMA_MODEL");
 
-    var endpointLabel = new Label { Left = 20, Top = 22, Width = 500, Text = "Endpoint (OpenAI or compatible):" };
-    var endpoint = new TextBox { Left = 20, Top = 46, Width = 500, Text = "https://api.openai.com/v1" };
-    var keyLabel = new Label { Left = 20, Top = 82, Width = 500, Text = "API key:" };
-    var apiKey = new TextBox { Left = 20, Top = 106, Width = 500, PasswordChar = '*' };
-    var modelLabel = new Label { Left = 20, Top = 142, Width = 500, Text = "Model:" };
-    var model = new TextBox { Left = 20, Top = 166, Width = 500, Text = "gpt-5.4-mini" };
-    var save = new Button { Text = "Save", Left = 340, Top = 198, Width = 84, DialogResult = DialogResult.OK };
-    var cancel = new Button { Text = "Cancel", Left = 436, Top = 198, Width = 84, DialogResult = DialogResult.Cancel };
-    form.Controls.AddRange(new Control[] { endpointLabel, endpoint, keyLabel, apiKey, modelLabel, model, save, cancel });
-    form.AcceptButton = save;
-    form.CancelButton = cancel;
-
-    if (form.ShowDialog() != DialogResult.OK)
+    var provider = NormalizeProvider(providerRaw, !string.IsNullOrWhiteSpace(apiKey) || !string.IsNullOrWhiteSpace(endpoint));
+    if (provider == "ollama")
     {
-        return;
+        endpoint = string.IsNullOrWhiteSpace(endpoint) ? "http://127.0.0.1:11434" : endpoint;
+        model = string.IsNullOrWhiteSpace(model) ? "aifred:latest" : model;
+        apiKey = "";
+    }
+    else
+    {
+        endpoint = string.IsNullOrWhiteSpace(endpoint) ? "https://api.openai.com/v1" : endpoint;
+        model = string.IsNullOrWhiteSpace(model) ? "gpt-5.4-mini" : model;
     }
 
-    SaveAiSettings("openai-compatible", endpoint.Text.Trim(), apiKey.Text.Trim(), model.Text.Trim());
+    return new InstallerAiConfig(provider, endpoint, apiKey, model);
+}
+
+static string NormalizeProvider(string providerRaw, bool hasOpenAiSignals)
+{
+    var normalized = providerRaw.Trim().ToLowerInvariant();
+    if (normalized is "openai" or "openai-compatible" or "openai_compatible" or "compatible") return "openai-compatible";
+    if (normalized is "ollama" or "local") return "ollama";
+    return hasOpenAiSignals ? "openai-compatible" : "ollama";
+}
+
+static void ConfigureAiProvider(InstallerAiConfig config)
+{
+    SaveAiSettings(config.Provider, config.Endpoint, config.ApiKey, config.Model);
 }
 
 static void SaveAiSettings(string provider, string endpoint, string apiKey, string model)
@@ -366,3 +370,33 @@ static async Task<bool> ValidateEngineHealth()
     }
     return false;
 }
+
+static Dictionary<string, string> ParseArgs(string[] args)
+{
+    var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    for (var i = 1; i < args.Length; i++)
+    {
+        var current = args[i];
+        if (!current.StartsWith("--", StringComparison.Ordinal)) continue;
+        var withoutPrefix = current[2..];
+        var separator = withoutPrefix.IndexOf('=');
+        if (separator >= 0)
+        {
+            result[withoutPrefix[..separator]] = withoutPrefix[(separator + 1)..];
+            continue;
+        }
+        var next = i + 1 < args.Length ? args[i + 1] : "";
+        if (!next.StartsWith("--", StringComparison.Ordinal))
+        {
+            result[withoutPrefix] = next;
+            i += 1;
+        }
+        else
+        {
+            result[withoutPrefix] = "true";
+        }
+    }
+    return result;
+}
+
+sealed record InstallerAiConfig(string Provider, string Endpoint, string ApiKey, string Model);

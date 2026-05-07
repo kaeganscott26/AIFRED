@@ -1,3 +1,6 @@
+cmake_minimum_required(VERSION 3.22)
+project(Aifred VERSION 0.3.6 LANGUAGES C CXX)
+
 include(FetchContent)
 
 set(JUCE_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)

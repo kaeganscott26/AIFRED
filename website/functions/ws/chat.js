@@ -69,7 +69,7 @@ async function askModel(env, message) {
 
   if (env.OLLAMA_BASE_URL) {
     const base = String(env.OLLAMA_BASE_URL).replace(/\/+$/, "");
-    const model = env.OLLAMA_MODEL || "llama3.1";
+    const model = env.OLLAMA_MODEL || "aifred:latest";
     const response = await fetch(`${base}/api/chat`, {
       method: "POST",
       headers: {

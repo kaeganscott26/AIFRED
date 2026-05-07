@@ -15,9 +15,9 @@ const nowMeta = document.getElementById("now-meta");
 const contactForm = document.getElementById("contact-form");
 const contactStatus = document.getElementById("contact-status");
 const year = document.getElementById("year");
-const aifredDownloadButton = document.getElementById("aifred-buy-button");
 const aifredDownloads = document.getElementById("aifred-downloads");
-const aifredPayPalForm = document.getElementById("aifred-paypal-form");
+const aifredPayPalButtons = document.getElementById("aifred-paypal-buttons");
+const aifredPurchaseStatus = document.getElementById("aifred-purchase-status");
 const analysisUpload = document.getElementById("analysis-upload");
 const spectralCanvas = document.getElementById("spectral-canvas");
 const analysisTitle = document.getElementById("analysis-title");
@@ -33,6 +33,45 @@ let audioContext = null;
 let audioAnalyser = null;
 let audioSource = null;
 let visualizerFrame = 0;
+const ACTIVITY_SESSION_KEY = "aifred-site-session";
+
+function activitySessionId() {
+  try {
+    const existing = sessionStorage.getItem(ACTIVITY_SESSION_KEY);
+    if (existing) return existing;
+    const created = crypto.randomUUID();
+    sessionStorage.setItem(ACTIVITY_SESSION_KEY, created);
+    return created;
+  } catch (_) {
+    return `session-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+}
+
+function recordActivity(eventType, details = {}) {
+  const payload = {
+    event_type: eventType,
+    source: "website",
+    path: `${window.location.pathname}${window.location.hash || ""}`,
+    page: document.title || "AIFRED",
+    title: document.title || "AIFRED",
+    session_id: activitySessionId(),
+    referrer: document.referrer || "",
+    details
+  };
+  const body = JSON.stringify(payload);
+  try {
+    if (navigator.sendBeacon) {
+      const blob = new Blob([body], { type: "application/json" });
+      if (navigator.sendBeacon(apiUrl("/api/v1/activity/record"), blob)) return Promise.resolve(true);
+    }
+  } catch (_) {}
+  return fetch(apiUrl("/api/v1/activity/record"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+    keepalive: true
+  }).then(() => true).catch(() => false);
+}
 
 function apiUrl(path) {
   const safePath = path.startsWith("/") ? path : `/${path}`;
@@ -66,6 +105,7 @@ async function loadCatalog() {
   const payload = await getJson("/api/v1/catalog/list", { ok: true, tracks: fallback });
   tracks = Array.isArray(payload.tracks) ? payload.tracks : fallback;
   renderCatalog();
+  void recordActivity("website.catalog.loaded", { track_count: tracks.length });
 }
 
 function renderCatalog() {
@@ -94,6 +134,13 @@ function renderCatalog() {
       audioPlayer.play().then(startCatalogVisualizer).catch(() => {});
       nowTitle.textContent = title;
       nowMeta.textContent = `${bpm} · ${genre}`;
+      void recordActivity("catalog.play.clicked", {
+        title,
+        bpm,
+        genre,
+        price,
+        stream_url: trackUrl(track)
+      });
     });
     catalogList.appendChild(card);
   });
@@ -106,36 +153,126 @@ function setCatalogOpen(open) {
   catalogToggle.setAttribute("aria-expanded", String(catalogOpen));
 }
 
-function renderReleaseActions() {
+function setPurchaseStatus(message) {
+  if (aifredPurchaseStatus) aifredPurchaseStatus.textContent = message;
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing) {
+      existing.addEventListener("load", resolve, { once: true });
+      existing.addEventListener("error", reject, { once: true });
+      if (window.paypal) resolve();
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = true;
+    script.addEventListener("load", resolve, { once: true });
+    script.addEventListener("error", reject, { once: true });
+    document.head.appendChild(script);
+  });
+}
+
+function renderUnlockedDownloads(downloads) {
+  if (!aifredDownloads || !downloads) return;
   const releaseNotes = String(DOWNLOAD_URLS.releaseNotes || "assets/docs/aifred-release-notes.txt").trim();
-  const origin = window.location.origin.replace(/\/+$/, "");
-  const paypalBusiness = String(PAYPAL_CONFIG.business || CONTACT_EMAIL).trim();
-  const paypalItemName = String(PAYPAL_CONFIG.itemName || "AIFRED Plugin (download)").trim();
-  const paypalAmount = String(PAYPAL_CONFIG.amount || "5.00").trim();
-  const paypalCurrencyCode = String(PAYPAL_CONFIG.currencyCode || "USD").trim();
-  const purchaseNonce = `aifred-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-
-  if (aifredPayPalForm) {
-    const field = (name) => aifredPayPalForm.querySelector(`input[name="${name}"]`);
-    field("business").value = paypalBusiness;
-    field("item_name").value = paypalItemName;
-    field("amount").value = paypalAmount;
-    field("currency_code").value = paypalCurrencyCode;
-    field("notify_url").value = `${origin}/api/v1/paypal/ipn`;
-    field("return").value = `${origin}/?purchase=success#vst`;
-    field("cancel_return").value = `${origin}/?purchase=cancelled#vst`;
-    field("custom").value = purchaseNonce;
-  }
-
-  if (aifredDownloadButton) {
-    aifredDownloadButton.href = "#";
-    aifredDownloadButton.addEventListener("click", (event) => {
-      event.preventDefault();
-      if (aifredPayPalForm) {
-        aifredPayPalForm.submit();
-      }
+  const items = [
+    ["Windows installer", downloads.setup],
+    ["Windows zip", downloads.zip],
+    ["Release notes", releaseNotes]
+  ].filter(([, url]) => url);
+  aifredDownloads.innerHTML = "";
+  items.forEach(([label, url]) => {
+    const link = document.createElement("a");
+    link.href = url;
+    link.target = "_blank";
+    link.rel = "noreferrer";
+    link.textContent = label;
+    link.addEventListener("click", () => {
+      void recordActivity("website.download.clicked", { label, url });
     });
+    aifredDownloads.appendChild(link);
+  });
+}
+
+async function renderPayPalButtons() {
+  if (!aifredPayPalButtons) return false;
+  const payload = await getJson("/api/v1/paypal/config", { ok: false });
+  const paypalConfig = payload.paypal || {};
+  if (!payload.ok || !paypalConfig.configured || !paypalConfig.client_id) {
+    setPurchaseStatus("PayPal checkout is being configured. Use the contact form if you already paid.");
+    return false;
   }
+
+  const params = new URLSearchParams({
+    "client-id": paypalConfig.client_id,
+    currency: paypalConfig.currency || "USD",
+    intent: "capture",
+    components: "buttons"
+  });
+  await loadScript(`https://www.paypal.com/sdk/js?${params.toString()}`);
+  if (!window.paypal?.Buttons) throw new Error("PayPal SDK did not load");
+
+  window.paypal.Buttons({
+    style: { layout: "vertical", label: "pay", height: 44 },
+    createOrder: async () => {
+      setPurchaseStatus("Opening PayPal checkout...");
+      void recordActivity("paypal.buy.clicked", {
+        item_name: paypalConfig.item_name || "AIFRED Plugin (download)",
+        amount: paypalConfig.amount || "5.00",
+        currency: paypalConfig.currency || "USD"
+      });
+      const response = await fetch(apiUrl("/api/v1/paypal/create-order"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ custom_id: `aifred-${Date.now()}-${Math.random().toString(36).slice(2, 10)}` })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || "PayPal order create failed");
+      void recordActivity("paypal.order.created", {
+        order_id: result.id || "",
+        item_name: paypalConfig.item_name || "AIFRED Plugin (download)",
+        amount: paypalConfig.amount || "5.00",
+        currency: paypalConfig.currency || "USD"
+      });
+      return result.id;
+    },
+    onApprove: async (data) => {
+      setPurchaseStatus("Capturing payment and preparing download...");
+      void recordActivity("paypal.order.capture.started", {
+        order_id: data.orderID || ""
+      });
+      const response = await fetch(apiUrl("/api/v1/paypal/capture-order"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order_id: data.orderID })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || "PayPal capture failed");
+      renderUnlockedDownloads(result.downloads);
+      void recordActivity("paypal.order.captured", {
+        order_id: data.orderID || "",
+        download_setup: Boolean(result.downloads?.setup),
+        download_zip: Boolean(result.downloads?.zip)
+      });
+      setPurchaseStatus("Payment complete. Download links are ready and have been emailed when PayPal provided an email.");
+    },
+    onCancel: () => {
+      void recordActivity("paypal.checkout.cancelled", { item_name: paypalConfig.item_name || "AIFRED Plugin (download)" });
+      setPurchaseStatus("PayPal checkout was cancelled.");
+    },
+    onError: (error) => {
+      void recordActivity("paypal.checkout.error", { message: error.message || "try again shortly" });
+      setPurchaseStatus(`PayPal checkout unavailable: ${error.message || "try again shortly"}`);
+    }
+  }).render("#aifred-paypal-buttons");
+  return true;
+}
+
+async function renderReleaseActions() {
+  const releaseNotes = String(DOWNLOAD_URLS.releaseNotes || "assets/docs/aifred-release-notes.txt").trim();
 
   if (!aifredDownloads) {
     return;
@@ -146,6 +283,12 @@ function renderReleaseActions() {
   aifredDownloads.innerHTML = downloads
     .map(([label, url]) => `<a href="${url}" target="_blank" rel="noreferrer">${label}</a>`)
     .join("");
+
+  try {
+    await renderPayPalButtons();
+  } catch (error) {
+    setPurchaseStatus(`PayPal checkout unavailable: ${error.message || "try again shortly"}`);
+  }
 }
 
 function clamp(value, min, max) {
@@ -393,8 +536,18 @@ async function submitAnalysisGate() {
       `Persistence: ${payload.persistence || "none"}`
     ];
     analysisResult.textContent = lines.join("\n");
+    void recordActivity("website.analysis.submitted", {
+      file_name: currentAnalysis.file_name || analysisTitle.textContent || "analysis",
+      accepted: Boolean(payload.accepted),
+      score: payload.score,
+      classification: payload.classification
+    });
   } catch (error) {
     analysisResult.textContent = `Analysis unavailable: ${error.message || "request failed"}`;
+    void recordActivity("website.analysis.failed", {
+      file_name: currentAnalysis.file_name || analysisTitle.textContent || "analysis",
+      error: error.message || "request failed"
+    });
   } finally {
     analysisSubmit.disabled = false;
   }
@@ -407,6 +560,7 @@ function setupForms() {
     const email = document.getElementById("contact-email").value.trim();
     const message = document.getElementById("contact-message").value.trim();
     contactStatus.textContent = "Sending...";
+    void recordActivity("website.inquiry.submit", { name, email });
     try {
       const response = await fetch(apiUrl("/api/v1/inquiries/submit"), {
         method: "POST",
@@ -416,12 +570,14 @@ function setupForms() {
       const payload = await response.json();
       if (!response.ok || !payload.ok) throw new Error(payload.error || "backend unavailable");
       contactStatus.textContent = "Inquiry received.";
+      void recordActivity("website.inquiry.completed", { name, email });
       contactForm.reset();
     } catch (_) {
       const subject = encodeURIComponent(`North3rnLight3r inquiry from ${name}`);
       const body = encodeURIComponent(`Name: ${name}\nEmail: ${email}\n\n${message}`);
       window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`;
       contactStatus.textContent = `Opening email fallback for ${CONTACT_EMAIL}.`;
+      void recordActivity("website.inquiry.fallback", { name, email });
     }
   });
 }
@@ -438,3 +594,8 @@ analysisSubmit.addEventListener("click", submitAnalysisGate);
 renderReleaseActions();
 setupForms();
 loadCatalog();
+void recordActivity("website.page.view", {
+  title: document.title || "AIFRED",
+  path: window.location.pathname,
+  purchase: new URLSearchParams(window.location.search).get("purchase") || ""
+});

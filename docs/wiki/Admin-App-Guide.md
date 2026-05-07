@@ -48,6 +48,8 @@ Upload:
 - Upload licensed reference tracks.
 - Upload website assets.
 - File uploads require `GITHUB_TOKEN` in Cloudflare Pages so the backend can commit to the private repo.
+- Catalog uploads now default the title from the selected file name when the field is left blank, then sync the audio file and catalog JSON together.
+- The app polls the live activity log feed and notifies on buys, sales, catalog uploads, inquiries, downloads, and other important site events.
 
 Command:
 
@@ -65,6 +67,7 @@ Command:
 | `reference:stats` | Show reference pool persistence status |
 | `deploy:status` | Confirm production domain status |
 | `deploy:site` | Dispatch GitHub Actions deployment when configured |
+| `sales:list` | Show sale and activity storage status |
 
 ## Local Android Shell Examples
 

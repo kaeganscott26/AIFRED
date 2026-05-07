@@ -1,17 +1,28 @@
-name = "north3rnlight3r"
+name = "aifred-site"
 pages_build_output_dir = "."
-compatibility_date = "2026-04-14"
+compatibility_date = "2026-04-22"
+
 [observability]
 enabled = true
 head_sampling_rate = 1
 
-[observability.logs]
-enabled = true
-head_sampling_rate = 1
-persist = true
-invocation_logs = true
+[[services]]
+binding = "MAILER"
+service = "aifred-mailer"
+environment = "production"
 
-[observability.traces]
-enabled = true
-persist = true
-head_sampling_rate = 1
+[[kv_namespaces]]
+binding = "AIFRED_REFERENCE_POOL"
+id = "8a120701767e474f928d1af7037cd68a"
+
+[[kv_namespaces]]
+binding = "AIFRED_SALES_LOG"
+id = "2c66da7795b54135a4d67e514b97491f"
+
+[[r2_buckets]]
+binding = "AIFRED_DOWNLOADS"
+bucket_name = "aifred-downloads"
+
+[[r2_buckets]]
+binding = "AIFRED_REFERENCE_BUCKET"
+bucket_name = "aifred-reference-pool"

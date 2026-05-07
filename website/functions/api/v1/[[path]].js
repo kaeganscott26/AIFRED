@@ -223,11 +223,26 @@ async function handleAnalysisSubmit(request, env) {
 
   let persistence = "disposed";
   if (gate.accepted && env.AIFRED_REFERENCE_POOL) {
-    await env.AIFRED_REFERENCE_POOL.put(`reference:${analysisId}`, JSON.stringify(metadata));
+    await persistReferenceRecord(env, metadata);
     persistence = "stored";
   } else if (gate.accepted) {
     persistence = "accepted-no-binding";
   }
+  await persistActivityRecord(env, {
+    event_type: "website.analysis.submit",
+    source: "website",
+    path: "/api/v1/analysis/submit",
+    page: String(body.page || body.path || "").trim(),
+    title: String(body.file_name || "browser-analysis").trim(),
+    status: gate.accepted ? "accepted" : "rejected",
+    message: gate.summary || gate.classification || "analysis submitted",
+    details: {
+      accepted: gate.accepted,
+      score: gate.score,
+      classification: gate.classification,
+      persistence
+    }
+  }, `Record analysis ${analysisId}`);
 
   return json({
     ok: true,
@@ -245,6 +260,64 @@ async function handleAnalysisSubmit(request, env) {
     checks: gate.checks,
     analysis_id: gate.accepted ? analysisId : null
   });
+}
+
+async function handleActivityRecord(request, env) {
+  const body = await readJson(request);
+  const record = {
+    event_type: body.event_type || body.type || body.kind || "site.event",
+    source: String(body.source || "website").trim(),
+    path: String(body.path || "").trim(),
+    page: String(body.page || "").trim(),
+    title: String(body.title || "").trim(),
+    message: String(body.message || "").trim(),
+    session_id: String(body.session_id || body.client_session_id || "").trim(),
+    referrer: String(body.referrer || "").trim(),
+    status: String(body.status || "").trim(),
+    item_name: String(body.item_name || "").trim(),
+    amount: String(body.amount || "").trim(),
+    currency: String(body.currency || "").trim(),
+    order_id: String(body.order_id || "").trim(),
+    txn_id: String(body.txn_id || "").trim(),
+    custom_id: String(body.custom_id || "").trim(),
+    download_token: String(body.download_token || "").trim(),
+    actor: String(body.actor || "").trim(),
+    details: body.details || {}
+  };
+  const stored = await persistActivityRecord(env, record, `Record ${normalizeActivityType(record.event_type)}`);
+  return json({
+    ok: true,
+    event_type: normalizeActivityType(record.event_type),
+    stored_path: stored.commit?.sha || "",
+    configured: Boolean(env.GITHUB_TOKEN || env.AIFRED_SALES_LOG)
+  });
+}
+
+async function persistReferenceRecord(env, metadata) {
+  if (env.AIFRED_REFERENCE_POOL && typeof env.AIFRED_REFERENCE_POOL.put === "function") {
+    await env.AIFRED_REFERENCE_POOL.put(`reference:${metadata.id}`, JSON.stringify(metadata));
+  }
+  if (env.AIFRED_REFERENCE_BUCKET && typeof env.AIFRED_REFERENCE_BUCKET.put === "function") {
+    await env.AIFRED_REFERENCE_BUCKET.put(
+      `reference-pool/metadata/${metadata.id}.json`,
+      JSON.stringify(metadata, null, 2),
+      { httpMetadata: { contentType: "application/json; charset=utf-8" } }
+    );
+  }
+}
+
+async function listReferenceRecords(env, limit = 100) {
+  if (!env.AIFRED_REFERENCE_POOL || typeof env.AIFRED_REFERENCE_POOL.list !== "function") return [];
+  const listed = await env.AIFRED_REFERENCE_POOL.list({ prefix: "reference:", limit });
+  const records = [];
+  for (const key of listed.keys || []) {
+    const raw = await env.AIFRED_REFERENCE_POOL.get(key.name);
+    if (!raw) continue;
+    try {
+      records.push(JSON.parse(raw));
+    } catch (_) {}
+  }
+  return records.sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
 }
 
 function contentPayload() {
@@ -311,7 +384,7 @@ async function askOpenAI(env, message) {
 async function askOllama(env, message) {
   const base = String(env.OLLAMA_BASE_URL || "").replace(/\/+$/, "");
   if (!base) throw new Error("OLLAMA_BASE_URL is not configured");
-  const model = env.OLLAMA_MODEL || "aifred";
+  const model = env.OLLAMA_MODEL || "aifred:latest";
   const response = await fetch(`${base}/api/chat`, {
     method: "POST",
     headers: {
@@ -351,10 +424,257 @@ async function handleChat(request, env) {
   }
 }
 
+function paypalApiBase(env) {
+  return String(env.PAYPAL_ENVIRONMENT || env.AIFRED_PAYPAL_ENVIRONMENT || "").toLowerCase() === "sandbox"
+    ? "https://api-m.sandbox.paypal.com"
+    : "https://api-m.paypal.com";
+}
+
+async function paypalAccessToken(env) {
+  const clientId = String(env.PAYPAL_CLIENT_ID || "").trim();
+  const secret = String(env.PAYPAL_CLIENT_SECRET || "").trim();
+  if (!clientId || !secret) throw new Error("PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET are required");
+  const response = await fetch(`${paypalApiBase(env)}/v1/oauth2/token`, {
+    method: "POST",
+    headers: {
+      "authorization": `Basic ${btoa(`${clientId}:${secret}`)}`,
+      "content-type": "application/x-www-form-urlencoded"
+    },
+    body: "grant_type=client_credentials"
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload?.error_description || payload?.error || "PayPal token request failed");
+  return payload.access_token;
+}
+
+function paypalCheckoutConfig(env) {
+  return {
+    client_id: String(env.PAYPAL_CLIENT_ID || "").trim(),
+    configured: Boolean(env.PAYPAL_CLIENT_ID && env.PAYPAL_CLIENT_SECRET),
+    environment: String(env.PAYPAL_ENVIRONMENT || env.AIFRED_PAYPAL_ENVIRONMENT || "live").toLowerCase() === "sandbox" ? "sandbox" : "live",
+    amount: String(env.AIFRED_PAYPAL_AMOUNT || "5.00").trim(),
+    currency: String(env.AIFRED_PAYPAL_CURRENCY || "USD").trim().toUpperCase(),
+    item_name: String(env.AIFRED_PAYPAL_ITEM_NAME || "AIFRED Plugin (download)").trim()
+  };
+}
+
+async function handlePayPalConfig(request, env) {
+  return json({ ok: true, paypal: paypalCheckoutConfig(env) });
+}
+
+async function handlePayPalCreateOrder(request, env) {
+  const cfg = paypalCheckoutConfig(env);
+  if (!cfg.configured) return json({ ok: false, error: "PayPal checkout is not configured" }, { status: 503 });
+  const body = await readJson(request);
+  const customId = String(body.custom_id || body.custom || crypto.randomUUID()).trim().slice(0, 127);
+  await persistActivityRecord(env, {
+    event_type: "paypal.order.create.requested",
+    source: "website",
+    path: "/api/v1/paypal/create-order",
+    title: cfg.item_name,
+    item_name: cfg.item_name,
+    amount: cfg.amount,
+    currency: cfg.currency,
+    custom_id: customId,
+    status: "requested",
+    details: { custom_id: customId, environment: paypalEnvironment(env) }
+  }, `Request PayPal order for ${customId}`);
+  const token = await paypalAccessToken(env);
+  const response = await fetch(`${paypalApiBase(env)}/v2/checkout/orders`, {
+    method: "POST",
+    headers: {
+      "authorization": `Bearer ${token}`,
+      "content-type": "application/json",
+      "prefer": "return=representation"
+    },
+    body: JSON.stringify({
+      intent: "CAPTURE",
+      purchase_units: [{
+        description: cfg.item_name,
+        custom_id: customId,
+        amount: {
+          currency_code: cfg.currency,
+          value: cfg.amount
+        },
+        items: [{
+          name: cfg.item_name,
+          quantity: "1",
+          unit_amount: {
+            currency_code: cfg.currency,
+            value: cfg.amount
+          }
+        }]
+      }],
+      application_context: {
+        brand_name: "AIFRED",
+        shipping_preference: "NO_SHIPPING",
+        user_action: "PAY_NOW",
+        return_url: new URL("/?purchase=success#vst", request.url).toString(),
+        cancel_url: new URL("/?purchase=cancelled#vst", request.url).toString()
+      }
+    })
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    await persistActivityRecord(env, {
+      event_type: "paypal.order.create.failed",
+      source: "website",
+      path: "/api/v1/paypal/create-order",
+      title: cfg.item_name,
+      item_name: cfg.item_name,
+      amount: cfg.amount,
+      currency: cfg.currency,
+      custom_id: customId,
+      status: "failed",
+      message: payload?.message || payload?.details?.[0]?.description || "PayPal order create failed",
+      details: payload
+    }, `Fail PayPal order for ${customId}`);
+    return json({ ok: false, error: payload?.message || payload?.details?.[0]?.description || "PayPal order create failed" }, { status: 502 });
+  }
+  await persistActivityRecord(env, {
+    event_type: "paypal.order.created",
+    source: "website",
+    path: "/api/v1/paypal/create-order",
+    title: cfg.item_name,
+    item_name: cfg.item_name,
+    amount: cfg.amount,
+    currency: cfg.currency,
+    custom_id: customId,
+    order_id: payload.id || "",
+    status: String(payload.status || "CREATED").toLowerCase(),
+    details: payload
+  }, `Created PayPal order ${payload.id || customId}`);
+  return json({ ok: true, id: payload.id, status: payload.status });
+}
+
+function captureSummary(capturePayload) {
+  const unit = capturePayload?.purchase_units?.[0] || {};
+  const capture = unit?.payments?.captures?.[0] || {};
+  const payer = capturePayload?.payer || {};
+  const payerName = [payer.name?.given_name, payer.name?.surname].filter(Boolean).join(" ").trim();
+  return {
+    order_id: String(capturePayload?.id || "").trim(),
+    capture_id: String(capture.id || "").trim(),
+    status: String(capture.status || capturePayload?.status || "").trim(),
+    payer_email: String(payer.email_address || "").trim(),
+    payer_name: payerName,
+    amount: String(capture.amount?.value || "").trim(),
+    currency: String(capture.amount?.currency_code || "").trim().toUpperCase(),
+    custom: String(unit.custom_id || "").trim()
+  };
+}
+
+async function fulfillCapturedSale(request, env, summary, source) {
+  const cfg = paypalCheckoutConfig(env);
+  if (summary.status !== "COMPLETED" && summary.status !== "Completed") {
+    return json({ ok: false, error: `PayPal capture is ${summary.status || "not completed"}` }, { status: 402 });
+  }
+  if (summary.currency !== cfg.currency || Number.parseFloat(summary.amount).toFixed(2) !== Number.parseFloat(cfg.amount).toFixed(2)) {
+    return json({ ok: false, error: "PayPal capture amount did not match AIFRED price" }, { status: 409 });
+  }
+  const existing = await listSaleRecords(env);
+  const txnId = summary.capture_id || summary.order_id;
+  const duplicate = existing.find((sale) => sale.txn_id === txnId || sale.order_id === summary.order_id);
+  if (duplicate?.download_token) {
+    return json({
+      ok: true,
+      sale: duplicate,
+      downloads: {
+        setup: buildDownloadUrl(request, duplicate.download_token, "setup"),
+        zip: buildDownloadUrl(request, duplicate.download_token, "zip")
+      }
+    });
+  }
+
+  const downloadToken = base64Url(crypto.getRandomValues(new Uint8Array(24)));
+  const sale = {
+    id: crypto.randomUUID(),
+    created_at: new Date().toISOString(),
+    source,
+    order_id: summary.order_id,
+    txn_id: txnId,
+    custom: summary.custom,
+    payer_email: summary.payer_email,
+    payer_name: summary.payer_name,
+    payment_status: "Completed",
+    amount: Number.parseFloat(summary.amount).toFixed(2),
+    currency: summary.currency,
+    item_name: cfg.item_name,
+    receiver_email: paypalBusiness(env).toLowerCase(),
+    download_token: downloadToken,
+    release_tag: pluginReleaseConfig(env).tag
+  };
+  await persistSaleRecord(env, sale, `Record PayPal sale ${txnId}`);
+  await persistActivityRecord(env, {
+    event_type: "paypal.sale.completed",
+    source: "website",
+    path: "/api/v1/paypal/capture-order",
+    title: cfg.item_name,
+    item_name: cfg.item_name,
+    amount: sale.amount,
+    currency: sale.currency,
+    order_id: sale.order_id,
+    txn_id: sale.txn_id,
+    custom_id: sale.custom,
+    download_token: sale.download_token,
+    status: sale.payment_status,
+    details: sale
+  }, `Complete PayPal sale ${txnId}`);
+  const setupUrl = buildDownloadUrl(request, downloadToken, "setup");
+  const zipUrl = buildDownloadUrl(request, downloadToken, "zip");
+  await sendSaleEmails(env, sale, setupUrl, zipUrl);
+  return json({ ok: true, sale, downloads: { setup: setupUrl, zip: zipUrl } });
+}
+
+async function handlePayPalCaptureOrder(request, env) {
+  const body = await readJson(request);
+  const orderId = String(body.order_id || body.orderID || "").trim();
+  if (!orderId) return json({ ok: false, error: "order_id is required" }, { status: 400 });
+  await persistActivityRecord(env, {
+    event_type: "paypal.order.capture.requested",
+    source: "website",
+    path: "/api/v1/paypal/capture-order",
+    order_id: orderId,
+    status: "requested",
+    details: { order_id: orderId }
+  }, `Request PayPal capture ${orderId}`);
+  const token = await paypalAccessToken(env);
+  const response = await fetch(`${paypalApiBase(env)}/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {
+    method: "POST",
+    headers: {
+      "authorization": `Bearer ${token}`,
+      "content-type": "application/json",
+      "prefer": "return=representation"
+    }
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    await persistActivityRecord(env, {
+      event_type: "paypal.order.capture.failed",
+      source: "website",
+      path: "/api/v1/paypal/capture-order",
+      order_id: orderId,
+      status: "failed",
+      message: payload?.message || payload?.details?.[0]?.description || "PayPal order capture failed",
+      details: payload
+    }, `Fail PayPal capture ${orderId}`);
+    return json({ ok: false, error: payload?.message || payload?.details?.[0]?.description || "PayPal order capture failed" }, { status: 502 });
+  }
+  await persistActivityRecord(env, {
+    event_type: "paypal.order.captured",
+    source: "website",
+    path: "/api/v1/paypal/capture-order",
+    order_id: orderId,
+    status: "completed",
+    details: payload
+  }, `Captured PayPal order ${orderId}`);
+  return fulfillCapturedSale(request, env, captureSummary(payload), "paypal-orders-capture");
+}
+
 function chatSettingsPayload(request, env) {
   const url = new URL(request.url);
   const wsProtocol = url.protocol === "https:" ? "wss:" : "ws:";
-  const ollamaModel = env.OLLAMA_MODEL || "aifred";
+  const ollamaModel = env.OLLAMA_MODEL || "aifred:latest";
   const openAiModel = env.OPENAI_MODEL || "gpt-5.4-mini";
   return {
     ok: true,
@@ -386,7 +706,7 @@ function commandCatalog() {
 }
 
 function repoConfig(env) {
-  const repo = String(env.AIFRED_GITHUB_REPO || "kaeganscott26/AIFRED").trim();
+  const repo = String(env.AIFRED_GITHUB_REPO || "kaeganscott26/aifred-site").trim();
   const branch = String(env.AIFRED_GITHUB_BRANCH || "main").trim();
   return { repo, branch };
 }
@@ -394,7 +714,7 @@ function repoConfig(env) {
 function pluginReleaseConfig(env) {
   return {
     repo: String(env.AIFRED_PLUGIN_REPO || "kaeganscott26/AIFRED").trim(),
-    tag: String(env.AIFRED_PLUGIN_RELEASE_TAG || "v0.3.2-juce-final").trim()
+    tag: String(env.AIFRED_PLUGIN_RELEASE_TAG || "v0.3.6-installer-ai-alias").trim()
   };
 }
 
@@ -505,6 +825,142 @@ async function appendRepoJsonRecord(env, relPath, record, message) {
   };
 }
 
+function activityRepoPath() {
+  return "ops/activity/site-activity.json";
+}
+
+function normalizeActivityType(value) {
+  const text = String(value || "site.event").trim().toLowerCase();
+  const normalized = text
+    .replace(/[^a-z0-9._-]+/g, ".")
+    .replace(/\.{2,}/g, ".")
+    .replace(/^\.+|\.+$/g, "");
+  return normalized || "site.event";
+}
+
+function activityCategory(type) {
+  const head = String(type || "").split(".")[0];
+  switch (head) {
+    case "admin":
+      return "admin";
+    case "paypal":
+      return "paypal";
+    case "website":
+      return "website";
+    case "analysis":
+      return "analysis";
+    case "inquiry":
+      return "inquiry";
+    case "catalog":
+      return "catalog";
+    case "sale":
+      return "sale";
+    case "download":
+      return "download";
+    default:
+      return "site";
+  }
+}
+
+async function persistActivityRecord(env, record, message) {
+  const normalizedType = normalizeActivityType(record.event_type || record.type || record.kind);
+  const normalized = {
+    id: String(record.id || crypto.randomUUID()).trim(),
+    created_at: String(record.created_at || new Date().toISOString()).trim(),
+    event_type: normalizedType,
+    category: String(record.category || activityCategory(normalizedType)).trim(),
+    source: String(record.source || "website").trim(),
+    path: String(record.path || "").trim(),
+    page: String(record.page || "").trim(),
+    title: String(record.title || "").trim(),
+    message: String(record.message || "").trim(),
+    session_id: String(record.session_id || record.client_session_id || "").trim(),
+    referrer: String(record.referrer || "").trim(),
+    user_agent: String(record.user_agent || "").trim(),
+    item_name: String(record.item_name || "").trim(),
+    amount: String(record.amount || "").trim(),
+    currency: String(record.currency || "").trim(),
+    order_id: String(record.order_id || "").trim(),
+    txn_id: String(record.txn_id || "").trim(),
+    custom_id: String(record.custom_id || "").trim(),
+    download_token: String(record.download_token || "").trim(),
+    status: String(record.status || "").trim(),
+    actor: String(record.actor || "").trim(),
+    details: record.details || {}
+  };
+
+  if (env.AIFRED_SALES_LOG && typeof env.AIFRED_SALES_LOG.put === "function") {
+    await env.AIFRED_SALES_LOG.put(`activity:${normalized.id}`, JSON.stringify(normalized));
+  }
+  return appendRepoJsonRecord(env, activityRepoPath(), normalized, message);
+}
+
+async function listActivityRecords(env, limit = 300) {
+  const records = [];
+  if (env.AIFRED_SALES_LOG && typeof env.AIFRED_SALES_LOG.list === "function") {
+    const listed = await env.AIFRED_SALES_LOG.list({ prefix: "activity:", limit });
+    for (const key of listed.keys || []) {
+      const raw = await env.AIFRED_SALES_LOG.get(key.name);
+      if (!raw) continue;
+      try {
+        records.push(JSON.parse(raw));
+      } catch (_) {}
+    }
+  }
+  records.push(...await readRepoJsonArray(env, activityRepoPath()));
+  const seen = new Set();
+  const merged = [];
+  for (const record of records) {
+    const id = String(record?.id || record?.txn_id || record?.order_id || record?.created_at || "").trim();
+    const key = id || JSON.stringify(record);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(record);
+  }
+  return merged.sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""))).slice(0, limit);
+}
+
+async function persistSaleRecord(env, sale, message) {
+  if (env.AIFRED_SALES_LOG && typeof env.AIFRED_SALES_LOG.put === "function") {
+    await env.AIFRED_SALES_LOG.put(`sale:${sale.txn_id}`, JSON.stringify(sale));
+    await env.AIFRED_SALES_LOG.put(`token:${sale.download_token}`, JSON.stringify(sale));
+  }
+  return appendRepoJsonRecord(env, salesRepoPath(), sale, message);
+}
+
+async function listSaleRecords(env) {
+  const repoSales = await readRepoJsonArray(env, salesRepoPath());
+  if (!env.AIFRED_SALES_LOG || typeof env.AIFRED_SALES_LOG.list !== "function") return repoSales;
+  const listed = await env.AIFRED_SALES_LOG.list({ prefix: "sale:", limit: 200 });
+  const kvSales = [];
+  for (const key of listed.keys || []) {
+    const raw = await env.AIFRED_SALES_LOG.get(key.name);
+    if (!raw) continue;
+    try {
+      kvSales.push(JSON.parse(raw));
+    } catch (_) {}
+  }
+  const byTxn = new Map();
+  [...kvSales, ...repoSales].forEach((sale) => {
+    const id = String(sale.txn_id || sale.id || "");
+    if (id && !byTxn.has(id)) byTxn.set(id, sale);
+  });
+  return [...byTxn.values()].sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+}
+
+async function findSaleByDownloadToken(env, token) {
+  if (env.AIFRED_SALES_LOG && typeof env.AIFRED_SALES_LOG.get === "function") {
+    const raw = await env.AIFRED_SALES_LOG.get(`token:${token}`);
+    if (raw) {
+      try {
+        return JSON.parse(raw);
+      } catch (_) {}
+    }
+  }
+  const sales = await readRepoJsonArray(env, salesRepoPath());
+  return sales.find((entry) => entry.download_token === token) || null;
+}
+
 async function sendNotificationEmail(env, payload) {
   if (env.MAILER && typeof env.MAILER.fetch === "function") {
     try {
@@ -552,6 +1008,11 @@ function assetNameForKey(key) {
   return "";
 }
 
+function releaseAssetObjectKey(env, assetName) {
+  const version = String(env.AIFRED_RELEASE_VERSION || pluginReleaseConfig(env).tag).trim();
+  return `releases/${version}/${assetName}`;
+}
+
 function buildDownloadUrl(request, token, assetKey) {
   const url = new URL("/api/v1/sales/download", request.url);
   url.searchParams.set("token", token);
@@ -560,6 +1021,20 @@ function buildDownloadUrl(request, token, assetKey) {
 }
 
 async function fetchReleaseAssetResponse(env, assetName) {
+  if (env.AIFRED_DOWNLOADS && typeof env.AIFRED_DOWNLOADS.get === "function") {
+    const objectKey = releaseAssetObjectKey(env, assetName);
+    const object = await env.AIFRED_DOWNLOADS.get(objectKey);
+    if (object) {
+      const headers = new Headers();
+      headers.set("cache-control", "no-store");
+      headers.set("content-disposition", `attachment; filename="${assetName}"`);
+      headers.set("content-type", object.httpMetadata?.contentType || "application/octet-stream");
+      headers.set("content-length", String(object.size));
+      headers.set("x-aifred-download-source", "r2");
+      return new Response(object.body, { status: 200, headers });
+    }
+  }
+
   if (!env.GITHUB_TOKEN) throw new Error("GITHUB_TOKEN is not configured");
   const { repo, tag } = pluginReleaseConfig(env);
   const release = await githubRequest(env, `/repos/${repo}/releases/tags/${encodeURIComponent(tag)}`);
@@ -594,11 +1069,24 @@ async function handleSalesDownload(request, env) {
   const assetName = assetNameForKey(assetKey);
   if (!token || !assetName) return json({ ok: false, error: "valid token and asset are required" }, { status: 400 });
 
-  const sales = await readRepoJsonArray(env, salesRepoPath());
-  const sale = sales.find((entry) => entry.download_token === token);
+  const sale = await findSaleByDownloadToken(env, token);
   if (!sale || sale.payment_status !== "Completed") {
     return json({ ok: false, error: "download token is invalid" }, { status: 403 });
   }
+
+  await persistActivityRecord(env, {
+    event_type: "website.download.requested",
+    source: "website",
+    path: "/api/v1/sales/download",
+    item_name: sale.item_name || "AIFRED Plugin (download)",
+    amount: sale.amount,
+    currency: sale.currency,
+    order_id: sale.order_id,
+    txn_id: sale.txn_id,
+    download_token: token,
+    status: "served",
+    details: { asset: assetKey }
+  }, `Serve download ${assetKey} for ${sale.txn_id || sale.order_id || token}`);
 
   return fetchReleaseAssetResponse(env, assetName);
 }
@@ -619,8 +1107,78 @@ async function handleManualSaleRecord(request, env) {
     custom: String(body.custom || "").trim(),
     download_token: base64Url(crypto.getRandomValues(new Uint8Array(24)))
   };
-  const written = await appendRepoJsonRecord(env, salesRepoPath(), record, `Record sale ${record.txn_id} from AIFRED admin`);
+  const written = await persistSaleRecord(env, record, `Record sale ${record.txn_id} from AIFRED admin`);
+  await persistActivityRecord(env, {
+    event_type: "admin.sale.record",
+    source: "admin",
+    path: "/api/v1/admin/sales/record",
+    item_name: "AIFRED Plugin (download)",
+    amount: record.amount,
+    currency: record.currency,
+    txn_id: record.txn_id,
+    status: record.payment_status,
+    details: record
+  }, `Record admin sale ${record.txn_id}`);
   return json({ ok: true, sale: record, commit: written.commit });
+}
+
+async function sendSaleEmails(env, sale, setupUrl, zipUrl) {
+  const ownerRecipient = contactEmail(env);
+  const buyerLabel = sale.payer_email || sale.txn_id || sale.order_id || "AIFRED sale";
+  const ownerSubject = `AIFRED sale received: ${buyerLabel}`;
+  const ownerText = [
+    "AIFRED sale received.",
+    `payer: ${sale.payer_name || "Unknown payer"} <${sale.payer_email || "no-email"}>`,
+    `txn_id: ${sale.txn_id || "n/a"}`,
+    `order_id: ${sale.order_id || "n/a"}`,
+    `amount: ${sale.amount} ${sale.currency}`,
+    `setup link: ${setupUrl}`,
+    `zip link: ${zipUrl}`
+  ].join("\n");
+  const ownerHtml = `
+    <h1>AIFRED sale received</h1>
+    <p><strong>Payer:</strong> ${escapeHtml(sale.payer_name || "Unknown payer")} &lt;${escapeHtml(sale.payer_email || "no-email")}&gt;</p>
+    <p><strong>Transaction:</strong> ${escapeHtml(sale.txn_id || "n/a")}</p>
+    <p><strong>Order:</strong> ${escapeHtml(sale.order_id || "n/a")}</p>
+    <p><strong>Amount:</strong> ${escapeHtml(sale.amount)} ${escapeHtml(sale.currency)}</p>
+    <p><a href="${escapeHtml(setupUrl)}">Windows installer</a></p>
+    <p><a href="${escapeHtml(zipUrl)}">Windows zip</a></p>
+  `;
+
+  await sendNotificationEmail(env, {
+    to: ownerRecipient,
+    from: emailFrom(env),
+    subject: ownerSubject,
+    text: ownerText,
+    html: ownerHtml
+  });
+
+  if (!sale.payer_email) return;
+
+  const buyerSubject = "AIFRED beta access download links";
+  const buyerText = [
+    "Thanks for purchasing AIFRED beta access.",
+    "",
+    `Windows installer: ${setupUrl}`,
+    `Windows zip: ${zipUrl}`,
+    "",
+    "Lifetime beta updates are included in this beta window."
+  ].join("\n");
+  const buyerHtml = `
+    <h1>AIFRED beta access</h1>
+    <p>Thanks for purchasing AIFRED beta access.</p>
+    <p><a href="${escapeHtml(setupUrl)}">Download the Windows installer</a></p>
+    <p><a href="${escapeHtml(zipUrl)}">Download the Windows zip</a></p>
+    <p>Lifetime beta updates are included in this beta window.</p>
+  `;
+
+  await sendNotificationEmail(env, {
+    to: sale.payer_email,
+    from: emailFrom(env),
+    subject: buyerSubject,
+    text: buyerText,
+    html: buyerHtml
+  });
 }
 
 async function handlePayPalIpn(request, env) {
@@ -664,6 +1222,20 @@ async function handlePayPalIpn(request, env) {
     return new Response("", { status: 200 });
   }
 
+  await persistActivityRecord(env, {
+    event_type: "paypal.ipn.completed",
+    source: "website",
+    path: "/api/v1/paypal/ipn",
+    txn_id: txnId,
+    item_name: "AIFRED Plugin (download)",
+    amount: amount.toFixed(2),
+    currency,
+    status: paymentStatus.toLowerCase(),
+    details: {
+      payment_status: paymentStatus,
+      receiver_email: receiverEmail
+    }
+  }, `Confirm PayPal IPN ${txnId}`);
   const downloadToken = base64Url(crypto.getRandomValues(new Uint8Array(24)));
   const sale = {
     id: crypto.randomUUID(),
@@ -682,63 +1254,11 @@ async function handlePayPalIpn(request, env) {
     release_tag: pluginReleaseConfig(env).tag
   };
 
-  await appendRepoJsonRecord(env, salesRepoPath(), sale, `Record PayPal sale ${txnId}`);
+  await persistSaleRecord(env, sale, `Record PayPal sale ${txnId}`);
 
   const setupUrl = buildDownloadUrl(request, downloadToken, "setup");
   const zipUrl = buildDownloadUrl(request, downloadToken, "zip");
-  const ownerRecipient = contactEmail(env);
-  const ownerSubject = `AIFRED sale received: ${payerEmail || txnId}`;
-  const ownerText = [
-    "AIFRED sale received.",
-    `payer: ${payerName || "Unknown payer"} <${payerEmail || "no-email"}>`,
-    `txn_id: ${txnId}`,
-    `amount: ${sale.amount} ${currency}`,
-    `setup link: ${setupUrl}`,
-    `zip link: ${zipUrl}`
-  ].join("\n");
-  const ownerHtml = `
-    <h1>AIFRED sale received</h1>
-    <p><strong>Payer:</strong> ${escapeHtml(payerName || "Unknown payer")} &lt;${escapeHtml(payerEmail || "no-email")}&gt;</p>
-    <p><strong>Transaction:</strong> ${escapeHtml(txnId)}</p>
-    <p><strong>Amount:</strong> ${escapeHtml(sale.amount)} ${escapeHtml(currency)}</p>
-    <p><a href="${escapeHtml(setupUrl)}">Windows installer</a></p>
-    <p><a href="${escapeHtml(zipUrl)}">Windows zip</a></p>
-  `;
-
-  await sendNotificationEmail(env, {
-    to: ownerRecipient,
-    from: emailFrom(env),
-    subject: ownerSubject,
-    text: ownerText,
-    html: ownerHtml
-  });
-
-  if (payerEmail) {
-    const buyerSubject = "AIFRED beta access download links";
-    const buyerText = [
-      "Thanks for purchasing AIFRED beta access.",
-      "",
-      `Windows installer: ${setupUrl}`,
-      `Windows zip: ${zipUrl}`,
-      "",
-      "Lifetime beta updates are included in this beta window."
-    ].join("\n");
-    const buyerHtml = `
-      <h1>AIFRED beta access</h1>
-      <p>Thanks for purchasing AIFRED beta access.</p>
-      <p><a href="${escapeHtml(setupUrl)}">Download the Windows installer</a></p>
-      <p><a href="${escapeHtml(zipUrl)}">Download the Windows zip</a></p>
-      <p>Lifetime beta updates are included in this beta window.</p>
-    `;
-
-    await sendNotificationEmail(env, {
-      to: payerEmail,
-      from: emailFrom(env),
-      subject: buyerSubject,
-      text: buyerText,
-      html: buyerHtml
-    });
-  }
+  await sendSaleEmails(env, sale, setupUrl, zipUrl);
 
   return new Response("", { status: 200 });
 }
@@ -791,6 +1311,14 @@ async function handleAdminFileWrite(request, env) {
   } catch (error) {
     return json({ ok: false, error: `GitHub write failed: ${error.message || "unknown error"}` }, { status: 502 });
   }
+  await persistActivityRecord(env, {
+    event_type: "admin.file.write",
+    source: "admin",
+    path: relPath,
+    title: relPath,
+    status: "saved",
+    details: { deploy: Boolean(shouldDeploy), length: content.length }
+  }, `Write ${relPath}`);
   return json({
     ok: true,
     path: relPath,
@@ -837,6 +1365,14 @@ async function handleAdminFileDelete(request, env) {
       sha: existing.sha
     })
   });
+  await persistActivityRecord(env, {
+    event_type: "admin.file.delete",
+    source: "admin",
+    path: relPath,
+    title: relPath,
+    status: "deleted",
+    details: { sha: existing.sha || "" }
+  }, `Delete ${relPath}`);
   return json({ ok: true, path: relPath, commit: payload.commit?.sha || "" });
 }
 
@@ -885,6 +1421,14 @@ async function handleAdminFileUpload(request, env) {
   if (!file || typeof file === "string") return json({ ok: false, error: "file is required" }, { status: 400 });
   const targetPath = safeRepoPath(form.get("path") || `website/assets/uploads/${safeUploadName(file.name)}`);
   const written = await writeBinaryRepoFile(env, targetPath, file, `Upload ${targetPath} from AIFRED admin`);
+  await persistActivityRecord(env, {
+    event_type: "admin.file.upload",
+    source: "admin",
+    path: targetPath,
+    title: file.name,
+    status: "uploaded",
+    details: { size: file.size || 0, content_type: file.type || "" }
+  }, `Upload ${targetPath}`);
   return json({ ok: true, stored_path: written.path, commit: written.commit });
 }
 
@@ -896,6 +1440,14 @@ async function handleAdminReferenceUpload(request, env) {
   const genre = String(form.get("genre") || "reference").replace(/[^A-Za-z0-9._-]/g, "-").toLowerCase();
   const targetPath = `website/assets/reference_pool/${genre}/${safeUploadName(file.name)}`;
   const written = await writeBinaryRepoFile(env, targetPath, file, `Upload reference ${targetPath} from AIFRED admin`);
+  await persistActivityRecord(env, {
+    event_type: "admin.reference.upload",
+    source: "admin",
+    path: targetPath,
+    title: file.name,
+    status: "uploaded",
+    details: { genre, size: file.size || 0 }
+  }, `Upload reference ${targetPath}`);
   return json({ ok: true, stored_path: written.path, commit: written.commit });
 }
 
@@ -940,6 +1492,16 @@ async function handleAdminCatalogUpload(request, env) {
       ...(sha ? { sha } : {})
     })
   });
+  await persistActivityRecord(env, {
+    event_type: "admin.catalog.upload",
+    source: "admin",
+    path: catalogPath,
+    title,
+    item_name: title,
+    amount: track.price,
+    status: "uploaded",
+    details: track
+  }, `Upload catalog item ${title}`);
   return json({ ok: true, stored_path: audioWrite.path, track, commit: audioWrite.commit });
 }
 
@@ -948,6 +1510,14 @@ async function handleCommand(request, env) {
   const body = await readJson(request);
   const command = String(body.command_line || body.command || "").trim();
   const normalized = command.startsWith("action:") ? command.slice(7).trim() : command;
+  await persistActivityRecord(env, {
+    event_type: "admin.command.run",
+    source: "admin",
+    path: "/api/v1/command/run",
+    title: normalized || command,
+    status: "executed",
+    details: { command: normalized || command }
+  }, `Run command ${normalized || command}`);
   let stdout = "";
   if (normalized === "health") stdout = JSON.stringify({ ok: true, service: "AIFRED website backend" }, null, 2);
   else if (normalized === "catalog:list") stdout = `tracks=${(await loadCatalog(request)).length}`;
@@ -955,14 +1525,15 @@ async function handleCommand(request, env) {
     openai: Boolean(env.OPENAI_API_KEY),
     openai_model: env.OPENAI_MODEL || "gpt-5.4-mini",
     ollama: Boolean(env.OLLAMA_BASE_URL),
-    ollama_model: env.OLLAMA_MODEL || "aifred"
+    ollama_model: env.OLLAMA_MODEL || "aifred:latest"
   }, null, 2);
   else if (normalized === "reference:stats") stdout = JSON.stringify({
     reference_pool_binding: Boolean(env.AIFRED_REFERENCE_POOL),
-    accepted_uploads: env.AIFRED_REFERENCE_POOL ? "stored in KV" : "accepted metadata is reported but not persisted until KV is bound"
+    reference_bucket_binding: Boolean(env.AIFRED_REFERENCE_BUCKET),
+    accepted_uploads: env.AIFRED_REFERENCE_POOL ? "stored in KV and mirrored to R2 when bound" : "accepted metadata is reported but not persisted until KV is bound"
   }, null, 2);
   else if (normalized === "deploy:status") stdout = "Cloudflare Pages project: aifred-site. Production domains: north3rnlight3r.com and aifred-site.pages.dev.";
-  else if (normalized === "sales:list") stdout = JSON.stringify(await readRepoJsonArray(env, salesRepoPath()), null, 2);
+  else if (normalized === "sales:list") stdout = JSON.stringify(await listSaleRecords(env), null, 2);
   else if (normalized === "inquiries:list") stdout = JSON.stringify(await readRepoJsonArray(env, inquiriesRepoPath()), null, 2);
   else return json({ ok: false, exit_code: 2, stderr: "Unsupported command. Use /api/v1/registry/actions for the allowlist." }, { status: 400 });
   return json({ ok: true, exit_code: 0, stdout, stderr: "" });
@@ -977,6 +1548,14 @@ async function handleAdminLogin(request, env) {
   if (username !== expected.username || passwordHash !== expected.passwordHash) {
     return json({ ok: false, error: "invalid admin credentials" }, { status: 401 });
   }
+  await persistActivityRecord(env, {
+    event_type: "admin.login.success",
+    source: "admin",
+    path: "/api/v1/admin/login",
+    title: username,
+    actor: username,
+    status: "authenticated"
+  }, `Admin login ${username}`);
   return json({ ok: true, username, session_token: await createAdminSession(username, env) });
 }
 
@@ -989,6 +1568,7 @@ export async function onRequest({ request, env, params }) {
   if (path === "catalog/list") return json({ ok: true, tracks: await loadCatalog(request) });
   if (path === "soundpacks/list") return json({ ok: true, soundpacks: [] });
   if (path === "content/get") return json({ ok: true, content: contentPayload() });
+  if (path === "activity/record" && request.method === "POST") return handleActivityRecord(request, env);
   if (path === "analysis/submit" && request.method === "POST") return handleAnalysisSubmit(request, env);
   if (path === "analyzer/submit" && request.method === "POST") return handleAnalysisSubmit(request, env);
   if (path === "chat/settings") return json(chatSettingsPayload(request, env));
@@ -996,13 +1576,47 @@ export async function onRequest({ request, env, params }) {
   if (path === "admin/login" && request.method === "POST") return handleAdminLogin(request, env);
   if (path === "command/run" && request.method === "POST") return handleCommand(request, env);
   if (path === "registry/actions") return json({ ok: true, actions: commandCatalog() });
-  if (path === "admin/dashboard/state") return json({
-    ok: true,
-    traffic: { status: "live", source: "Cloudflare health endpoint" },
-    catalog: { tracks: (await loadCatalog(request)).length, source: "website/assets/data/beat_catalog.json" },
-    analytics: { configured: Boolean(env.AIFRED_ANALYTICS_API_TOKEN), message: env.AIFRED_ANALYTICS_API_TOKEN ? "analytics provider configured" : "live analytics are not configured" },
-    deploy: { source: repoConfig(env).repo, branch: repoConfig(env).branch, target: "Cloudflare Pages project aifred-site" }
-  });
+  if (path === "admin/dashboard/state") {
+    const catalog = await loadCatalog(request);
+    const activity = await listActivityRecords(env, 300);
+    const inquiries = await readRepoJsonArray(env, inquiriesRepoPath());
+    const sales = await listSaleRecords(env);
+    const eventRecords = activity.filter((entry) => !String(entry.event_type || "").startsWith("admin."));
+    const adminRecords = activity.filter((entry) => String(entry.event_type || "").startsWith("admin."));
+    const trafficEvents = eventRecords.filter((entry) => {
+      const type = String(entry.event_type || "");
+      return type.includes("page_view") || type.includes("buy") || type.includes("play") || type.includes("analysis") || type.includes("download");
+    });
+    return json({
+      ok: true,
+      snapshot_at: new Date().toISOString(),
+      traffic: {
+        status: "live",
+        source: env.AIFRED_SALES_LOG ? "Cloudflare KV and GitHub activity log" : "GitHub activity log",
+        page_views: eventRecords.filter((entry) => String(entry.event_type || "").includes("page_view")).length,
+        api_hits: activity.length,
+        media_streams: eventRecords.filter((entry) => String(entry.event_type || "").includes("play")).length,
+        downloads: eventRecords.filter((entry) => String(entry.event_type || "").includes("download")).length,
+        recent: trafficEvents.slice(0, 12)
+      },
+      catalog: { tracks: catalog.length, source: "website/assets/data/beat_catalog.json" },
+      inquiries: {
+        count: inquiries.length,
+        latest: inquiries.slice(0, 1)
+      },
+      sales: {
+        count: sales.length,
+        latest: sales.slice(0, 1)
+      },
+      logs: {
+        configured: Boolean(env.GITHUB_TOKEN || env.AIFRED_SALES_LOG),
+        events: eventRecords.slice(0, 100),
+        adminlog: adminRecords.slice(0, 100)
+      },
+      analytics: { configured: Boolean(env.AIFRED_ANALYTICS_API_TOKEN), message: env.AIFRED_ANALYTICS_API_TOKEN ? "analytics provider configured" : "live analytics are not configured" },
+      deploy: { source: repoConfig(env).repo, branch: repoConfig(env).branch, target: "Cloudflare Pages project aifred-site" }
+    });
+  }
   if (path === "admin/catalog/list") return json({ ok: true, tracks: await loadCatalog(request) });
   if (path === "admin/files/read" && request.method === "POST") return handleAdminFileRead(request, env);
   if (path === "admin/files/write" && request.method === "POST") return handleAdminFileWrite(request, env);
@@ -1020,19 +1634,40 @@ export async function onRequest({ request, env, params }) {
       message: env.GITHUB_TOKEN ? "Inquiry records loaded from repository storage." : "Inquiry persistence requires GITHUB_TOKEN in Cloudflare Pages."
     });
   }
-  if (path === "admin/logs/list") return json({ ok: true, configured: false, logs: [], message: "Live log storage is not configured." });
-  if (path === "admin/sales/list") {
-    const sales = await readRepoJsonArray(env, salesRepoPath());
+  if (path === "admin/logs/list") {
+    const activity = await listActivityRecords(env, 300);
+    const adminlog = activity.filter((entry) => String(entry.event_type || "").startsWith("admin."));
+    const events = activity.filter((entry) => !String(entry.event_type || "").startsWith("admin."));
     return json({
       ok: true,
-      configured: Boolean(env.GITHUB_TOKEN),
+      configured: Boolean(env.GITHUB_TOKEN || env.AIFRED_SALES_LOG),
+      logs: activity,
+      events,
+      adminlog,
+      message: env.GITHUB_TOKEN || env.AIFRED_SALES_LOG ? "Activity log loaded from repo or KV." : "Activity storage requires GITHUB_TOKEN or AIFRED_SALES_LOG."
+    });
+  }
+  if (path === "admin/sales/list") {
+    const sales = await listSaleRecords(env);
+    return json({
+      ok: true,
+      configured: Boolean(env.GITHUB_TOKEN || env.AIFRED_SALES_LOG),
       sales,
-      message: env.GITHUB_TOKEN ? "Sales records loaded from repository storage." : "Sales storage requires GITHUB_TOKEN in Cloudflare Pages."
+      message: env.AIFRED_SALES_LOG ? "Sales records loaded from KV with repository fallback." : env.GITHUB_TOKEN ? "Sales records loaded from repository storage." : "Sales storage requires AIFRED_SALES_LOG KV or GITHUB_TOKEN."
+    });
+  }
+  if (path === "admin/reference/list") {
+    const references = await listReferenceRecords(env, 200);
+    return json({
+      ok: true,
+      configured: Boolean(env.AIFRED_REFERENCE_POOL),
+      references,
+      message: env.AIFRED_REFERENCE_POOL ? "Accepted analyzer references loaded from KV." : "Reference persistence requires AIFRED_REFERENCE_POOL KV."
     });
   }
   if (path === "admin/sales/record" && request.method === "POST") return handleManualSaleRecord(request, env);
   if (path === "models/list") {
-    const ollamaModel = env.OLLAMA_MODEL || "aifred";
+    const ollamaModel = env.OLLAMA_MODEL || "aifred:latest";
     const openAiModel = env.OPENAI_MODEL || "gpt-5.4-mini";
     return json({
       ok: true,
@@ -1045,6 +1680,9 @@ export async function onRequest({ request, env, params }) {
     });
   }
   if (path === "chat/ask" && request.method === "POST") return handleChat(request, env);
+  if (path === "paypal/config" && request.method === "GET") return handlePayPalConfig(request, env);
+  if (path === "paypal/create-order" && request.method === "POST") return handlePayPalCreateOrder(request, env);
+  if (path === "paypal/capture-order" && request.method === "POST") return handlePayPalCaptureOrder(request, env);
   if (path === "paypal/ipn" && request.method === "POST") return handlePayPalIpn(request, env);
   if (path === "sales/download" && request.method === "GET") return handleSalesDownload(request, env);
   if (path === "inquiries/submit" && request.method === "POST") {
@@ -1095,3 +1733,4 @@ export async function onRequest({ request, env, params }) {
     return json({ ok: false, error: error.message || "backend route failed", route: path }, { status: 500 });
   }
 }
+

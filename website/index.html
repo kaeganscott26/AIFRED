@@ -93,19 +93,8 @@
               <span>No subscription</span>
               <span>No recurring charge</span>
             </div>
-            <form id="aifred-paypal-form" action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_top">
-              <input type="hidden" name="business" value="kaeganscott@outlook.com">
-              <input type="hidden" name="cmd" value="_xclick">
-              <input type="hidden" name="item_name" value="AIFRED Plugin (download)">
-              <input type="hidden" name="amount" value="5.00">
-              <input type="hidden" name="currency_code" value="USD">
-              <input type="hidden" name="notify_url" value="">
-              <input type="hidden" name="return" value="">
-              <input type="hidden" name="cancel_return" value="">
-              <input type="hidden" name="custom" value="">
-              <button class="btn" type="submit">Buy Now ($5)</button>
-              <img alt="" border="0" src="https://www.paypalobjects.com/en_US/i/scr/pixel.gif" width="1" height="1">
-            </form>
+            <div id="aifred-paypal-buttons"></div>
+            <p class="purchase-status" id="aifred-purchase-status" role="status" aria-live="polite"></p>
             <div class="download-strip" id="aifred-downloads" aria-label="AIFRED downloads"></div>
           </div>
         </div>

@@ -21,6 +21,7 @@ The backend is a Cloudflare Pages Worker mounted from `website/_worker.js`.
 | `GET` | `/api/v1/content/get` | Website content payload |
 | `POST` | `/api/v1/analysis/submit` | Free analyzer metadata gate |
 | `POST` | `/api/v1/analyzer/submit` | Alias for analyzer gate |
+| `POST` | `/api/v1/activity/record` | Public site activity logging |
 | `GET` | `/api/v1/chat/settings` | Chat transport/settings |
 | `GET` | `/api/v1/models/list` | Configured model catalog |
 | `POST` | `/api/v1/chat/ask` | HTTP chat request |
@@ -49,6 +50,8 @@ The backend is a Cloudflare Pages Worker mounted from `website/_worker.js`.
 | `GET` | `/api/v1/admin/sales/list` | Sales list |
 | `POST` | `/api/v1/admin/sales/record` | Record PayPal sale metadata |
 | `POST` | `/api/v1/admin/chat/settings/save` | Save chat settings payload |
+
+The admin dashboard now reads the same activity feed used for notifications, so buy clicks, order creation, captures, inquiries, downloads, and admin uploads all land in one place. The site keeps that feed in Cloudflare KV when the sales log binding exists and mirrors it to the repo when GitHub is configured.
 
 ## Analyzer Gate
 
