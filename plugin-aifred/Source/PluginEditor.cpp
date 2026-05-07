@@ -128,6 +128,17 @@ float metricValue(const HaloState& state, int index) {
   }
 }
 
+const char* metricLabel(int index) {
+  switch (index) {
+    case 0: return "Tone";
+    case 1: return "Width";
+    case 2: return "Punch";
+    default: return "Loudness";
+  }
+}
+
+} // namespace
+
 juce::String AifredAudioProcessorEditor::scoreText(float score, const HaloState& state, Domain domain) {
   if (!state.hasSignal) return "Waiting";
   if (!state.valuesValid) return "--";
@@ -151,17 +162,6 @@ juce::String AifredAudioProcessorEditor::scoreText(float score, const HaloState&
   }
   return pct(score);
 }
-
-const char* metricLabel(int index) {
-  switch (index) {
-    case 0: return "Tone";
-    case 1: return "Width";
-    case 2: return "Punch";
-    default: return "Loudness";
-  }
-}
-
-} // namespace
 
 AifredAudioProcessorEditor::AifredAudioProcessorEditor(AifredAudioProcessor& processor)
   : AudioProcessorEditor(&processor), processor_(processor) {
@@ -683,7 +683,7 @@ void AifredAudioProcessorEditor::drawHaloSpectrometer(juce::Graphics& g, juce::R
   g.drawText(haloCenterMode_ == 0 ? "MULTIBAND" : (haloCenterMode_ == 1 ? "WAVEFORM" : "BANDS + WAVE"), bounds.toNearestInt().removeFromTop(14), juce::Justification::centred);
 }
 
-void AifredAudioProcessorEditor::drawDomainCard(juce::Graphics& g, juce::Rectangle<int> bounds, const char* name, const DomainAlignment& alignment, const HaloState& state) {
+void AifredAudioProcessorEditor::drawDomainCard(juce::Graphics& g, juce::Rectangle<int> bounds, const char* name, Domain domain, const DomainAlignment& alignment, const HaloState& state) {
   drawPanel(g, bounds.toFloat(), 8.0f);
   auto inner = bounds.reduced(12, 8);
   g.setFont(uiFont(13.0f, 13.0f, juce::Font::bold));
@@ -696,7 +696,7 @@ void AifredAudioProcessorEditor::drawDomainCard(juce::Graphics& g, juce::Rectang
   g.fillRoundedRectangle(bar.withWidth(bar.getWidth() * alignment.alignment01), 5.0f);
   g.setFont(uiFont(22.0f, 18.0f, juce::Font::bold));
   g.setColour(Colours::ink);
-  g.drawText(scoreText(alignment.alignment01, state), inner.removeFromTop(32), juce::Justification::centredLeft);
+  g.drawText(scoreText(alignment.alignment01, state, domain), inner.removeFromTop(32), juce::Justification::centredLeft);
   g.setFont(uiFont(11.5f, 13.0f));
   g.setColour(Colours::muted);
   juce::String units = juce::String(alignment.rawPrimaryMetric, 2) + " primary / " + juce::String(alignment.rawSecondaryMetric, 2) + " secondary";

@@ -26,6 +26,8 @@ struct DspMetrics {
   float width01 = 0.0f;
   float punch01 = 0.0f;
   float loudness01 = 0.0f;
+  float spectralTilt = 0.0f;
+  float stereoWidth = 0.0f;
   float rmsDb = -90.0f;
   float momentaryLufs = -90.0f;
   float shortTermLufs = -90.0f;
