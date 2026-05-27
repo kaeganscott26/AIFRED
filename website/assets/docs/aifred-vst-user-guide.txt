@@ -1,7 +1,0 @@
-AIFRED VST3 Guide
-
-Insert Aifred on a mix bus or reference-check channel. The Halo reads tone, stereo, loudness, and dynamics, then ranks the next fix by measured impact.
-
-The first Windows build focuses on FL Studio scanning and stable VST3 packaging. macOS and Linux builds are validated through CI before distribution.
-
-Aifred is a diagnostic assistant for mix decisions. It does not replace the producer; it narrows the next move.

@@ -1,0 +1,27 @@
+AIFRED Official Beta Release Notes
+=================================
+
+Release: v0.3.3-ollama-chat
+Date: April 2026
+
+Welcome to the AIFRED VST3 v0.3.3 Ollama chat release.
+
+Key Features in this Release:
+- Real-time Halo-based analysis (Tone, Width, Loudness, Punch)
+- Reference alignment and A/B comparison
+- Visual feedback optimized for fast mix decisions
+- Stable Windows VST3 build
+
+Purchase Details:
+- $5 one-time beta purchase
+- Free updates for life included
+- No subscription or recurring charges
+
+Installation:
+1. Download the AIFRED VST3 installer from your purchase confirmation link.
+2. Run the installer and follow the on-screen instructions.
+3. Load AIFRED in your DAW on your master bus or individual tracks.
+
+Support:
+For issues or feedback, please contact North3rnLight3r through the website contact form or email north3rnlight3rofficial@outlook.com.
+

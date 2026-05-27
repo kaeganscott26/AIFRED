@@ -73,13 +73,7 @@ async function verifyAdmin(request, env) {
   }
 }
 
-async function loadCatalog(request, env) {
-  if (env && env.AIFRED_DB) {
-    try {
-      const { results } = await env.AIFRED_DB.prepare("SELECT * FROM catalog ORDER BY created_at DESC").all();
-      if (Array.isArray(results) && results.length > 0) return results;
-    } catch (_) {}
-  }
+async function loadCatalog(request) {
   const response = await fetch(new URL("/assets/data/beat_catalog.json", request.url), { cache: "no-store" });
   const tracks = await response.json();
   return Array.isArray(tracks) ? tracks : [];
@@ -1464,19 +1458,9 @@ async function handleAdminCatalogUpload(request, env) {
   if (!file || typeof file === "string") return json({ ok: false, error: "file is required" }, { status: 400 });
   const title = String(form.get("title") || file.name || "North3rnLight3r catalog upload").trim();
   const fileName = safeUploadName(file.name);
-
-  // Save to R2 if available
-  if (env.AIFRED_CATALOG) {
-    try {
-      await env.AIFRED_CATALOG.put(`audio/${fileName}`, file.stream(), {
-        httpMetadata: { contentType: file.type || "audio/mpeg" }
-      });
-    } catch (_) {}
-  }
-
   const audioPath = `website/assets/audio/catalog/${fileName}`;
   const audioWrite = await writeBinaryRepoFile(env, audioPath, file, `Upload catalog audio ${fileName} from AIFRED admin`);
-  const tracks = await loadCatalog(request, env);
+  const tracks = await loadCatalog(request);
   const track = {
     key: crypto.randomUUID(),
     title,
@@ -1491,20 +1475,6 @@ async function handleAdminCatalogUpload(request, env) {
     key_signature: String(form.get("key") || "").trim(),
     tempo: String(form.get("tempo") || "").trim()
   };
-
-  // Save to D1 if available
-  if (env.AIFRED_DB) {
-    try {
-      await env.AIFRED_DB.prepare(`
-        INSERT INTO catalog (id, title, bpm, genre, price, asset_file_name, stream_url, artwork_url, description, key_signature, tempo, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        track.key, track.title, track.bpm, track.genre, track.price, track.asset_file_name,
-        track.stream_url, track.artwork_url, track.description, track.key_signature, track.tempo, Date.now()
-      ).run();
-    } catch (_) {}
-  }
-
   const { repo, branch } = repoConfig(env);
   const catalogPath = "website/assets/data/beat_catalog.json";
   const encodedPath = encodeURIComponent(catalogPath).replace(/%2F/g, "/");
@@ -1550,7 +1520,7 @@ async function handleCommand(request, env) {
   }, `Run command ${normalized || command}`);
   let stdout = "";
   if (normalized === "health") stdout = JSON.stringify({ ok: true, service: "AIFRED website backend" }, null, 2);
-  else if (normalized === "catalog:list") stdout = `tracks=${(await loadCatalog(request, env)).length}`;
+  else if (normalized === "catalog:list") stdout = `tracks=${(await loadCatalog(request)).length}`;
   else if (normalized === "models:list") stdout = JSON.stringify({
     openai: Boolean(env.OPENAI_API_KEY),
     openai_model: env.OPENAI_MODEL || "gpt-5.4-mini",
@@ -1595,7 +1565,7 @@ export async function onRequest({ request, env, params }) {
   if (request.method === "OPTIONS") return new Response(null, { status: 204 });
   try {
   if (path === "health") return json({ ok: true, service: "AIFRED website backend" });
-  if (path === "catalog/list") return json({ ok: true, tracks: await loadCatalog(request, env) });
+  if (path === "catalog/list") return json({ ok: true, tracks: await loadCatalog(request) });
   if (path === "soundpacks/list") return json({ ok: true, soundpacks: [] });
   if (path === "content/get") return json({ ok: true, content: contentPayload() });
   if (path === "activity/record" && request.method === "POST") return handleActivityRecord(request, env);
@@ -1607,7 +1577,7 @@ export async function onRequest({ request, env, params }) {
   if (path === "command/run" && request.method === "POST") return handleCommand(request, env);
   if (path === "registry/actions") return json({ ok: true, actions: commandCatalog() });
   if (path === "admin/dashboard/state") {
-    const catalog = await loadCatalog(request, env);
+    const catalog = await loadCatalog(request);
     const activity = await listActivityRecords(env, 300);
     const inquiries = await readRepoJsonArray(env, inquiriesRepoPath());
     const sales = await listSaleRecords(env);
@@ -1647,7 +1617,7 @@ export async function onRequest({ request, env, params }) {
       deploy: { source: repoConfig(env).repo, branch: repoConfig(env).branch, target: "Cloudflare Pages project aifred-site" }
     });
   }
-  if (path === "admin/catalog/list") return json({ ok: true, tracks: await loadCatalog(request, env) });
+  if (path === "admin/catalog/list") return json({ ok: true, tracks: await loadCatalog(request) });
   if (path === "admin/files/read" && request.method === "POST") return handleAdminFileRead(request, env);
   if (path === "admin/files/write" && request.method === "POST") return handleAdminFileWrite(request, env);
   if (path === "admin/files/list") return handleAdminFileList(request, env);
