@@ -14,6 +14,8 @@ public:
   void reset();
   void pushAudioBlock(const juce::AudioBuffer<float>& buffer);
   HaloState snapshot() const;
+  void setReferenceTarget(const ReferenceTarget& target);
+  void clearReferenceTarget();
   DspMetrics exportSessionCandles() const;
   void importSessionCandles(const DspMetrics& metrics);
   void finalizeCurrentSession();
@@ -64,6 +66,7 @@ private:
 
   FeatureFrame live_;
   FeatureFrame smoothed_;
+  ReferenceTarget referenceTarget_;
   CandleFrame liveSessionCandle_;
   std::array<CandleFrame, 10> sessionCandles_ {};
   std::array<CandleFrame, 10> minuteCandles_ {};

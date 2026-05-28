@@ -128,6 +128,14 @@ void AifredAudioProcessor::setPluginSettings(const PluginSettings& settings) {
   saveLocalSettings();
 }
 
+void AifredAudioProcessor::setReferenceTarget(const ReferenceTarget& target) {
+  analysis_.setReferenceTarget(target);
+}
+
+void AifredAudioProcessor::clearReferenceTarget() {
+  analysis_.clearReferenceTarget();
+}
+
 bool AifredAudioProcessor::isSessionInitialized() const {
   if (const auto* value = parameters_.getRawParameterValue("session_initialized")) {
     return value->load() > 0.5f;

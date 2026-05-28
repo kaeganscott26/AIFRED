@@ -36,15 +36,34 @@ sealed class AifredRuntime
 
     public static AifredRuntime Create()
     {
-        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         var executableRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, ".."));
         var installRoot = File.Exists(Path.Combine(executableRoot, "config", "config.json"))
             ? executableRoot
-            : Path.Combine(programFiles, "Aifred");
+            : DefaultInstallRoot();
         return new AifredRuntime(
             installRoot,
-            Path.Combine(appData, "Aifred"));
+            Path.Combine(DefaultAppDataRoot(), "Aifred"));
+    }
+
+    static string DefaultInstallRoot()
+    {
+        if (OperatingSystem.IsMacOS())
+        {
+            return "/Library/Application Support/Aifred";
+        }
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Aifred");
+    }
+
+    static string DefaultAppDataRoot()
+    {
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        if (!string.IsNullOrWhiteSpace(appData)) return appData;
+        if (OperatingSystem.IsMacOS())
+        {
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            return Path.Combine(home, "Library", "Application Support");
+        }
+        return AppContext.BaseDirectory;
     }
 
     public async Task RunAsync()

@@ -52,6 +52,8 @@ public:
   void setMode(AnalysisMode mode);
   PluginSettings getPluginSettings() const;
   void setPluginSettings(const PluginSettings& settings);
+  void setReferenceTarget(const ReferenceTarget& target);
+  void clearReferenceTarget();
   bool isSessionInitialized() const;
   void markSessionInitialized();
 

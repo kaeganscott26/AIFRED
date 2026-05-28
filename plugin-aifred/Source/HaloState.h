@@ -62,8 +62,8 @@ struct ReferenceTarget {
   float punch01 = 0.58f;
   float loudnessDb = -11.5f;
   float crestDb = 10.4f;
-  int poolSize = 25;
-  std::string label = "PRO 25x6";
+  int poolSize = 0;
+  std::string label = "No reference";
 };
 
 struct HaloState {

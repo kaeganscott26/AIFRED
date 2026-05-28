@@ -11,6 +11,7 @@ public:
 
   void pingHealthAsync();
   void askAsync(juce::String prompt, juce::String contextJson);
+  void saveSettingsAsync(juce::String provider, juce::String endpoint, juce::String apiKey, juce::String model);
   bool isAvailable() const { return available_.load(); }
   juce::String statusText() const;
   juce::String lastResponse() const;

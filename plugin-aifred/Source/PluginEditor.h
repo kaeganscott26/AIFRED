@@ -11,7 +11,7 @@
 
 namespace aifred {
 
-class AifredAudioProcessorEditor : public juce::AudioProcessorEditor, private juce::Timer, private juce::Button::Listener {
+class AifredAudioProcessorEditor : public juce::AudioProcessorEditor, private juce::Timer, private juce::Button::Listener, private juce::Slider::Listener {
 public:
   explicit AifredAudioProcessorEditor(AifredAudioProcessor&);
   ~AifredAudioProcessorEditor() override;
@@ -21,7 +21,8 @@ public:
 
 private:
   void timerCallback() override;
-  void buttonClicked(juce::Button*);
+  void buttonClicked(juce::Button*) override;
+  void sliderValueChanged(juce::Slider*) override;
   void drawHeader(juce::Graphics&, juce::Rectangle<int>);
   void drawHalo(juce::Graphics&, juce::Rectangle<int>, const HaloState&, const char* title, bool referenceOverlay);
   void drawDomainCard(juce::Graphics&, juce::Rectangle<int>, const char*, Domain, const DomainAlignment&, const HaloState&);
@@ -36,6 +37,8 @@ private:
   void drawSpectrumMeter(juce::Graphics&, juce::Rectangle<int>, const HaloState&);
   void drawCorrelationMeter(juce::Graphics&, juce::Rectangle<int>, const HaloState&);
   void pushSettingsToProcessor();
+  bool analyzeReferenceFile(const juce::File& file, int slot);
+  void updateReferenceTargetFromSlots();
   juce::String scoreText(float score, const HaloState& state, Domain domain);
 
   AifredAudioProcessor& processor_;
@@ -67,6 +70,8 @@ private:
   juce::Slider gateSlider_;
   std::array<juce::Slider, 5> referenceVolumeSliders_;
   std::array<juce::String, 5> referenceFileNames_;
+  std::array<ReferenceTarget, 5> referenceTargets_;
+  std::array<bool, 5> referenceTargetValid_ {};
   juce::Image mascot_;
   std::unique_ptr<juce::FileChooser> fileChooser_;
   HaloState state_;

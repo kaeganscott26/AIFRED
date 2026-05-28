@@ -166,8 +166,9 @@ float AnalysisEngine::loudnessRangeFromHistory(const std::array<float, 64>& hist
   }
   if (values.size() < 4) return 0.0f;
   std::sort(values.begin(), values.end());
-  const auto low = values[static_cast<size_t>(std::floor((values.size() - 1) * 0.10))];
-  const auto high = values[static_cast<size_t>(std::floor((values.size() - 1) * 0.95))];
+  const auto lastIndex = static_cast<double>(values.size() - 1);
+  const auto low = values[static_cast<size_t>(std::floor(lastIndex * 0.10))];
+  const auto high = values[static_cast<size_t>(std::floor(lastIndex * 0.95))];
   return std::max(0.0f, high - low);
 }
 
@@ -260,7 +261,6 @@ void AnalysisEngine::pushAudioBlock(const juce::AudioBuffer<float>& buffer) {
   const auto samples = buffer.getNumSamples();
   if (channels == 0 || samples == 0) return;
 
-  double sumSquares = 0.0;
   double kWeightedSquares = 0.0;
   double peak = 0.0;
   double truePeak = 0.0;
@@ -309,7 +309,6 @@ void AnalysisEngine::pushAudioBlock(const juce::AudioBuffer<float>& buffer) {
     waveformSum[waveformIndex] += mono;
     waveformCount[waveformIndex] += 1;
     const auto monoDelta = mono - prevMono;
-    sumSquares += 0.5 * (static_cast<double>(l) * l + static_cast<double>(r) * r);
     kWeightedSquares += 0.5 * (static_cast<double>(kL) * kL + static_cast<double>(kR) * kR);
     leftEnergy += static_cast<double>(l) * l;
     rightEnergy += static_cast<double>(r) * r;
@@ -461,10 +460,18 @@ HaloState AnalysisEngine::snapshot() const {
   return buildHaloState();
 }
 
+void AnalysisEngine::setReferenceTarget(const ReferenceTarget& target) {
+  referenceTarget_ = target;
+}
+
+void AnalysisEngine::clearReferenceTarget() {
+  referenceTarget_ = {};
+}
+
 HaloState AnalysisEngine::buildHaloState() const {
   HaloState state;
   const auto confidence = clamp01(smoothed_.signal01 * 1.35f);
-  state.reference = ReferenceTarget{};
+  state.reference = referenceTarget_;
   state.currentSnapshotTimestampMs = juce::Time::getMillisecondCounterHiRes();
   state.historyWindowMs = 5000.0;
   state.hasSignal = smoothed_.signal01 >= 0.02f;
