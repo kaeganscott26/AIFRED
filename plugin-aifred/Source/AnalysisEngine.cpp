@@ -484,8 +484,10 @@ HaloState AnalysisEngine::buildHaloState() const {
   state.isUsingFallbackScore = !state.hasSignal || !state.hasReference || !state.valuesValid;
   state.metrics.tone01 = smoothed_.spectralTilt;
   state.metrics.width01 = smoothed_.stereoWidth;
+  state.metrics.spectralTilt = smoothed_.spectralTilt;
+  state.metrics.stereoWidth = smoothed_.stereoWidth;
   state.metrics.punch01 = smoothed_.transientDensity;
-  state.metrics.loudness01 = toLoudness01(smoothed_.rmsDb);
+  state.metrics.loudness01 = toLoudness01(smoothed_.shortTermLufs);
   state.metrics.rmsDb = smoothed_.rmsDb;
   state.metrics.momentaryLufs = smoothed_.momentaryLufs;
   state.metrics.shortTermLufs = smoothed_.shortTermLufs;

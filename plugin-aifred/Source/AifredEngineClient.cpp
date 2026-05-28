@@ -225,9 +225,9 @@ void AifredEngineClient::pingHealthAsync() {
   }).detach();
 }
 
-void AifredEngineClient::askAsync(juce::String prompt, juce::String contextJson) {
+bool AifredEngineClient::askAsync(juce::String prompt, juce::String contextJson) {
   bool expected = false;
-  if (!chatInFlight_.compare_exchange_strong(expected, true)) return;
+  if (!chatInFlight_.compare_exchange_strong(expected, true)) return false;
   {
     const juce::ScopedLock lock(statusLock_);
     lastResponse_ = "Reading current mix snapshot...";
@@ -243,10 +243,12 @@ void AifredEngineClient::askAsync(juce::String prompt, juce::String contextJson)
       } else {
         lastResponse_ = "Local model response was unavailable for this request.";
         lastStatus_ = "AI chat request failed.";
+        available_.store(false);
       }
     }
     chatInFlight_.store(false);
   }).detach();
+  return true;
 }
 
 void AifredEngineClient::saveSettingsAsync(juce::String provider, juce::String endpoint, juce::String apiKey, juce::String model) {
@@ -260,6 +262,7 @@ void AifredEngineClient::saveSettingsAsync(juce::String provider, juce::String e
     const juce::ScopedLock lock(statusLock_);
     lastStatus_ = ok ? "AI route saved to local engine." : "AI route saved locally; engine settings unavailable.";
     if (ok) available_.store(true);
+    else available_.store(false);
   }).detach();
 }
 

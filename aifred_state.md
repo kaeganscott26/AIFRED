@@ -234,3 +234,110 @@ Do not claim one-click macOS setup is complete until a fresh package install pro
 - `/health` works,
 - `/chat` works,
 - plugin reaches engine from inside a DAW.
+
+## Plugin Stabilization Log
+
+Logged: 2026-05-28 CDT
+
+Scope rules for this pass:
+
+- Do not touch installer/package scripts.
+- Do not touch `aifred-site`.
+- Complete one plugin stabilization task at a time.
+- Run `git diff --check` and `cmake --build build-mac --config Release` before moving to the next task.
+- If visible UI is not backed by real data, either bind it to real data or make the unavailable state explicit.
+
+Completed tasks:
+
+1. Chatbox layout collision
+   - Changed `plugin-aifred/Source/PluginEditor.cpp`.
+   - Root cause: `resized()` positioned chat components from a different right-column rectangle than `paint()` used to draw the chat panel.
+   - Fix: component bounds now reserve the left column before taking the right-column chat panel area, matching the painted panel geometry.
+   - Validation: `git diff --check` passed; `cmake --build build-mac --config Release` passed.
+
+2. Tone/Width meter binding truthfulness
+   - Changed `plugin-aifred/Source/AnalysisEngine.cpp`.
+   - Root cause: bars used populated `state.metrics.tone01` and `state.metrics.width01`, while labels read unpopulated `state.metrics.spectralTilt` and `state.metrics.stereoWidth`.
+   - Fix: `buildHaloState()` now propagates `smoothed_.spectralTilt` and `smoothed_.stereoWidth` into both metric aliases used by the UI.
+   - Validation: `git diff --check` passed; `cmake --build build-mac --config Release` passed.
+
+3. Punch meter truthfulness
+   - Changed `plugin-aifred/Source/PluginEditor.cpp`.
+   - Root cause: the Punch bar was driven by `state.metrics.punch01` / `smoothed_.transientDensity`, while the main Punch label displayed `state.metrics.crestDb`.
+   - Fix: the main Punch label now displays `state.metrics.punch01`, matching the bar source; crest remains secondary context in the footer.
+   - Validation: `git diff --check` passed; `cmake --build build-mac --config Release` passed.
+
+4. Loudness/LUFS meter truthfulness
+   - Changed `plugin-aifred/Source/AnalysisEngine.cpp` and `plugin-aifred/Source/PluginEditor.cpp`.
+   - Root cause: the Loudness bar used `state.metrics.loudness01` derived from smoothed RMS, while the main label displayed integrated LUFS and the footer described short-term LUFS.
+   - Fix: the visible Loudness card primary value is now short-term LUFS: `state.metrics.loudness01` is derived from `smoothed_.shortTermLufs`, and the main label displays `state.metrics.shortTermLufs`.
+   - Validation: `git diff --check` passed; `cmake --build build-mac --config Release` passed.
+
+5. Correlation meter truthfulness
+   - Changed `plugin-aifred/Source/PluginEditor.cpp`.
+   - Root cause: correlation defaults to `1.0f`, so the standalone correlation meter could draw a valid-looking locked meter while no signal was present.
+   - Fix: `drawCorrelationMeter()` now gates the value marker/fill on `state.hasSignal && state.valuesValid`; idle or invalid windows display `corr unavailable`.
+   - Validation: `git diff --check` passed; `cmake --build build-mac --config Release` passed.
+
+6. Spectrometer truthfulness
+   - Changed `plugin-aifred/Source/PluginEditor.cpp`.
+   - Root cause: the standalone spectrometer always drew a minimum 2px fill for every band, which could make silence or invalid analysis look like measured energy.
+   - Fix: `drawSpectrumMeter()` now draws fills only when `state.hasSignal && state.valuesValid`; unavailable windows keep empty slots and display `spectrum unavailable`.
+   - Validation: `git diff --check` passed; `cmake --build build-mac --config Release` passed.
+
+7. Candlestick/dynamics meter truthfulness
+   - Changed `plugin-aifred/Source/PluginEditor.cpp`.
+   - Root cause: the current candlestick display could render default zero-valued candle geometry while idle or invalid, which made an unavailable window look like real loudness history.
+   - Fix: `drawCandles()` now shows `current candle unavailable` and placeholder O/C/delta text when there is no valid signal; `drawCandleStrip()` now labels empty minute/session history instead of drawing no-context empty plots.
+   - Validation: `git diff --check` passed; `cmake --build build-mac --config Release` passed.
+
+8. Halo data truthfulness
+   - Changed `plugin-aifred/Source/PluginEditor.cpp`.
+   - Root cause: `drawHalo()` could render metric rings, scale labels, embedded spectrum, and correlation labels from default/stale values when no valid signal was available.
+   - Fix: `drawHalo()` now gates the full metric visualization on `state.hasSignal && state.valuesValid`; unavailable windows show `waiting for signal` or `analysis unavailable`.
+   - Validation: `git diff --check` passed; `cmake --build build-mac --config Release` passed.
+
+9. Mix Signature truthfulness
+   - Changed `plugin-aifred/Source/PluginEditor.cpp`.
+   - Root cause: the live Mix Signature polygon used `metricValue()`, which changes meaning when a reference is loaded, and it could draw a collapsed/default signature when analysis was unavailable.
+   - Fix: `drawMixSignature()` now gates drawing on `state.hasSignal && state.valuesValid` and uses raw live metrics (`tone01`, `width01`, `punch01`, `loudness01`) for the live polygon.
+   - Validation: `git diff --check` passed; `cmake --build build-mac --config Release` passed.
+
+10. Local engine status display correctness
+   - Changed `plugin-aifred/Source/PluginEditor.cpp`.
+   - Root cause: the chat panel footer forced `Local AI ready.` whenever the cached health flag was true, hiding more specific client status text such as failed chat/settings requests.
+   - Fix: `drawChatPanel()` now always displays `AifredEngineClient::statusText()`; color still reflects the current health availability flag.
+   - Validation: `git diff --check` passed; `cmake --build build-mac --config Release` passed.
+
+11. Backend/chat availability state correctness
+   - Changed `plugin-aifred/Source/AifredEngineClient.cpp`, `plugin-aifred/Source/AifredEngineClient.h`, and `plugin-aifred/Source/PluginEditor.cpp`.
+   - Root cause: `askAsync()` silently ignored duplicate chat requests while the editor still displayed a pending readout, and failed chat/settings requests did not clear the cached availability flag.
+   - Fix: `askAsync()` now returns whether a request actually started; the editor reports `Chat request already in progress` when appropriate; failed chat/settings routes set availability false.
+   - Validation: `git diff --check` passed; `cmake --build build-mac --config Release` passed.
+
+12. Responsive layout and DPI scaling
+   - Changed `plugin-aifred/Source/PluginEditor.cpp`.
+   - Root cause: `updateUiScale()` multiplied window-size scaling by display DPI scale even though JUCE component bounds are already logical coordinates, which increased clipping/overlap risk on high-DPI displays.
+   - Fix: layout/font/padding scale now derives from editor logical size only, preserving existing min/max clamps.
+   - Validation: `git diff --check` passed; `cmake --build build-mac --config Release` passed.
+
+13. Text clipping and label readability
+   - Changed `plugin-aifred/Source/PluginEditor.cpp`.
+   - Root cause: several long status/legend/footer strings used single-line `drawText()`, which can clip at minimum editor size or with platform font differences.
+   - Fix: converted header reference status, domain footer text, compare status, and correlation legends to `drawFittedText()`.
+   - Validation: `git diff --check` passed; `cmake --build build-mac --config Release` passed.
+
+14. Visible placeholder audit
+   - Changed `plugin-aifred/Source/PluginEditor.cpp`.
+   - Root cause: visible copy still included unfinished wording: chat file selection said file analysis was "not wired yet," and the reference mixer said target analysis was pending despite reference-file analysis being implemented.
+   - Fix: chat file status now states selected files are not analyzed and chat uses the live mix snapshot; reference mixer copy now states analyzed targets feed reference mode.
+   - Validation: `git diff --check` passed; `cmake --build build-mac --config Release` passed.
+
+Current plugin stabilization status:
+
+- The 12-task ordered plugin stabilization pass requested on 2026-05-28 has been completed.
+- Each task was tested with `git diff --check` and `cmake --build build-mac --config Release` before moving to the next task.
+- No installer/package scripts were touched.
+- `aifred-site` was not touched.
+- DSP analysis math was only changed where required to align visible meter bindings with existing real analysis values.
+- Remaining release risk: Windows runtime regression has not been executed in this macOS environment.
