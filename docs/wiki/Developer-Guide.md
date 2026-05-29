@@ -56,7 +56,7 @@ The installer requests administrator elevation and installs:
 - `C:\Program Files\Aifred\models\`
 - `C:\Program Files\Aifred\logs\`
 
-The installer registers the engine under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, starts it silently, and validates `GET http://127.0.0.1:8787/health`.
+The installer registers the AIFRED gateway under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, starts it silently, verifies Ollama at `http://127.0.0.1:11434` with `aifred:latest`, and validates gateway health at `GET http://127.0.0.1:8787/health`.
 
 ## AIFRED Engine
 
@@ -65,7 +65,7 @@ Local development:
 ```powershell
 dotnet publish tools\AifredEngine\AifredEngine.csproj -c Release -o dist\engine\windows
 Start-Process dist\engine\windows\AifredEngine.exe -WindowStyle Hidden
-Invoee-WebRequest -UseBasicParsing http://127.0.0.1:8787/health
+Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8787/health
 ```
 
 The engine must never be called from the audio thread. The plugin pings health from UI/background-safe code and keeps measured analysis active when the engine is unavailable.

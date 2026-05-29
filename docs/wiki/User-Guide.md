@@ -7,7 +7,7 @@ The public site lives at:
 - https://www.north3rnlight3r.com
 - https://north3rnlight3r.com
 
-The website sells the AIFRED VSh3 and North3rnLight3r beat catalog. Visitors can preview catalog audio, license beats through PayPal links, download VSh release packages, and run the free mix analyzer.
+The website offers the AIFRED VST3 free beta and the North3rnLight3r beat catalog. Visitors can preview catalog audio, download beta release packages when published, submit reference candidates for free limited analysis, and run the free mix analyzer.
 
 The public site keeps the approved AIFRED mascot as the brand logo and uses `Website asset album art (2).jpg` plus `Brand Mascot Hero.jpg` as beat catalog artwork.
 
@@ -88,7 +88,7 @@ Metering notes:
 - Chat has its own dedicated module and no hardcoded fix suggestions.
 - The plugin header displays the current AIFRED version so stale FL Studio scans are easier to spot.
 - Gate and local AI settings save into project/local settings. The plugin uses the Chat Focus layout.
-- The local AIFRED engine runs at `http://127.0.0.1:8787` after installation. If the engine is unavailable, the plugin continues metering and shows `Local AI route unavailable`.
+- Local AI uses Ollama at `http://127.0.0.1:11434` with model `aifred:latest`. The optional AIFRED engine gateway runs at `http://127.0.0.1:8787` after installation so the plugin can send measured snapshots without putting network work on the audio thread. If the gateway or Ollama is unavailable, the plugin continues metering and reports the missing dependency.
 - The Windows installer can store an OpenAI-compatible endpoint, API key, and model name for online chat routing. The local engine routes offline chat to the local Ollama model when no external API is configured.
 
 ## Install Paths

@@ -38,6 +38,7 @@ private:
   void drawCorrelationMeter(juce::Graphics&, juce::Rectangle<int>, const HaloState&);
   void pushSettingsToProcessor();
   bool analyzeReferenceFile(const juce::File& file, int slot);
+  void clearReferenceSlot(int slot);
   void updateReferenceTargetFromSlots();
   juce::String scoreText(float score, const HaloState& state, Domain domain);
 

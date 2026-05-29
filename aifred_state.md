@@ -8,8 +8,9 @@ Make the macOS AIFRED beta path match the Windows one-click local backend experi
 
 The current focus is the macOS VST3 plus local AIFRED Engine path:
 
-- Plugin talks to local engine on `127.0.0.1:8787`.
-- Engine talks to Ollama on `127.0.0.1:11434`.
+- Plugin talks to the local AIFRED gateway on `127.0.0.1:8787`.
+- The canonical local AI provider is Ollama on `http://127.0.0.1:11434`.
+- Default local model is `aifred:latest`.
 - Default local model is `aifred:latest`.
 - macOS package generation exists and has been tested, but install/sign/notarize validation is not complete.
 

@@ -77,7 +77,7 @@ try
         var health = await ValidateEngineHealth();
 
         MessageBox.Show(
-            $"AIFRED installed.\n\nVST3:\n{targetPlugin}\n\nEngine:\n{engineTarget}\n\nEngine health: {(health ? "ready" : "starting or unavailable; core plugin analysis still works")}\n\nOpen FL Studio Plugin Manager and rescan VST3 plugins.",
+            $"AIFRED installed.\n\nVST3:\n{targetPlugin}\n\nEngine:\n{engineTarget}\n\nLocal AI health: {(health ? "ready" : "not ready; check Ollama, the aifred:latest model, and AifredEngine")}\n\nOpen FL Studio Plugin Manager and rescan VST3 plugins.",
             "AIFRED Setup",
             MessageBoxButtons.OK,
             MessageBoxIcon.Information);
@@ -210,12 +210,14 @@ static void ConfigureAiProvider(InstallerAiConfig config)
 static void SaveAiSettings(string provider, string endpoint, string apiKey, string model)
 {
     var settingsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Aifred", "user_settings.json");
+    var ollamaUrl = provider.Equals("ollama", StringComparison.OrdinalIgnoreCase) ? endpoint : "http://127.0.0.1:11434";
     Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
     File.WriteAllText(settingsPath, $$"""
     {
       "provider_override_enabled": true,
       "provider_mode": "{{JsonEscape(provider)}}",
       "api_key": "{{JsonEscape(apiKey)}}",
+      "ollama_url": "{{JsonEscape(ollamaUrl)}}",
       "custom_endpoint": "{{JsonEscape(endpoint)}}",
       "model_name": "{{JsonEscape(model)}}"
     }
@@ -246,22 +248,10 @@ static void EnsureAifredOllamaModel()
 
     if (!OllamaModelExists("llama3.2:3b")) return;
 
-    var modelFile = Path.Combine(Path.GetTempPath(), "AIFRED-Ollama-Modelfile-" + Guid.NewGuid().ToString("N"));
-    try
+    var modelFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Aifred", "models", "aifred", "Modelfile");
+    if (File.Exists(modelFile))
     {
-        File.WriteAllText(modelFile, """
-        FROM llama3.2:3b
-        SYSTEM You are AIFRED, a natural mix-aware assistant inside an audio plugin. Answer conversationally from the supplied audio analysis snapshot when it is relevant. Do not output JSON, code fences, raw structs, or implementation details.
-        PARAMETER temperature 0.35
-        """);
         TryRun("ollama", $"create aifred -f \"{modelFile}\"", waitMs: 600000);
-    }
-    finally
-    {
-        try
-        {
-            if (File.Exists(modelFile)) File.Delete(modelFile);
-        } catch {}
     }
 }
 
@@ -364,7 +354,11 @@ static async Task<bool> ValidateEngineHealth()
         try
         {
             var response = await client.GetAsync("http://127.0.0.1:8787/health");
-            if (response.IsSuccessStatusCode) return true;
+            if (response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                return body.Contains("\"local_ai_ready\":true", StringComparison.OrdinalIgnoreCase);
+            }
         }
         catch {}
         await Task.Delay(350);
@@ -443,7 +437,7 @@ static InstallerAiConfig? ShowSetupDialog()
 static Dictionary<string, string> ParseArgs(string[] args)
 {
     var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-    for (var i = 1; i < args.Length; i++)
+    for (var i = 0; i < args.Length; i++)
     {
         var current = args[i];
         if (!current.StartsWith("--", StringComparison.Ordinal)) continue;

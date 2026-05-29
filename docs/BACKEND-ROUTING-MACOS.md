@@ -31,10 +31,10 @@ Per-user engine settings are written to:
 
 Plugin to engine:
 
-- `GET http://127.0.0.1:8787/health`
-- `POST http://127.0.0.1:8787/chat`
-- `POST http://127.0.0.1:8787/v1/settings`
-- `GET http://127.0.0.1:8787/v1/settings`
+- Gateway health: `GET http://127.0.0.1:8787/health`
+- Gateway chat: `POST http://127.0.0.1:8787/chat`
+- Gateway settings: `POST http://127.0.0.1:8787/v1/settings`
+- Gateway settings readback: `GET http://127.0.0.1:8787/v1/settings`
 
 Engine to Ollama:
 
@@ -51,7 +51,7 @@ Engine to OpenAI-compatible fallback:
 
 ## Routing rules
 
-The plugin talks only to the local AIFRED engine on `127.0.0.1:8787`.
+The plugin talks to the local AIFRED gateway on `127.0.0.1:8787`. That is not the Ollama provider URL. The canonical local AI provider is Ollama at `http://127.0.0.1:11434` with model `aifred:latest`.
 
 The engine resolves provider/model/endpoint from:
 

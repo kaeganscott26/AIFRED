@@ -18,7 +18,7 @@ if [ -z "$PLUGIN_PATH" ]; then
 fi
 
 rm -rf "$DIST_DIR"
-mkdir -p "$PRODUCT_ROOT/bin" "$PRODUCT_ROOT/config" "$PRODUCT_ROOT/logs" "$PRODUCT_ROOT/models" "$PLUGIN_ROOT" "$PKGROOT/Library/LaunchAgents" "$SCRIPTS_DIR"
+mkdir -p "$PRODUCT_ROOT/bin" "$PRODUCT_ROOT/config" "$PRODUCT_ROOT/logs" "$PRODUCT_ROOT/models/aifred" "$PLUGIN_ROOT" "$PKGROOT/Library/LaunchAgents" "$SCRIPTS_DIR"
 
 cp -R "$PLUGIN_PATH" "$PLUGIN_ROOT/Aifred.vst3"
 
@@ -30,10 +30,12 @@ cat > "$PRODUCT_ROOT/config/config.json" <<'JSON'
 {
   "mode": "local",
   "port": 8787,
+  "gateway_url": "http://127.0.0.1:8787",
   "provider": "ollama",
   "model_path": "models/aifred-assistant-q4.gguf",
   "model_name": "aifred:latest",
   "openai_api_key": "",
+  "ollama_url": "http://127.0.0.1:11434",
   "custom_endpoint": "http://127.0.0.1:11434",
   "timeout_ms": 420000
 }
@@ -45,6 +47,8 @@ AIFRED works out of the box with local Ollama chat when Ollama is installed and 
 TXT
 
 cp "$SCRIPT_DIR/com.aifred.engine.plist" "$PKGROOT/Library/LaunchAgents/com.aifred.engine.plist"
+cp "$REPO_ROOT/models/aifred/Modelfile" "$PRODUCT_ROOT/models/aifred/Modelfile"
+cp "$REPO_ROOT/website/assets/docs/aifred-beta-release-notes.txt" "$PRODUCT_ROOT/AIFRED-BETA-NOTES.txt"
 cp "$SCRIPT_DIR/postinstall" "$SCRIPTS_DIR/postinstall"
 chmod 755 "$SCRIPTS_DIR/postinstall"
 

@@ -15,7 +15,7 @@ The public-facing product is the AIFRED VST3 and North3rnLight3r beat catalog. T
 | Product | Purpose | Distribution |
 | --- | --- | --- |
 | AIFRED VST3 | Mix analysis, reference alignment, compare metering, and chat-guided fix output | Windows installer plus CI-built Windows, macOS, Linux, and Arch packages |
-| AIFRED Engine | Local AI chat companion at `127.0.0.1:8787` | Bundled with Windows packages; local Ollama-backed chat uses the installed aifred:latest model |
+| AIFRED Engine | Local gateway at `127.0.0.1:8787` between the plugin and model providers | Bundled with packages; local AI provider remains Ollama at `http://127.0.0.1:11434` using `aifred:latest` |
 | North3rnLight3r Website | Brand storefront, beat catalog playback, VST sales path, free mix analyzer | Cloudflare Pages custom domain |
 | Android Admin App | Owner-only control panel for chat, catalog uploads, website file control, shell access, and admin operations | Private install only, never public release |
 
@@ -86,7 +86,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-aifred.ps1 -Bu
 dotnet publish tools\AifredWindowsInstaller\AifredWindowsInstaller.csproj -c Release -o dist\installer\windows
 ```
 
-Run `dist\installer\windows\AIFRED-VST3-Setup.exe` to install. The installer requests administrator elevation, installs `Aifred.vst3` to `C:\Program Files\Common Files\VST3`, installs `AifredEngine.exe` to `C:\Program Files\Aifred\bin`, registers the engine at user login, starts it silently, checks `http://127.0.0.1:8787/health`, and can save an OpenAI-compatible endpoint/API key into `%AppData%\Aifred\user_settings.json`.
+Run `dist\installer\windows\AIFRED-VST3-Setup.exe` to install. The installer requests administrator elevation, installs `Aifred.vst3` to `C:\Program Files\Common Files\VST3`, installs `AifredEngine.exe` to `C:\Program Files\Aifred\bin`, registers the engine gateway at user login, starts it silently, verifies Ollama at `http://127.0.0.1:11434` with `aifred:latest`, then checks the gateway health at `http://127.0.0.1:8787/health`. OpenAI-compatible endpoint/API key settings remain optional in `%AppData%\Aifred\user_settings.json`.
 
 Android local build:
 

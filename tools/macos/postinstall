@@ -26,14 +26,12 @@ if command -v ollama >/dev/null 2>&1; then
   sleep 2
   ollama list | grep -qi '^aifred' && exit 0
   ollama list | grep -qi '^llama3.2:3b' || ollama pull llama3.2:3b >> "$LOG" 2>&1 || true
-  modelfile="$(mktemp /tmp/aifred-modelfile.XXXXXX)"
-  cat > "$modelfile" <<'MODEL'
-FROM llama3.2:3b
-SYSTEM You are AIFRED, a natural mix-aware assistant inside an audio plugin. Answer conversationally from the supplied audio analysis snapshot when it is relevant. Do not output JSON, code fences, raw structs, or implementation details.
-PARAMETER temperature 0.35
-MODEL
-  ollama create aifred -f "$modelfile" >> "$LOG" 2>&1 || true
-  rm -f "$modelfile"
+  modelfile="$AIFRED_ROOT/models/aifred/Modelfile"
+  if [ -f "$modelfile" ]; then
+    ollama create aifred -f "$modelfile" >> "$LOG" 2>&1 || true
+  else
+    log "AIFRED Modelfile missing at $modelfile"
+  fi
 else
   log "ollama command not found; AIFRED engine installed but local model setup is pending"
 fi

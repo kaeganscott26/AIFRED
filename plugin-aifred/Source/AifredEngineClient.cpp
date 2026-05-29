@@ -12,7 +12,7 @@
 namespace aifred {
 namespace {
 
-constexpr const char* kEngineBaseUrl = "http://127.0.0.1:8787";
+constexpr const char* kGatewayBaseUrl = "http://127.0.0.1:8787";
 constexpr int kHealthTimeoutMs = 750;
 constexpr int kChatTimeoutMs = 420000;
 
@@ -31,6 +31,8 @@ juce::String extractResponse(juce::String json) {
     if (message.isNotEmpty()) return message;
     const auto answer = object->getProperty("answer").toString().trim();
     if (answer.isNotEmpty()) return answer;
+    const auto error = object->getProperty("error").toString().trim();
+    if (error.isNotEmpty()) return "AI unavailable: " + error;
   }
 
   const auto key = json.indexOf("\"response\"");
@@ -59,9 +61,40 @@ juce::String extractResponse(juce::String json) {
   return out.trim();
 }
 
+juce::String healthStatusFromJson(const juce::String& json, bool& localAiReady) {
+  localAiReady = false;
+  auto parsed = juce::JSON::parse(json);
+  if (auto* object = parsed.getDynamicObject()) {
+    const auto engineRunning = static_cast<bool>(object->getProperty("engine_running"));
+    const auto provider = object->getProperty("provider").toString().trim();
+    const auto ollamaReachable = static_cast<bool>(object->getProperty("ollama_reachable"));
+    const auto modelPresent = static_cast<bool>(object->getProperty("model_present"));
+    const auto modelName = object->getProperty("model_name").toString().trim().isNotEmpty()
+      ? object->getProperty("model_name").toString().trim()
+      : juce::String("aifred:latest");
+    const auto openAiConfigured = static_cast<bool>(object->getProperty("openai_configured"));
+    const auto lastError = object->getProperty("last_error").toString().trim();
+    localAiReady = static_cast<bool>(object->getProperty("local_ai_ready"));
+
+    if (localAiReady) return "Local AI ready.";
+    if (!engineRunning) return "AifredEngine not running.";
+    if (provider.containsIgnoreCase("ollama")) {
+      if (!ollamaReachable) return "Ollama not running or not reachable.";
+      if (!modelPresent) return "AIFRED model missing: " + modelName + ".";
+    }
+    if (provider.containsIgnoreCase("openai") && !openAiConfigured) {
+      return "OpenAI optional; API key not configured.";
+    }
+    if (lastError.isNotEmpty()) return lastError;
+    return "Local AI route unavailable.";
+  }
+  return "AifredEngine health response invalid.";
+}
+
 #if JUCE_WINDOWS
-bool healthRequest() {
+bool healthRequest(juce::String& statusText) {
   bool ok = false;
+  juce::String result;
   HINTERNET session = WinHttpOpen(L"AIFRED/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
   if (!session) return false;
   HINTERNET connect = WinHttpConnect(session, L"127.0.0.1", 8787, 0);
@@ -78,13 +111,28 @@ bool healthRequest() {
         DWORD size = sizeof(status);
         WinHttpQueryHeaders(request, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, nullptr, &status, &size, nullptr);
         ok = status >= 200 && status < 300;
+        if (ok) {
+          DWORD available = 0;
+          do {
+            available = 0;
+            if (!WinHttpQueryDataAvailable(request, &available) || available == 0) break;
+            juce::HeapBlock<char> buffer(available + 1);
+            ZeroMemory(buffer.getData(), available + 1);
+            DWORD read = 0;
+            if (WinHttpReadData(request, buffer.getData(), available, &read) && read > 0) {
+              result += juce::String::fromUTF8(buffer.getData(), static_cast<int>(read));
+            }
+          } while (available > 0);
+        }
       }
       WinHttpCloseHandle(request);
     }
     WinHttpCloseHandle(connect);
   }
   WinHttpCloseHandle(session);
-  return ok;
+  bool localAiReady = false;
+  statusText = ok ? healthStatusFromJson(result, localAiReady) : "AifredEngine not running.";
+  return ok && localAiReady;
 }
 
 juce::String chatRequest(const juce::String& prompt, const juce::String& contextJson) {
@@ -165,7 +213,7 @@ bool httpRequest(const juce::String& method,
                  const juce::String& body,
                  int timeoutMs,
                  juce::String& responseBody) {
-  auto url = juce::URL(juce::String(kEngineBaseUrl) + path);
+  auto url = juce::URL(juce::String(kGatewayBaseUrl) + path);
   if (body.isNotEmpty()) {
     url = url.withPOSTData(body);
   }
@@ -185,9 +233,12 @@ bool httpRequest(const juce::String& method,
   return statusCode >= 200 && statusCode < 300;
 }
 
-bool healthRequest() {
+bool healthRequest(juce::String& statusText) {
   juce::String response;
-  return httpRequest("GET", "/health", {}, kHealthTimeoutMs, response);
+  const auto ok = httpRequest("GET", "/health", {}, kHealthTimeoutMs, response);
+  bool localAiReady = false;
+  statusText = ok ? healthStatusFromJson(response, localAiReady) : "AifredEngine not running.";
+  return ok && localAiReady;
 }
 
 juce::String chatRequest(const juce::String& prompt, const juce::String& contextJson) {
@@ -215,11 +266,12 @@ void AifredEngineClient::pingHealthAsync() {
   if (!requestInFlight_.compare_exchange_strong(expected, true)) return;
 
   std::thread([this] {
-    const auto ok = healthRequest();
+    juce::String status;
+    const auto ok = healthRequest(status);
     available_.store(ok);
     {
       const juce::ScopedLock lock(statusLock_);
-      lastStatus_ = ok ? "Local AI ready." : "Local AI route unavailable.";
+      lastStatus_ = status.isNotEmpty() ? status : (ok ? "Local AI ready." : "Local AI route unavailable.");
     }
     requestInFlight_.store(false);
   }).detach();
@@ -252,9 +304,11 @@ bool AifredEngineClient::askAsync(juce::String prompt, juce::String contextJson)
 }
 
 void AifredEngineClient::saveSettingsAsync(juce::String provider, juce::String endpoint, juce::String apiKey, juce::String model) {
+  const auto ollamaUrl = provider.containsIgnoreCase("ollama") ? endpoint : juce::String("http://127.0.0.1:11434");
   const auto body = "{\"provider_override_enabled\":true,\"provider_mode\":\"" + jsonEscape(provider)
     + "\",\"api_key\":\"" + jsonEscape(apiKey)
     + "\",\"custom_endpoint\":\"" + jsonEscape(endpoint)
+    + "\",\"ollama_url\":\"" + jsonEscape(ollamaUrl)
     + "\",\"model_name\":\"" + jsonEscape(model) + "\"}";
 
   std::thread([this, body] {

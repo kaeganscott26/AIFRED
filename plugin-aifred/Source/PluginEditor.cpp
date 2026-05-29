@@ -326,16 +326,34 @@ void AifredAudioProcessorEditor::buttonClicked(juce::Button* button) {
   }
   for (int i = 0; i < static_cast<int>(referenceFileButtons_.size()); ++i) {
     if (button == &referenceFileButtons_[static_cast<size_t>(i)]) {
-      fileChooser_ = std::make_unique<juce::FileChooser>("Select reference " + juce::String(i + 1), juce::File{}, "*.wav;*.aif;*.aiff;*.mp3;*.flac");
-      fileChooser_->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-        [this, i](const juce::FileChooser& chooser) {
-          const auto file = chooser.getResult();
-          if (!file.existsAsFile()) return;
-          if (analyzeReferenceFile(file, i)) {
-            referenceFileNames_[static_cast<size_t>(i)] = file.getFileName();
-          }
-          repaint();
-        });
+      const auto launchReferenceChooser = [this, i] {
+        fileChooser_ = std::make_unique<juce::FileChooser>("Select reference " + juce::String(i + 1), juce::File{}, "*.wav;*.aif;*.aiff;*.mp3;*.flac");
+        fileChooser_->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+          [this, i](const juce::FileChooser& chooser) {
+            const auto file = chooser.getResult();
+            if (!file.existsAsFile()) return;
+            if (analyzeReferenceFile(file, i)) {
+              referenceFileNames_[static_cast<size_t>(i)] = file.getFileName();
+            }
+            repaint();
+          });
+      };
+
+      if (referenceTargetValid_[static_cast<size_t>(i)] || referenceFileNames_[static_cast<size_t>(i)].isNotEmpty()) {
+        juce::PopupMenu menu;
+        menu.addItem(1, "Load or replace file");
+        menu.addItem(2, "Clear slot");
+        menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(button),
+          [this, i, launchReferenceChooser](int result) {
+            if (result == 1) launchReferenceChooser();
+            if (result == 2) {
+              clearReferenceSlot(i);
+              repaint();
+            }
+          });
+      } else {
+        launchReferenceChooser();
+      }
     }
   }
   pushSettingsToProcessor();
@@ -394,6 +412,8 @@ bool AifredAudioProcessorEditor::analyzeReferenceFile(const juce::File& file, in
   std::unique_ptr<juce::AudioFormatReader> reader(formats.createReaderFor(file));
   if (reader == nullptr) {
     referenceTargetValid_[static_cast<size_t>(slot)] = false;
+    referenceTargets_[static_cast<size_t>(slot)] = {};
+    referenceFileNames_[static_cast<size_t>(slot)] = {};
     referenceStatus_ = "Reference file could not be read.";
     updateReferenceTargetFromSlots();
     return false;
@@ -418,6 +438,8 @@ bool AifredAudioProcessorEditor::analyzeReferenceFile(const juce::File& file, in
   const auto analyzed = referenceAnalysis.snapshot();
   if (!analyzed.hasSignal || !analyzed.valuesValid) {
     referenceTargetValid_[static_cast<size_t>(slot)] = false;
+    referenceTargets_[static_cast<size_t>(slot)] = {};
+    referenceFileNames_[static_cast<size_t>(slot)] = {};
     referenceStatus_ = "Reference file had no usable signal.";
     updateReferenceTargetFromSlots();
     return false;
@@ -435,6 +457,14 @@ bool AifredAudioProcessorEditor::analyzeReferenceFile(const juce::File& file, in
   referenceTargetValid_[static_cast<size_t>(slot)] = true;
   updateReferenceTargetFromSlots();
   return true;
+}
+
+void AifredAudioProcessorEditor::clearReferenceSlot(int slot) {
+  if (slot < 0 || slot >= static_cast<int>(referenceTargets_.size())) return;
+  referenceTargets_[static_cast<size_t>(slot)] = {};
+  referenceTargetValid_[static_cast<size_t>(slot)] = false;
+  referenceFileNames_[static_cast<size_t>(slot)] = {};
+  updateReferenceTargetFromSlots();
 }
 
 void AifredAudioProcessorEditor::updateReferenceTargetFromSlots() {

@@ -51,7 +51,8 @@ AIFRED/
 Base URL:
 
 ```text
-http://127.0.0.1:8787
+Gateway URL: http://127.0.0.1:8787
+Ollama URL: http://127.0.0.1:11434
 ```
 
 Endpoints:
@@ -88,7 +89,9 @@ Installed config:
 {
   "mode": "local",
   "port": 8787,
+  "gateway_url": "http://127.0.0.1:8787",
   "provider": "ollama",
+  "ollama_url": "http://127.0.0.1:11434",
   "model_path": "C:\\Program Files\\Aifred\\models\\aifred-assistant-q4.gguf",
   "openai_api_key": "",
   "custom_endpoint": "",
@@ -130,7 +133,7 @@ It performs these actions:
 4. Writes default `config.json`.
 5. Registers `AifredEngine.exe` at user login.
 6. Starts the engine without opening a console window.
-7. Calls `GET http://127.0.0.1:8787/health`.
+7. Verifies Ollama at `http://127.0.0.1:11434` and model `aifred:latest`, then calls gateway health at `GET http://127.0.0.1:8787/health`.
 8. Shows a normal installer success dialog with installed paths and engine status.
 
 Normal users do not run scripts, install Python, install Node, install Docker, install Ollama, or edit PATH.
@@ -170,7 +173,7 @@ analysisEngine.pushAudioBlock(buffer);
 
 // UI/timer/background path:
 auto contextJson = DiagnosticInterpreter::instance().update(state, ...).aiContextJson;
-// POST contextJson to http://127.0.0.1:8787/analyze with timeout.
+// POST contextJson to the AIFRED gateway at http://127.0.0.1:8787/analyze with timeout.
 // If request fails, keep DiagnosticInterpreter metrics-only output.
 ```
 

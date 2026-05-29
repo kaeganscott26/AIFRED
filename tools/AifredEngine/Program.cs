@@ -102,7 +102,7 @@ sealed class AifredRuntime
             var path = context.Request.Url?.AbsolutePath.TrimEnd('/').ToLowerInvariant() ?? "";
             if (context.Request.HttpMethod == "GET" && path == "/health")
             {
-                await JsonAsync(context, Health());
+                await JsonAsync(context, await HealthAsync());
             }
             else if (context.Request.HttpMethod == "POST" && path == "/analyze")
             {
@@ -142,23 +142,48 @@ sealed class AifredRuntime
         }
     }
 
-    JsonObject Health()
+    async Task<JsonObject> HealthAsync()
     {
         var modelPath = GetString(config, "model_path", Path.Combine(installRoot, "models", "aifred-assistant-q4.gguf"));
         if (!Path.IsPathRooted(modelPath)) modelPath = Path.Combine(installRoot, modelPath);
         var provider = EffectiveProvider();
         var modelName = EffectiveModelName();
-        var ollamaModelAvailable = provider.Contains("ollama", StringComparison.OrdinalIgnoreCase) && OllamaModelExists(modelName);
+        var endpoint = EffectiveEndpoint();
+        var usesOllama = provider.Contains("ollama", StringComparison.OrdinalIgnoreCase) || endpoint.Contains("11434", StringComparison.OrdinalIgnoreCase);
+        var ollamaReachable = usesOllama && await OllamaReachableAsync(endpoint);
+        var ollamaModelAvailable = usesOllama && ollamaReachable && await OllamaModelExistsAsync(endpoint, modelName);
         var fileModelAvailable = File.Exists(modelPath);
+        var openAiConfigured = !string.IsNullOrWhiteSpace(EffectiveApiKey());
+        var localAiReady = usesOllama && ollamaReachable && ollamaModelAvailable;
+        string? lastError = null;
+        if (usesOllama)
+        {
+            if (!ollamaReachable) lastError = "Ollama is not reachable at " + endpoint;
+            else if (!ollamaModelAvailable) lastError = "AIFRED model missing: " + modelName;
+        }
+        else if (provider.Contains("openai", StringComparison.OrdinalIgnoreCase) && !openAiConfigured)
+        {
+            lastError = "OpenAI-compatible provider selected but no API key is configured";
+        }
         return new JsonObject
         {
             ["ok"] = true,
+            ["engine_running"] = true,
+            ["gateway_url"] = $"http://127.0.0.1:{GetInt(config, "port", DefaultPort)}",
             ["engine_version"] = EngineVersion,
             ["model_loaded"] = fileModelAvailable || ollamaModelAvailable,
             ["ollama_model_available"] = ollamaModelAvailable,
+            ["provider"] = provider,
             ["provider_mode"] = provider,
+            ["ollama_reachable"] = ollamaReachable,
+            ["ollama_url"] = endpoint,
+            ["model_present"] = ollamaModelAvailable,
+            ["model_name"] = modelName,
+            ["openai_configured"] = openAiConfigured,
+            ["local_ai_ready"] = localAiReady,
+            ["last_error"] = lastError,
             ["chat_model"] = modelName,
-            ["chat_endpoint"] = EffectiveEndpoint(),
+            ["chat_endpoint"] = endpoint,
             ["model_path"] = modelPath
         };
     }
@@ -224,21 +249,35 @@ sealed class AifredRuntime
         {
             if (provider.Contains("ollama", StringComparison.OrdinalIgnoreCase) || endpoint.Contains("11434", StringComparison.OrdinalIgnoreCase))
             {
+                if (!await OllamaReachableAsync(endpoint))
+                {
+                    return new JsonObject { ["ok"] = false, ["error"] = "Ollama is not reachable at " + endpoint };
+                }
+                if (!await OllamaModelExistsAsync(endpoint, model))
+                {
+                    return new JsonObject { ["ok"] = false, ["error"] = "AIFRED model missing: " + model };
+                }
                 return new JsonObject { ["response"] = await AskOllamaAsync(endpoint, model, message, context) };
             }
             if (provider.Contains("openai", StringComparison.OrdinalIgnoreCase) || provider.Contains("compatible", StringComparison.OrdinalIgnoreCase))
             {
+                if (string.IsNullOrWhiteSpace(EffectiveApiKey()))
+                {
+                    return new JsonObject { ["ok"] = false, ["error"] = "OpenAI-compatible provider selected but no API key is configured" };
+                }
                 return new JsonObject { ["response"] = await AskOpenAiCompatibleAsync(endpoint, model, message, context) };
             }
         }
         catch (Exception ex)
         {
             Log("chat provider error: " + ex.Message);
+            return new JsonObject { ["ok"] = false, ["error"] = ex.Message };
         }
 
         return new JsonObject
         {
-            ["response"] = "Local model response unavailable."
+            ["ok"] = false,
+            ["error"] = "No configured chat provider is available."
         };
     }
 
@@ -347,7 +386,49 @@ sealed class AifredRuntime
         }
     }
 
-    static bool OllamaModelExists(string modelName)
+    static async Task<bool> OllamaReachableAsync(string endpoint)
+    {
+        try
+        {
+            endpoint = endpoint.TrimEnd('/');
+            using var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(2500) };
+            using var response = await client.GetAsync($"{endpoint}/api/tags");
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    static async Task<bool> OllamaModelExistsAsync(string endpoint, string modelName)
+    {
+        try
+        {
+            endpoint = endpoint.TrimEnd('/');
+            using var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(4000) };
+            using var response = await client.GetAsync($"{endpoint}/api/tags");
+            if (response.IsSuccessStatusCode)
+            {
+                var json = JsonNode.Parse(await response.Content.ReadAsStringAsync())?.AsObject();
+                var models = json?["models"]?.AsArray();
+                if (models != null)
+                {
+                    foreach (var model in models)
+                    {
+                        var name = model?["name"]?.GetValue<string>() ?? "";
+                        if (string.Equals(name, modelName, StringComparison.OrdinalIgnoreCase)) return true;
+                        if (name.StartsWith(modelName + ":", StringComparison.OrdinalIgnoreCase)) return true;
+                    }
+                }
+            }
+        }
+        catch {}
+
+        return OllamaModelExistsFromCli(modelName);
+    }
+
+    static bool OllamaModelExistsFromCli(string modelName)
     {
         try
         {
@@ -417,7 +498,9 @@ sealed class AifredRuntime
     string EffectiveEndpoint()
     {
         var overrideEnabled = GetBool(userSettings, "provider_override_enabled", false);
-        var endpoint = overrideEnabled ? GetString(userSettings, "custom_endpoint", "") : GetString(config, "custom_endpoint", "");
+        var endpoint = overrideEnabled
+            ? GetString(userSettings, "ollama_url", GetString(userSettings, "custom_endpoint", ""))
+            : GetString(config, "ollama_url", GetString(config, "custom_endpoint", ""));
         return string.IsNullOrWhiteSpace(endpoint) ? "http://127.0.0.1:11434" : endpoint;
     }
 
@@ -443,10 +526,12 @@ sealed class AifredRuntime
     {
         ["mode"] = "local",
         ["port"] = DefaultPort,
+        ["gateway_url"] = "http://127.0.0.1:8787",
         ["provider"] = "ollama",
         ["model_path"] = "models/aifred-assistant-q4.gguf",
         ["model_name"] = "aifred:latest",
         ["openai_api_key"] = "",
+        ["ollama_url"] = "http://127.0.0.1:11434",
         ["custom_endpoint"] = "http://127.0.0.1:11434",
         ["timeout_ms"] = 180000
     };
@@ -456,6 +541,7 @@ sealed class AifredRuntime
         ["provider_override_enabled"] = false,
         ["provider_mode"] = "ollama",
         ["api_key"] = "",
+        ["ollama_url"] = "http://127.0.0.1:11434",
         ["custom_endpoint"] = "http://127.0.0.1:11434",
         ["model_name"] = "aifred:latest"
     };
