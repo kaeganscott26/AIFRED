@@ -44,7 +44,7 @@ Use Cloudflare Pages environment variables and GitHub repository secrets.
 
 ## Paid Delivery
 
-The public website buy button is a $5 PayPal path. Completed PayPal IPN events are recorded by the Cloudflare backend, then the backend issues a short-lived tokenized download link for the configured AIFRED release asset.
+The free beta should not use a PayPal paywall. PayPal/R2 delivery is retained as a future paid-release path. When enabled for a paid release, completed PayPal IPN or capture events are recorded by the Cloudflare backend, then the backend issues a short-lived tokenized download link for the configured AIFRED release asset.
 
 Required production settings:
 

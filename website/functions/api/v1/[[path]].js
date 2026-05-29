@@ -327,9 +327,9 @@ function contentPayload() {
         sku: "aifred_vst3_windows",
         title: "AIFRED VST3 for Windows",
         description: "A visual mix tool built to help you understand what your mix is actually doing.",
-        price: "$5 one-time beta access",
-        availability_label: "2-week launch beta.",
-        future_price_label: "$5 launch beta access. Later pricing will be set after the final launch window."
+        price: "Free public beta",
+        availability_label: "Free beta release.",
+        future_price_label: "Flagship paid release planned later."
       }
     ],
     services: [
@@ -346,7 +346,7 @@ function contentPayload() {
       {
         title: "AIFRED VST",
         description: "Visual feedback for tone, width, loudness, punch, reference alignment, and compare workflow.",
-        price: "$5 one-time beta access"
+        price: "Free public beta"
       }
     ]
   };

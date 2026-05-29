@@ -273,22 +273,21 @@ async function renderPayPalButtons() {
 
 async function renderReleaseActions() {
   const releaseNotes = String(DOWNLOAD_URLS.releaseNotes || "assets/docs/aifred-release-notes.txt").trim();
+  const releasePage = String(DOWNLOAD_URLS.betaRelease || "https://github.com/kaeganscott26/AIFRED/releases/tag/beta-0.1.0").trim();
 
   if (!aifredDownloads) {
     return;
   }
 
-  const downloads = [["Release notes", releaseNotes]];
+  const downloads = [
+    ["Free beta release", releasePage],
+    ["Release notes", releaseNotes]
+  ];
 
   aifredDownloads.innerHTML = downloads
     .map(([label, url]) => `<a href="${url}" target="_blank" rel="noreferrer">${label}</a>`)
     .join("");
-
-  try {
-    await renderPayPalButtons();
-  } catch (error) {
-    setPurchaseStatus(`PayPal checkout unavailable: ${error.message || "try again shortly"}`);
-  }
+  setPurchaseStatus("Free beta downloads are published through the GitHub release when artifacts are attached.");
 }
 
 function clamp(value, min, max) {
@@ -493,7 +492,7 @@ function renderAnalysis(analysis) {
 async function handleAnalysisFile(file) {
   if (!file) return;
   analysisTitle.textContent = file.name;
-  analysisStatus.textContent = "Running the quick outside read...";
+  analysisStatus.textContent = "Running the free limited analysis...";
   analysisSubmit.disabled = true;
   analysisResult.textContent = "The online analyzer is running locally in your browser.";
   try {
@@ -516,7 +515,7 @@ async function handleAnalysisFile(file) {
 async function submitAnalysisGate() {
   if (!currentAnalysis) return;
   analysisSubmit.disabled = true;
-  analysisResult.textContent = "Submitting the quick direction check...";
+  analysisResult.textContent = "Submitting the reference candidate to the quality gate...";
   try {
     const response = await fetch(apiUrl("/api/v1/analysis/submit"), {
       method: "POST",

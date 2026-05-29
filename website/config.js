@@ -4,7 +4,8 @@ window.AIFRED_CONFIG = {
   contactEmail: "north3rnlight3rofficial@outlook.com",
   paypal: {},
   downloadUrls: {
-    releaseNotes: `${__base}/assets/docs/aifred-release-notes.txt`
+    releaseNotes: `${__base}/assets/docs/aifred-beta-release-notes.txt`,
+    betaRelease: "https://github.com/kaeganscott26/AIFRED/releases/tag/beta-0.1.0"
   },
-  productPrice: "$5 one-time beta access"
+  productPrice: "Free public beta"
 };

@@ -28,8 +28,8 @@ This release keeps the distributable JUCE VST3 line and corrects the analysis da
 
 ## Website And Delivery
 
-- Website config uses the $5 PayPal purchase path.
-- Cloudflare backend records PayPal IPN sales and issues tokenized download links for the configured release package.
+- Website config now uses the free beta release path for AIFRED downloads.
+- PayPal/R2 delivery code remains available for later paid releases, but the free beta should link to public release artifacts instead of a paywall.
 - Download defaults target `kaeganscott26/AIFRED` tag `v0.3.6-installer-ai-alias`.
 - Website activity now records to the admin log feed, including buy clicks, order lifecycle events, catalog plays, inquiries, downloads, and admin uploads.
 - Catalog uploads now auto-sync the website audio file and the beat catalog JSON so the admin app and site stay in step.

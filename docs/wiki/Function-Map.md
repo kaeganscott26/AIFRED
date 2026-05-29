@@ -16,7 +16,7 @@
 | --- | --- |
 | `website/index.html` | Public page structure |
 | `website/styles.css` | Brand styling, analyzer, catalog, release download layout |
-| `website/app.js` | Catalog player, PayPal links, analyzer DSP, chat form, metadata gate submission |
+| `website/app.js` | Catalog player, free beta release links, analyzer DSP, chat form, metadata gate submission |
 | `website/config.js` | Public runtime config and release URLs |
 | `website/_worker.js` | Cloudflare Pages Worker router |
 | `website/functions/api/v1/[[path]].js` | Main backend and admin API |

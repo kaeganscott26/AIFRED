@@ -85,15 +85,23 @@
             <article><strong>Built for real production decisions</strong></article>
           </div>
           <div class="release-panel">
-            <strong>AIFRED</strong>
+            <strong>AIFRED Free Beta</strong>
             <div class="pricing-copy" aria-label="AIFRED beta pricing">
-              <strong>Beta purchase:</strong>
-              <span>$5 one-time purchase</span>
-              <span>Free updates for life included</span>
+              <strong>Free public beta:</strong>
+              <span>No beta paywall</span>
+              <span>Windows first, macOS/Linux where validated</span>
               <span>No subscription</span>
-              <span>No recurring charge</span>
+              <span>Flagship paid release planned later</span>
             </div>
-            <div id="aifred-paypal-buttons"></div>
+            <p>
+              AIFRED Beta supports live Analyze Mode, Compare Mode, and local user-loaded
+              reference tracks inside the plugin. Local AI is intended to run through
+              AifredEngine, Ollama, and the aifred:latest model; OpenAI remains optional.
+            </p>
+            <p>
+              Cloud reference-profile sync is part of the expanded flagship workflow unless
+              it is explicitly verified in release notes.
+            </p>
             <p class="purchase-status" id="aifred-purchase-status" role="status" aria-live="polite"></p>
             <div class="download-strip" id="aifred-downloads" aria-label="AIFRED downloads"></div>
           </div>
@@ -128,9 +136,10 @@
         <div class="section-head">
           <div>
             <p class="eyebrow">Free Online Mix Analyzer</p>
-            <h2>Upload a file and get a quick read before you ever open the full plugin.</h2>
+            <h2>Submit a reference candidate and get a quick read before you ever open the full plugin.</h2>
             <p>
               The online analyzer is a simple first-pass tool for checking where your mix is landing.
+              Accepted submissions help build AIFRED's curated reference profile pool.
             </p>
             <p>It helps you get a quick outside read on:</p>
             <ul>
@@ -143,10 +152,14 @@
               It is not meant to replace the plugin. It is there to give you a quick direction check
               and help you catch obvious issues earlier.
             </p>
-            <p>Drop in a file, run the analysis, and get a quick read on where your mix stands.</p>
+            <p>
+              Uploads receive a free limited analysis. Accepted references store analysis metadata
+              through the reference intake path; this does not mean the beta plugin syncs cloud
+              reference profiles automatically.
+            </p>
           </div>
           <label class="btn">
-            Upload a Mix
+            Submit Reference Candidate
             <input id="analysis-upload" class="hidden-input" type="file" accept="audio/*" />
           </label>
         </div>
@@ -156,9 +169,9 @@
           </div>
           <div class="analysis-readout">
             <h3 id="analysis-title">No mix loaded</h3>
-            <p id="analysis-status">Drop in a file, run the analysis, and get a quick read on where your mix stands.</p>
+            <p id="analysis-status">Drop in a file for free limited analysis and reference-candidate gate review.</p>
             <div id="analysis-metrics" class="metric-list"></div>
-            <button class="btn ghost" id="analysis-submit" type="button" disabled>Upload a Mix</button>
+            <button class="btn ghost" id="analysis-submit" type="button" disabled>Submit Candidate</button>
             <pre id="analysis-result">The online analyzer is ready.</pre>
           </div>
         </div>

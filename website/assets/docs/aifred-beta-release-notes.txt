@@ -1,27 +1,28 @@
-AIFRED Official Beta Release Notes
-=================================
+AIFRED VST3 Free Beta 0.1.0
+===========================
 
-Release: v0.3.3-ollama-chat
-Date: April 2026
+Free public beta.
 
-Welcome to the AIFRED VST3 v0.3.3 Ollama chat release.
+Active in this beta:
+- Core analyzer
+- Compare Mode
+- Local Reference Mode for up to five user-loaded tracks inside the plugin
+- Local AI route through Ollama at http://127.0.0.1:11434 using aifred:latest. Installed packages may also start the AIFRED gateway at http://127.0.0.1:8787 for plugin health/chat routing.
+- Optional OpenAI-compatible routing
+- Website Reference Intake for free limited analysis and curated reference-pool candidates
 
-Key Features in this Release:
-- Real-time Halo-based analysis (Tone, Width, Loudness, Punch)
-- Reference alignment and A/B comparison
-- Visual feedback optimized for fast mix decisions
-- Stable Windows VST3 build
+Important limits:
+- Cloud reference-profile sync is roadmap/flagship unless a release explicitly says it has been verified.
+- Website uploads receive limited analysis and pass through the quality gate before accepted metadata helps build the curated pool.
+- The plugin uses local user-loaded reference tracks for beta Reference Mode; it does not need the website for that.
+- AIFRED does not mix the song for you. It interprets measured audio and gives practical guidance.
 
-Purchase Details:
-- $5 one-time beta purchase
-- Free updates for life included
-- No subscription or recurring charges
+Install notes:
+1. Download the beta artifact for your platform from the GitHub beta release.
+2. Run the installer or copy the VST3 according to the included platform notes.
+3. Run the included local AI setup script if the installer reports Ollama, aifred:latest, or AifredEngine is missing.
+4. Load AIFRED in your DAW and rescan VST3 plugins if needed.
 
-Installation:
-1. Download the AIFRED VST3 installer from your purchase confirmation link.
-2. Run the installer and follow the on-screen instructions.
-3. Load AIFRED in your DAW on your master bus or individual tracks.
-
-Support:
-For issues or feedback, please contact North3rnLight3r through the website contact form or email north3rnlight3rofficial@outlook.com.
+Feedback:
+Use the website contact form or email north3rnlight3rofficial@outlook.com.
 
