@@ -48,6 +48,8 @@ TXT
 
 cp "$SCRIPT_DIR/com.aifred.engine.plist" "$PKGROOT/Library/LaunchAgents/com.aifred.engine.plist"
 cp "$REPO_ROOT/models/aifred/Modelfile" "$PRODUCT_ROOT/models/aifred/Modelfile"
+cp "$SCRIPT_DIR/setup-aifred-local-ai.sh" "$PRODUCT_ROOT/setup-aifred-local-ai.sh"
+chmod 755 "$PRODUCT_ROOT/setup-aifred-local-ai.sh"
 cp "$REPO_ROOT/website/assets/docs/aifred-beta-release-notes.txt" "$PRODUCT_ROOT/AIFRED-BETA-NOTES.txt"
 cp "$SCRIPT_DIR/postinstall" "$SCRIPTS_DIR/postinstall"
 chmod 755 "$SCRIPTS_DIR/postinstall"
