@@ -17,6 +17,8 @@ The Cloudflare website/backend and the local AIFRED engine are separate systems.
 
 Older folders and sibling repo copies are preserved until smoke tests and later migration phases pass.
 
+Phase 2 adds validation tooling and path-authority documentation. No runtime plugin or engine move has happened yet, no deployment path has changed, and old/new website and admin paths intentionally coexist until later smoke tests pass.
+
 ## Production
 
 - Website: https://www.north3rnlight3r.com
@@ -152,6 +154,5 @@ Start here:
 - [Function Map](docs/wiki/Function-Map.md)
 - [Troubleshooting](docs/wiki/Troubleshooting.md)
 - [Security And Distribution](docs/wiki/Security-And-Distribution.md)
-
 
 

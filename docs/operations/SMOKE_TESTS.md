@@ -82,3 +82,23 @@ test -d tools/AifredEngine && echo "AifredEngine present"
 test -d website && echo "old website copy preserved"
 test -d android_admin && echo "old admin copy preserved"
 ```
+
+## Phase 2 Validation Tooling
+
+Default validation is safe and read-only:
+
+```sh
+./tools/release/aifred_monorepo_validate.sh
+```
+
+Optional Gradle task discovery:
+
+```sh
+./tools/release/aifred_monorepo_validate.sh --gradle
+```
+
+Default mode checks path authority, imported website worker files, JavaScript syntax when `node` is available, Android Gradle file presence, plugin/engine file presence, backend reference separation, and excluded-folder hygiene.
+
+`--gradle` only runs `./gradlew tasks` inside `apps/admin-android`. It does not run a release build, publish an APK, deploy Cloudflare, push Git commits, or delete files.
+
+Do not run deploys, pushes, or destructive cleanup from Phase 2 smoke tests.
