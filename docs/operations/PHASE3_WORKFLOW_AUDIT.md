@@ -1,9 +1,9 @@
 # Phase 3 Workflow Audit
 
-Timestamp: 2026-06-27T15:45:09-05:00
+Timestamp: 2026-06-27T16:17:51-05:00
 
-Git branch: `aifred-consolidation-phase3-workflows`
-Git commit: `05d5a0f`
+Git branch: `aifred-consolidation-phase4-deploy-dryrun`
+Git commit: `37584e4`
 
 ## Workflows Found
 
@@ -20,6 +20,14 @@ Git commit: `05d5a0f`
 - References new `apps/admin-android`: no
 - References `plugin-aifred`: no
 - References `tools/AifredEngine`: no
+
+## Deployment And Release Behavior Detection
+
+- Old website deployment root detected: yes
+- New `apps/website` deployment root detected: no
+- Release publishing behavior detected: yes
+- Tag-triggered release behavior detected: yes
+- Manual-only monorepo validation workflow detected: yes
 
 ## Deployment-Related References By File
 
@@ -65,12 +73,14 @@ Git commit: `05d5a0f`
 | `docs/architecture/BACKEND_SEPARATION_CONTRACT.md` | `cloudflare`, `north3rnlight3r`, `PAYPAL` |
 | `docs/architecture/PATH_AUTHORITY_MAP.md` | `cloudflare`, `aifred-site` |
 | `docs/archive/release-placeholder/README.md` | `cloudflare`, `R2` |
+| `docs/operations/CLOUDFLARE_MANUAL_VERIFICATION_CHECKLIST.md` | `wrangler`, `cloudflare`, `north3rnlight3r`, `PAYPAL`, `R2` |
 | `docs/operations/MEDIA_ASSET_POLICY.md` | `cloudflare`, `aifred-site`, `R2` |
 | `docs/operations/PHASE1_CONSOLIDATION_LOG.md` | `wrangler`, `cloudflare`, `aifred-site`, `cmake`, `PAYPAL`, `R2` |
-| `docs/operations/PHASE2_REPO_INVENTORY.md` | `wrangler`, `cloudflare`, `north3rnlight3r`, `cmake` |
 | `docs/operations/PHASE3_ASSET_STRATEGY_RECOMMENDATION.md` | `cloudflare`, `north3rnlight3r`, `aifred-site`, `R2` |
 | `docs/operations/PHASE3_WORKFLOW_LOG.md` | `pages deploy`, `cloudflare`, `github release` |
 | `docs/operations/PHASE3_WORKFLOW_SAFETY.md` | `cloudflare`, `north3rnlight3r`, `aifred-site` |
+| `docs/operations/PHASE4_PATH_MIGRATION_PLAN.md` | `cloudflare` |
+| `docs/operations/RELEASE_WORKFLOW_SAFETY_CHECKLIST.md` | `github release` |
 | `docs/operations/SMOKE_TESTS.md` | `cloudflare`, `VST3`, `cmake`, `gradlew` |
 | `docs/wiki/Admin-App-Guide.md` | `cloudflare`, `github release`, `gradlew`, `openai`, `OPENAI_API_KEY` |
 | `docs/wiki/Backend-Map.md` | `cloudflare`, `CLOUDFLARE_API_TOKEN`, `AIFRED_GITHUB_REPO`, `openai`, `OPENAI_API_KEY`, `PAYPAL`, `AIFRED_REFERENCE_POOL` |
@@ -94,8 +104,10 @@ Git commit: `05d5a0f`
 | `tools/check_integrity.py` | `VST3`, `.vst3` |
 | `tools/macos/package-aifred-macos.sh` | `setup-aifred-local-ai`, `VST3`, `.vst3`, `dotnet publish`, `openai`, `OPENAI_API_KEY` |
 | `tools/package-aifred.ps1` | `setup-aifred-local-ai`, `VST3`, `.vst3`, `dotnet publish`, `openai`, `OPENAI_API_KEY` |
+| `tools/release/aifred_admin_dryrun_check.py` | `wrangler`, `north3rnlight3r`, `gradlew` |
 | `tools/release/aifred_monorepo_validate.sh` | `wrangler`, `cloudflare`, `CLOUDFLARE_API_TOKEN`, `north3rnlight3r`, `gh release`, `cmake`, `gradlew`, `assembleRelease`, `openai`, `OPENAI_API_KEY`, `PAYPAL` |
 | `tools/release/aifred_repo_inventory.py` | `cloudflare`, `north3rnlight3r` |
+| `tools/release/aifred_website_dryrun_check.py` | `wrangler`, `cloudflare`, `north3rnlight3r`, `github release`, `PAYPAL`, `R2` |
 | `tools/release/aifred_workflow_audit.py` | `wrangler`, `pages deploy`, `cloudflare`, `CLOUDFLARE_API_TOKEN`, `project-name`, `north3rnlight3r`, `aifred-site`, `github release`, `gh release`, `upload-artifact`, `download-artifact`, `AIFRED_RELEASE_VERSION`, `AIFRED_PLUGIN_RELEASE_TAG`, `AIFRED_GITHUB_REPO`, `package-aifred`, `package-aifred-macos`, `setup-aifred-local-ai`, `AifredWindowsInstaller`, `AifredWindowsUninstaller`, `VST3`, `.vst3`, `msbuild`, `cmake`, `dotnet publish`, `gradlew`, `assembleRelease`, `openai`, `OPENAI_API_KEY`, `PAYPAL`, `R2`, `AIFRED_REFERENCE_POOL` |
 | `tools/serve-website.mjs` | `cloudflare`, `north3rnlight3r`, `openai`, `OPENAI_API_KEY` |
 | `tools/windows/setup-aifred-local-ai.ps1` | `openai`, `OPENAI_API_KEY` |
@@ -132,10 +144,11 @@ Git commit: `05d5a0f`
 | `docs/architecture/PATH_AUTHORITY_MAP.md` | `website/`, `apps/website`, `android_admin`, `apps/admin-android`, `plugin-aifred`, `tools/AifredEngine` |
 | `docs/operations/MEDIA_ASSET_POLICY.md` | `apps/website` |
 | `docs/operations/PHASE1_CONSOLIDATION_LOG.md` | `website/`, `apps/website`, `android_admin`, `apps/admin-android`, `plugin-aifred`, `tools/AifredEngine` |
-| `docs/operations/PHASE2_REPO_INVENTORY.md` | `website/`, `apps/website`, `android_admin`, `apps/admin-android`, `plugin-aifred`, `tools/AifredEngine` |
 | `docs/operations/PHASE3_ASSET_STRATEGY_RECOMMENDATION.md` | `website/`, `apps/website` |
 | `docs/operations/PHASE3_WORKFLOW_LOG.md` | `website/`, `apps/website`, `android_admin`, `plugin-aifred`, `tools/AifredEngine` |
 | `docs/operations/PHASE3_WORKFLOW_SAFETY.md` | `apps/website`, `plugin-aifred`, `tools/AifredEngine` |
+| `docs/operations/PHASE4_PATH_MIGRATION_PLAN.md` | `website/`, `apps/website`, `android_admin`, `apps/admin-android`, `plugin-aifred`, `tools/AifredEngine` |
+| `docs/operations/RELEASE_WORKFLOW_SAFETY_CHECKLIST.md` | `plugin-aifred`, `tools/AifredEngine` |
 | `docs/operations/SMOKE_TESTS.md` | `website/`, `apps/website`, `android_admin`, `apps/admin-android`, `plugin-aifred`, `tools/AifredEngine` |
 | `docs/wiki/Admin-App-Guide.md` | `website/`, `android_admin` |
 | `docs/wiki/Backend-Map.md` | `website/` |
@@ -149,8 +162,10 @@ Git commit: `05d5a0f`
 | `tools/check-aifred-analysis-regressions.ps1` | `plugin-aifred` |
 | `tools/check-no-hardcoded-paths.ps1` | `apps/website`, `android_admin`, `plugin-aifred` |
 | `tools/macos/package-aifred-macos.sh` | `website/`, `tools/AifredEngine` |
+| `tools/release/aifred_admin_dryrun_check.py` | `android_admin`, `apps/admin-android` |
 | `tools/release/aifred_monorepo_validate.sh` | `website/`, `apps/website`, `android_admin`, `apps/admin-android`, `plugin-aifred`, `tools/AifredEngine` |
 | `tools/release/aifred_repo_inventory.py` | `website/`, `apps/website`, `android_admin`, `apps/admin-android`, `plugin-aifred`, `tools/AifredEngine` |
+| `tools/release/aifred_website_dryrun_check.py` | `website/`, `apps/website` |
 | `tools/release/aifred_workflow_audit.py` | `website/`, `apps/website`, `android_admin`, `apps/admin-android`, `plugin-aifred`, `tools/AifredEngine` |
 | `website/assets/docs/aifred-installation.txt` | `website/` |
 | `website/functions/api/v1/[[path]].js` | `website/` |
@@ -172,7 +187,6 @@ Git commit: `05d5a0f`
 | `docs/BACKEND-ROUTING-MACOS.md` | `dotnet publish` |
 | `docs/PLUGIN-STABILIZATION.md` | `cmake` |
 | `docs/operations/PHASE1_CONSOLIDATION_LOG.md` | `cmake` |
-| `docs/operations/PHASE2_REPO_INVENTORY.md` | `cmake` |
 | `docs/operations/PHASE3_WORKFLOW_LOG.md` | `pages deploy` |
 | `docs/operations/SMOKE_TESTS.md` | `cmake` |
 | `docs/wiki/Developer-Guide.md` | `pages deploy`, `dotnet publish`, `cmake` |
@@ -206,6 +220,7 @@ Git commit: `05d5a0f`
 | `docs/RELEASE_NOTES.md` | `PAYPAL` |
 | `docs/architecture/AIFRED_SYSTEM_MAP.md` | `PAYPAL` |
 | `docs/architecture/BACKEND_SEPARATION_CONTRACT.md` | `PAYPAL` |
+| `docs/operations/CLOUDFLARE_MANUAL_VERIFICATION_CHECKLIST.md` | `PAYPAL` |
 | `docs/operations/PHASE1_CONSOLIDATION_LOG.md` | `PAYPAL` |
 | `docs/wiki/Admin-App-Guide.md` | `OPENAI_API_KEY` |
 | `docs/wiki/Backend-Map.md` | `CLOUDFLARE_API_TOKEN`, `OPENAI_API_KEY`, `PAYPAL` |
@@ -219,6 +234,7 @@ Git commit: `05d5a0f`
 | `tools/macos/package-aifred-macos.sh` | `OPENAI_API_KEY` |
 | `tools/package-aifred.ps1` | `OPENAI_API_KEY` |
 | `tools/release/aifred_monorepo_validate.sh` | `CLOUDFLARE_API_TOKEN`, `OPENAI_API_KEY`, `PAYPAL`, `PAYPAL_CLIENT_SECRET` |
+| `tools/release/aifred_website_dryrun_check.py` | `PAYPAL` |
 | `tools/release/aifred_workflow_audit.py` | `CLOUDFLARE_API_TOKEN`, `OPENAI_API_KEY`, `PAYPAL`, `PAYPAL_CLIENT_SECRET` |
 | `tools/serve-website.mjs` | `OPENAI_API_KEY` |
 | `tools/windows/setup-aifred-local-ai.ps1` | `OPENAI_API_KEY` |

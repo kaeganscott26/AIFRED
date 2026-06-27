@@ -34,6 +34,12 @@ jobs:
       - name: Check workflow audit report
         run: python3 tools/release/aifred_workflow_audit.py --check
 
+      - name: Check website dry-run report
+        run: python3 tools/release/aifred_website_dryrun_check.py --check
+
+      - name: Check admin dry-run report
+        run: python3 tools/release/aifred_admin_dryrun_check.py --check
+
       - name: Confirm read-only CI state
         run: |
           git status --short

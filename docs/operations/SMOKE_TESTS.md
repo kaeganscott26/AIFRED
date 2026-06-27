@@ -130,3 +130,43 @@ It should not:
 - or use repository secrets.
 
 Do not run Cloudflare deploy commands, release publishing commands, pushes, or destructive cleanup from Phase 3 smoke tests.
+
+## Phase 4 Deployment Dry-Run Checks
+
+Run the monorepo validator:
+
+```sh
+./tools/release/aifred_monorepo_validate.sh
+```
+
+Generate and check website dry-run readiness:
+
+```sh
+python3 tools/release/aifred_website_dryrun_check.py
+python3 tools/release/aifred_website_dryrun_check.py --check
+```
+
+Generate and check admin dry-run readiness:
+
+```sh
+python3 tools/release/aifred_admin_dryrun_check.py
+python3 tools/release/aifred_admin_dryrun_check.py --check
+```
+
+Confirm workflow audit is current:
+
+```sh
+python3 tools/release/aifred_workflow_audit.py --check
+```
+
+Phase 4 smoke tests must not:
+
+- deploy,
+- push,
+- merge,
+- run Gradle builds by default,
+- run Cloudflare commands,
+- publish releases,
+- delete old runtime folders,
+- move `plugin-aifred`,
+- or move `tools/AifredEngine`.

@@ -15,6 +15,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 REPORT_PATH = ROOT / "docs" / "operations" / "PHASE3_WORKFLOW_AUDIT.md"
+GENERATED_REPORTS = {
+    "docs/operations/PHASE2_REPO_INVENTORY.md",
+    "docs/operations/PHASE3_WORKFLOW_AUDIT.md",
+    "docs/operations/PHASE4_WEBSITE_DRYRUN_REPORT.md",
+    "docs/operations/PHASE4_ADMIN_DRYRUN_REPORT.md",
+}
 
 SCAN_ROOTS = [
     ".github/workflows",
@@ -141,7 +147,7 @@ def iter_scan_files() -> list[Path]:
         if not root.exists():
             continue
         if root.is_file():
-            if root != REPORT_PATH and not is_binary_or_large(root):
+            if rel(root) not in GENERATED_REPORTS and not is_binary_or_large(root):
                 files.append(root)
             continue
         for dirpath, dirnames, filenames in os.walk(root):
@@ -149,7 +155,7 @@ def iter_scan_files() -> list[Path]:
             base = Path(dirpath)
             for filename in filenames:
                 path = base / filename
-                if path == REPORT_PATH or is_binary_or_large(path):
+                if rel(path) in GENERATED_REPORTS or is_binary_or_large(path):
                     continue
                 files.append(path)
     return sorted(set(files), key=lambda item: rel(item))
@@ -263,6 +269,11 @@ def build_report() -> str:
     references_new_admin = False
     references_plugin = False
     references_engine = False
+    old_website_deploy_root = False
+    new_website_deploy_root = False
+    release_publishing_behavior = False
+    tag_triggered_release_behavior = False
+    manual_only_validation_workflow = False
 
     for path in workflows:
         text = read_text(path)
@@ -277,6 +288,12 @@ def build_report() -> str:
         references_new_admin = references_new_admin or "apps/admin-android" in lower_text
         references_plugin = references_plugin or "plugin-aifred" in lower_text
         references_engine = references_engine or "tools/aifredengine" in lower_text
+        old_website_deploy_root = old_website_deploy_root or "pages deploy website" in lower_text
+        new_website_deploy_root = new_website_deploy_root or "pages deploy apps/website" in lower_text
+        release_publishing_behavior = release_publishing_behavior or "gh release" in lower_text
+        tag_triggered_release_behavior = tag_triggered_release_behavior or "refs/tags" in lower_text or "tags:" in lower_text
+        if path.name == "aifred-monorepo-validate.yml" and triggers == ["workflow_dispatch"]:
+            manual_only_validation_workflow = True
 
     duplicate_authority_warnings: list[str] = []
     if references_old_website and references_new_website:
@@ -327,6 +344,14 @@ def build_report() -> str:
     lines.append(f"- References new `apps/admin-android`: {'yes' if references_new_admin else 'no'}")
     lines.append(f"- References `plugin-aifred`: {'yes' if references_plugin else 'no'}")
     lines.append(f"- References `tools/AifredEngine`: {'yes' if references_engine else 'no'}")
+    lines.append("")
+    lines.append("## Deployment And Release Behavior Detection")
+    lines.append("")
+    lines.append(f"- Old website deployment root detected: {'yes' if old_website_deploy_root else 'no'}")
+    lines.append(f"- New `apps/website` deployment root detected: {'yes' if new_website_deploy_root else 'no'}")
+    lines.append(f"- Release publishing behavior detected: {'yes' if release_publishing_behavior else 'no'}")
+    lines.append(f"- Tag-triggered release behavior detected: {'yes' if tag_triggered_release_behavior else 'no'}")
+    lines.append(f"- Manual-only monorepo validation workflow detected: {'yes' if manual_only_validation_workflow else 'no'}")
     lines.append("")
     lines.append("## Deployment-Related References By File")
     lines.append("")

@@ -66,7 +66,7 @@ require_reference() {
 repo_root="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
 cd "$repo_root"
 
-section "AIFRED Monorepo Phase 2/3 Validation"
+section "AIFRED Monorepo Phase 2/3/4 Validation"
 pass "repo root: $repo_root"
 pass "branch: $(git branch --show-current 2>/dev/null || echo unknown)"
 pass "commit: $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
@@ -93,7 +93,7 @@ fi
 if [ -d android_admin ] && [ -d apps/admin-android ]; then
   warn "both android_admin/ and apps/admin-android exist"
 fi
-pass "coexistence is expected during Phase 2/3"
+pass "coexistence is expected during Phase 2/3/4"
 
 section "Website Worker Files"
 for path in \
@@ -219,5 +219,18 @@ do
 done
 pass "validation workflow does not contain forbidden deployment or secret tokens"
 
+section "Phase 4 Dry-Run Readiness Files"
+for path in \
+  tools/release/aifred_website_dryrun_check.py \
+  tools/release/aifred_admin_dryrun_check.py \
+  docs/operations/PHASE4_WEBSITE_DRYRUN_REPORT.md \
+  docs/operations/PHASE4_ADMIN_DRYRUN_REPORT.md \
+  docs/operations/PHASE4_PATH_MIGRATION_PLAN.md \
+  docs/operations/CLOUDFLARE_MANUAL_VERIFICATION_CHECKLIST.md \
+  docs/operations/RELEASE_WORKFLOW_SAFETY_CHECKLIST.md
+do
+  require_file "$path"
+done
+
 section "Final Result"
-pass "AIFRED monorepo Phase 3 validation PASS"
+pass "AIFRED monorepo Phase 4 validation PASS"

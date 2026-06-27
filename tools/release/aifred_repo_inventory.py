@@ -17,6 +17,8 @@ REPORT_PATH = ROOT / "docs" / "operations" / "PHASE2_REPO_INVENTORY.md"
 VOLATILE_REPORTS = {
     "docs/operations/PHASE2_REPO_INVENTORY.md",
     "docs/operations/PHASE3_WORKFLOW_AUDIT.md",
+    "docs/operations/PHASE4_WEBSITE_DRYRUN_REPORT.md",
+    "docs/operations/PHASE4_ADMIN_DRYRUN_REPORT.md",
 }
 
 MAJOR_AREAS = [

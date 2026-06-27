@@ -21,6 +21,8 @@ Phase 2 adds validation tooling and path-authority documentation. No runtime plu
 
 Phase 3 adds workflow audit tooling and a manual-only monorepo validation workflow. Live deployment behavior is still unchanged, existing website/admin/plugin/engine runtime paths remain preserved, and asset strategy must be decided before merging to `main`.
 
+Phase 4 adds deployment dry-run checks and path migration readiness docs. `apps/website` is not the live deployment root yet, `apps/admin-android` is not the release build root yet, the plugin and engine remain unmoved, old `website/` and `android_admin/` remain preserved, and Cloudflare manual verification plus asset strategy are required before merging to `main`.
+
 ## Production
 
 - Website: https://www.north3rnlight3r.com
@@ -156,4 +158,3 @@ Start here:
 - [Function Map](docs/wiki/Function-Map.md)
 - [Troubleshooting](docs/wiki/Troubleshooting.md)
 - [Security And Distribution](docs/wiki/Security-And-Distribution.md)
-
