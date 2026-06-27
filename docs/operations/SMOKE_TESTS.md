@@ -102,3 +102,31 @@ Default mode checks path authority, imported website worker files, JavaScript sy
 `--gradle` only runs `./gradlew tasks` inside `apps/admin-android`. It does not run a release build, publish an APK, deploy Cloudflare, push Git commits, or delete files.
 
 Do not run deploys, pushes, or destructive cleanup from Phase 2 smoke tests.
+
+## Phase 3 Workflow Safety Checks
+
+Run the monorepo validator:
+
+```sh
+./tools/release/aifred_monorepo_validate.sh
+```
+
+Confirm checked-in generated reports are current:
+
+```sh
+python3 tools/release/aifred_repo_inventory.py --check
+python3 tools/release/aifred_workflow_audit.py --check
+```
+
+The GitHub Actions validation workflow is manual-only through `workflow_dispatch`.
+
+It should not:
+
+- deploy,
+- push,
+- publish releases,
+- upload APKs,
+- upload VST3 artifacts,
+- or use repository secrets.
+
+Do not run Cloudflare deploy commands, release publishing commands, pushes, or destructive cleanup from Phase 3 smoke tests.

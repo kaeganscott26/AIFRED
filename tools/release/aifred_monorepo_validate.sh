@@ -66,7 +66,7 @@ require_reference() {
 repo_root="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
 cd "$repo_root"
 
-section "AIFRED Monorepo Phase 2 Validation"
+section "AIFRED Monorepo Phase 2/3 Validation"
 pass "repo root: $repo_root"
 pass "branch: $(git branch --show-current 2>/dev/null || echo unknown)"
 pass "commit: $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
@@ -93,7 +93,7 @@ fi
 if [ -d android_admin ] && [ -d apps/admin-android ]; then
   warn "both android_admin/ and apps/admin-android exist"
 fi
-pass "coexistence is expected during Phase 2"
+pass "coexistence is expected during Phase 2/3"
 
 section "Website Worker Files"
 for path in \
@@ -187,5 +187,37 @@ if [ -n "$excluded_found" ]; then
 fi
 pass "no excluded folders/files found under apps/ or infra/"
 
+section "Manual Validation Workflow Safety"
+if [ -d .github/workflows ]; then
+  pass ".github/workflows directory exists"
+else
+  warn ".github/workflows directory is not present"
+fi
+
+validation_workflow=.github/workflows/aifred-monorepo-validate.yml
+require_file "$validation_workflow"
+
+if ! grep -F -q "workflow_dispatch" "$validation_workflow"; then
+  echo "Validation workflow must be manual-only and include workflow_dispatch" >&2
+  exit 1
+fi
+pass "validation workflow contains workflow_dispatch"
+
+for forbidden in \
+  "wrangler deploy" \
+  "gh release create" \
+  "git push" \
+  "assembleRelease" \
+  "CLOUDFLARE_API_TOKEN" \
+  "PAYPAL_CLIENT_SECRET" \
+  "OPENAI_API_KEY"
+do
+  if grep -F -q "$forbidden" "$validation_workflow"; then
+    echo "Validation workflow contains forbidden deployment/secret token: $forbidden" >&2
+    exit 1
+  fi
+done
+pass "validation workflow does not contain forbidden deployment or secret tokens"
+
 section "Final Result"
-pass "AIFRED monorepo Phase 2 validation PASS"
+pass "AIFRED monorepo Phase 3 validation PASS"

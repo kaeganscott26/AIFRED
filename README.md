@@ -19,6 +19,8 @@ Older folders and sibling repo copies are preserved until smoke tests and later 
 
 Phase 2 adds validation tooling and path-authority documentation. No runtime plugin or engine move has happened yet, no deployment path has changed, and old/new website and admin paths intentionally coexist until later smoke tests pass.
 
+Phase 3 adds workflow audit tooling and a manual-only monorepo validation workflow. Live deployment behavior is still unchanged, existing website/admin/plugin/engine runtime paths remain preserved, and asset strategy must be decided before merging to `main`.
+
 ## Production
 
 - Website: https://www.north3rnlight3r.com
@@ -154,5 +156,4 @@ Start here:
 - [Function Map](docs/wiki/Function-Map.md)
 - [Troubleshooting](docs/wiki/Troubleshooting.md)
 - [Security And Distribution](docs/wiki/Security-And-Distribution.md)
-
 

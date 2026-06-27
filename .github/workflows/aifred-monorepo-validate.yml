@@ -1,0 +1,40 @@
+name: AIFRED Monorepo Validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Run monorepo validator
+        run: |
+          chmod +x tools/release/aifred_monorepo_validate.sh
+          ./tools/release/aifred_monorepo_validate.sh
+
+      - name: Check repository inventory report
+        run: python3 tools/release/aifred_repo_inventory.py --check
+
+      - name: Check workflow audit report
+        run: python3 tools/release/aifred_workflow_audit.py --check
+
+      - name: Confirm read-only CI state
+        run: |
+          git status --short
+          test -z "$(git status --short)"
