@@ -4,6 +4,19 @@
 
 The public-facing product is the AIFRED VST3 and North3rnLight3r beat catalog. The source code, admin app, credentials, prompts, backend maps, and deployment controls are private operational assets.
 
+## Monorepo Consolidation Status
+
+Phase 1 consolidation imports the authoritative website/backend into `apps/website` and the authoritative Android admin app into `apps/admin-android`.
+
+The current plugin and local engine runtime paths remain unchanged for this phase:
+
+- `plugin-aifred/` remains the active JUCE plugin source.
+- `tools/AifredEngine/` remains the active local engine source.
+
+The Cloudflare website/backend and the local AIFRED engine are separate systems. The website/admin backend lives at `https://www.north3rnlight3r.com/api/v1`; the local engine serves plugin AI/chat at `http://127.0.0.1:8787` and talks to Ollama at `http://127.0.0.1:11434` with model `aifred:latest`.
+
+Older folders and sibling repo copies are preserved until smoke tests and later migration phases pass.
+
 ## Production
 
 - Website: https://www.north3rnlight3r.com
@@ -139,7 +152,6 @@ Start here:
 - [Function Map](docs/wiki/Function-Map.md)
 - [Troubleshooting](docs/wiki/Troubleshooting.md)
 - [Security And Distribution](docs/wiki/Security-And-Distribution.md)
-
 
 
 

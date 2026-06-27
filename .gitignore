@@ -12,6 +12,7 @@ out/
 *.tar.gz
 node_modules/
 .wrangler/
+.DS_Store
 .dev.vars
 android_admin/.gradle/
 android_admin/local.properties
