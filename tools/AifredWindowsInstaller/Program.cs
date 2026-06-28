@@ -11,8 +11,8 @@ var targetRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolde
 var targetPlugin = Path.Combine(targetRoot, PluginFolderName);
 var productRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Aifred");
 var engineTarget = Path.Combine(productRoot, "bin", EngineExeName);
-var aiConfig = args.Length > 0 ? ResolveAiConfig(args) : ShowSetupDialog();
-if (aiConfig == null) return 0; // User cancelled
+var aiConfig = ResolveAiConfig(args);
+if (aiConfig == null) return 0; // User cancelled interactive setup
 
 try
 {
@@ -159,9 +159,14 @@ static void RegisterStartup(string enginePath)
     key?.SetValue("AIFRED Engine", $"\"{enginePath}\"");
 }
 
-static InstallerAiConfig ResolveAiConfig(string[] args)
+static InstallerAiConfig? ResolveAiConfig(string[] args)
 {
     var values = ParseArgs(args);
+    if (values.ContainsKey("interactive"))
+    {
+        return ShowSetupDialog();
+    }
+
     string Pick(string key, params string[] envNames)
     {
         if (values.TryGetValue(key, out var argValue) && !string.IsNullOrWhiteSpace(argValue)) return argValue.Trim();
@@ -211,10 +216,15 @@ static void SaveAiSettings(string provider, string endpoint, string apiKey, stri
 {
     var settingsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Aifred", "user_settings.json");
     var ollamaUrl = provider.Equals("ollama", StringComparison.OrdinalIgnoreCase) ? endpoint : "http://127.0.0.1:11434";
+    var usesDefaultLocalRoute =
+        provider.Equals("ollama", StringComparison.OrdinalIgnoreCase)
+        && endpoint.Equals("http://127.0.0.1:11434", StringComparison.OrdinalIgnoreCase)
+        && model.Equals("aifred:latest", StringComparison.OrdinalIgnoreCase)
+        && string.IsNullOrWhiteSpace(apiKey);
     Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
     File.WriteAllText(settingsPath, $$"""
     {
-      "provider_override_enabled": true,
+      "provider_override_enabled": {{(!usesDefaultLocalRoute).ToString().ToLowerInvariant()}},
       "provider_mode": "{{JsonEscape(provider)}}",
       "api_key": "{{JsonEscape(apiKey)}}",
       "ollama_url": "{{JsonEscape(ollamaUrl)}}",

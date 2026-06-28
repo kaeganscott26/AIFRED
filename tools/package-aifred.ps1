@@ -64,17 +64,17 @@ AIFRED works out of the box with local Ollama chat. The plugin sends measured DS
 Copy-Item -LiteralPath (Join-Path $repoRoot "models\aifred\Modelfile") -Destination (Join-Path $productRoot "models\aifred\Modelfile") -Force
 New-Item -ItemType Directory -Force -Path (Join-Path $packagePath "tools\windows") | Out-Null
 Copy-Item -LiteralPath (Join-Path $repoRoot "tools\windows\setup-aifred-local-ai.ps1") -Destination (Join-Path $packagePath "tools\windows\setup-aifred-local-ai.ps1") -Force
-Copy-Item -LiteralPath (Join-Path $repoRoot "website\assets\docs\aifred-beta-release-notes.txt") -Destination (Join-Path $packagePath "AIFRED-BETA-NOTES.txt") -Force
+Copy-Item -LiteralPath (Join-Path $repoRoot "apps\website\assets\docs\aifred-beta-release-notes.txt") -Destination (Join-Path $packagePath "AIFRED-BETA-NOTES.txt") -Force
 @'
 AIFRED VST3 Free Beta
 
 Install:
-1. Copy Aifred.vst3 to your VST3 folder or run the Windows installer when provided.
-2. Run tools/windows/setup-aifred-local-ai.ps1 from an elevated PowerShell if local AI is not ready after install.
-3. The local AI provider is Ollama at http://127.0.0.1:11434 using aifred:latest.
-4. AifredEngine is the plugin gateway at http://127.0.0.1:8787 and should start at login after installer/setup registration.
+1. Run the Windows installer when provided. It installs the VST3, AifredEngine, default local config, startup registration, and the aifred:latest Ollama route.
+2. The local AI provider is preconfigured as Ollama at http://127.0.0.1:11434 using aifred:latest.
+3. AifredEngine is the plugin gateway at http://127.0.0.1:8787 and starts at login; opening the plugin also attempts to relaunch the installed engine if it is not already running.
+4. tools/windows/setup-aifred-local-ai.ps1 is a repair script for advanced/manual installs, not a required VST configuration step.
 
-OpenAI-compatible routing is optional and not required for local AI.
+OpenAI-compatible routing is optional and not required for local AI. Entering an API key later switches the engine to the configured GPT-compatible route.
 '@ | Set-Content -Encoding UTF8 (Join-Path $packagePath "README-BETA.txt")
 
 Compress-Archive -Path (Join-Path $packagePath "*") -DestinationPath $zipPath

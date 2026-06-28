@@ -8,6 +8,7 @@
 
 #include <thread>
 #include <cstring>
+#include <vector>
 
 namespace aifred {
 namespace {
@@ -15,6 +16,7 @@ namespace {
 constexpr const char* kGatewayBaseUrl = "http://127.0.0.1:8787";
 constexpr int kHealthTimeoutMs = 750;
 constexpr int kChatTimeoutMs = 420000;
+constexpr int kRuntimeRepairCooldownMs = 15000;
 
 juce::String jsonEscape(juce::String text) {
   text = text.replace("\\", "\\\\").replace("\"", "\\\"");
@@ -90,6 +92,64 @@ juce::String healthStatusFromJson(const juce::String& json, bool& localAiReady) 
   }
   return "AifredEngine health response invalid.";
 }
+
+#if JUCE_WINDOWS
+juce::File installedEnginePath() {
+  juce::String programFiles = juce::SystemStats::getEnvironmentVariable("ProgramFiles", "C:\\Program Files");
+  return juce::File(programFiles).getChildFile("Aifred\\bin\\AifredEngine.exe");
+}
+
+void startHiddenProcess(juce::String commandLine) {
+  STARTUPINFOW startup {};
+  PROCESS_INFORMATION process {};
+  startup.cb = sizeof(startup);
+  startup.dwFlags = STARTF_USESHOWWINDOW;
+  startup.wShowWindow = SW_HIDE;
+
+  std::vector<wchar_t> buffer;
+  auto text = commandLine.toWideCharPointer();
+  while (*text != 0) {
+    buffer.push_back(static_cast<wchar_t>(*text));
+    ++text;
+  }
+  buffer.push_back(L'\0');
+
+  if (CreateProcessW(nullptr, buffer.data(), nullptr, nullptr, FALSE,
+                     CREATE_NO_WINDOW | DETACHED_PROCESS, nullptr, nullptr,
+                     &startup, &process)) {
+    CloseHandle(process.hThread);
+    CloseHandle(process.hProcess);
+  }
+}
+
+void launchLocalRuntimeIfInstalled() {
+  static std::atomic<uint32_t> lastAttemptMs { 0 };
+  const auto now = juce::Time::getMillisecondCounter();
+  const auto last = lastAttemptMs.load();
+  if (last != 0 && now - last < kRuntimeRepairCooldownMs) return;
+  lastAttemptMs.store(now);
+
+  startHiddenProcess("ollama serve");
+
+  const auto engine = installedEnginePath();
+  if (engine.existsAsFile()) {
+    startHiddenProcess("\"" + engine.getFullPathName() + "\"");
+  }
+}
+#else
+void launchLocalRuntimeIfInstalled() {
+  static std::atomic<uint32_t> lastAttemptMs { 0 };
+  const auto now = juce::Time::getMillisecondCounter();
+  const auto last = lastAttemptMs.load();
+  if (last != 0 && now - last < kRuntimeRepairCooldownMs) return;
+  lastAttemptMs.store(now);
+
+  const juce::File engine("/Library/Application Support/Aifred/bin/AifredEngine");
+  if (engine.existsAsFile()) {
+    juce::ChildProcess::startDetached(engine.getFullPathName(), {});
+  }
+}
+#endif
 
 #if JUCE_WINDOWS
 bool healthRequest(juce::String& statusText) {
@@ -267,7 +327,12 @@ void AifredEngineClient::pingHealthAsync() {
 
   std::thread([this] {
     juce::String status;
-    const auto ok = healthRequest(status);
+    auto ok = healthRequest(status);
+    if (!ok) {
+      launchLocalRuntimeIfInstalled();
+      juce::Thread::sleep(1500);
+      ok = healthRequest(status);
+    }
     available_.store(ok);
     {
       const juce::ScopedLock lock(statusLock_);

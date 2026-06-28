@@ -68,7 +68,7 @@ Current v0.3.6 JUCE metering surface:
 - Center Halo spectrometer matching the website visualizer direction
 - Compare-mode analog-style match VU between the two Halos
 - Dedicated scrollable chat module without predetermined fix suggestions
-- Chat Focus layout with genre target, reference gate sensitivity, and BYO OpenAI/Ollama endpoint setup
+- Chat Focus layout with genre target, reference gate sensitivity, preconfigured local Ollama, and optional BYO OpenAI-compatible endpoint setup
 - Reference mode with pool ring, five reference rings, five independent reference file pickers, and five reference volume lanes
 - K-weighted loudness readout with momentary, short-term, integrated, LRA, and estimated 4x true peak fields
 - Local AIFRED engine health detection with request-driven Ollama chat
@@ -113,7 +113,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-aifred.ps1 -Bu
 dotnet publish tools\AifredWindowsInstaller\AifredWindowsInstaller.csproj -c Release -o dist\installer\windows
 ```
 
-Run `dist\installer\windows\AIFRED-VST3-Setup.exe` to install. The installer requests administrator elevation, installs `Aifred.vst3` to `C:\Program Files\Common Files\VST3`, installs `AifredEngine.exe` to `C:\Program Files\Aifred\bin`, registers the engine gateway at user login, starts it silently, verifies Ollama at `http://127.0.0.1:11434` with `aifred:latest`, then checks the gateway health at `http://127.0.0.1:8787/health`. OpenAI-compatible endpoint/API key settings remain optional in `%AppData%\Aifred\user_settings.json`.
+Run `dist\installer\windows\AIFRED-VST3-Setup.exe` to install. The installer requests administrator elevation, installs `Aifred.vst3` to `C:\Program Files\Common Files\VST3`, installs `AifredEngine.exe` to `C:\Program Files\Aifred\bin`, writes the default local Ollama config for `aifred:latest`, registers the engine gateway at user login, starts it silently, verifies Ollama at `http://127.0.0.1:11434`, then checks the gateway health at `http://127.0.0.1:8787/health`. Opening the VST also attempts to relaunch the installed local engine if the login startup entry did not. OpenAI-compatible endpoint/API key settings remain optional and are only used when supplied through installer args/environment or saved from the plugin UI.
 
 Android local build:
 
