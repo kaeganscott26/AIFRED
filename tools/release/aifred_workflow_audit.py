@@ -351,6 +351,21 @@ def build_report() -> str:
     phase10_preview_evidence_readiness_exists = (
         ROOT / "docs/operations/PHASE10_PREVIEW_EVIDENCE_READINESS_REPORT.md"
     ).is_file()
+    phase11_approval_intake_exists = (
+        ROOT / "docs/operations/PHASE11_HUMAN_APPROVAL_INTAKE_FORM.md"
+    ).is_file()
+    phase11_decision_record_exists = (
+        ROOT / "docs/operations/PHASE11_PREVIEW_AUTHORIZATION_DECISION_RECORD.md"
+    ).is_file()
+    phase11_blocker_summary_exists = (
+        ROOT / "docs/operations/PHASE11_APPROVAL_BLOCKER_SUMMARY.md"
+    ).is_file()
+    phase11_future_approval_instructions_exists = (
+        ROOT / "docs/operations/PHASE11_FUTURE_APPROVAL_INSTRUCTIONS.md"
+    ).is_file()
+    phase11_decision_closure_exists = (
+        ROOT / "docs/operations/PHASE11_DECISION_CLOSURE_REPORT.md"
+    ).is_file()
 
     for path in workflows:
         text = read_text(path)
@@ -499,6 +514,20 @@ def build_report() -> str:
     lines.append(
         f"- Production remains unchanged: {'yes' if old_website_deploy_root and not new_website_deploy_root and release_publishing_behavior else 'no'}"
     )
+    lines.append(f"- Production promotion remains blocked: {'yes' if phase8_production_promotion_blocked else 'no'}")
+    lines.append("")
+    lines.append("## Phase 11 Approval Intake Summary")
+    lines.append("")
+    lines.append(f"- Approval intake form exists: {'yes' if phase11_approval_intake_exists else 'no'}")
+    lines.append(f"- Decision record exists: {'yes' if phase11_decision_record_exists else 'no'}")
+    lines.append(f"- Approval blocker summary exists: {'yes' if phase11_blocker_summary_exists else 'no'}")
+    lines.append(f"- Future approval instructions exist: {'yes' if phase11_future_approval_instructions_exists else 'no'}")
+    lines.append(f"- Decision closure report exists: {'yes' if phase11_decision_closure_exists else 'no'}")
+    lines.append("- Preview remains not executed.")
+    lines.append(
+        f"- Production remains unchanged: {'yes' if old_website_deploy_root and not new_website_deploy_root and release_publishing_behavior else 'no'}"
+    )
+    lines.append("- Preview is not authorized in this phase.")
     lines.append(f"- Production promotion remains blocked: {'yes' if phase8_production_promotion_blocked else 'no'}")
     lines.append("")
     lines.append("## Deployment-Related References By File")

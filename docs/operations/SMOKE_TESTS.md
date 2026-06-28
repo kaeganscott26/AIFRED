@@ -330,3 +330,34 @@ Phase 10 smoke tests must not:
 - delete `android_admin/`,
 - create fake preview evidence,
 - or invent preview URLs.
+
+## Phase 11 Preview Authorization Decision Checks
+
+Run the Phase 11 validator and report checks:
+
+```sh
+./tools/release/aifred_monorepo_validate.sh
+python3 tools/release/aifred_website_parity_manifest.py --check
+python3 tools/release/aifred_admin_parity_manifest.py --check
+python3 tools/release/aifred_preview_gate_report.py --check
+python3 tools/release/aifred_website_dryrun_check.py --check
+python3 tools/release/aifred_admin_dryrun_check.py --check
+python3 tools/release/aifred_workflow_audit.py --check
+python3 tools/release/aifred_repo_inventory.py --check
+```
+
+Phase 11 smoke tests must not:
+
+- deploy,
+- push,
+- merge,
+- run any Cloudflare command,
+- run a Gradle build,
+- publish releases,
+- move `plugin-aifred`,
+- move `tools/AifredEngine`,
+- delete `website/`,
+- delete `android_admin/`,
+- create fake preview evidence,
+- invent preview URLs,
+- or infer approval.

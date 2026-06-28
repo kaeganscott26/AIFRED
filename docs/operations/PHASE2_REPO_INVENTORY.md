@@ -1,9 +1,9 @@
 # Phase 2 Repository Inventory
 
-Timestamp: 2026-06-27T23:54:52-05:00
+Timestamp: 2026-06-28T00:09:07-05:00
 
-Git branch: `aifred-consolidation-phase10-preview-evidence-plan`
-Git commit: `fc867ba`
+Git branch: `aifred-consolidation-phase11-preview-authorization-decision`
+Git commit: `2c669c1`
 
 ## Top-Level Directory Summary
 
@@ -23,7 +23,7 @@ Git commit: `fc867ba`
 - `ops/` - 1 dirs, 0 files at top level
 - `packages/` - 2 dirs, 0 files at top level
 - `plugin-aifred/` - 2 dirs, 1 files at top level
-- `README.md` - file, 9.9 KB
+- `README.md` - file, 10.2 KB
 - `tools/` - 8 dirs, 6 files at top level
 - `website/` - 2 dirs, 8 files at top level
 - `wrangler.jsonc` - file, 300 B
@@ -40,7 +40,7 @@ Git commit: `fc867ba`
 | `android_admin` | 13 | 1.7 MB |
 | `infra/cloudflare` | 5 | 10.2 KB |
 | `packages` | 2 | 1.0 KB |
-| `docs` | 54 | 119.4 KB |
+| `docs` | 59 | 124.4 KB |
 
 ## Largest 25 Files
 

@@ -35,6 +35,8 @@ Phase 9 adds a human preview review packet, blocker closure checklist, evidence 
 
 Phase 10 adds a preview execution checklist draft, go/no-go criteria, evidence capture table, rollback observation plan, and preview evidence readiness report. No preview was executed, no deployment occurred, no production behavior changed, and merge to `main` remains blocked.
 
+Phase 11 adds a human approval intake form, preview authorization decision record, approval blocker summary, future approval instructions, and decision closure report. The decision remains not approved / pending human review, no preview was executed, no deployment occurred, no production behavior changed, and merge to `main` remains blocked.
+
 ## Production
 
 - Website: https://www.north3rnlight3r.com
