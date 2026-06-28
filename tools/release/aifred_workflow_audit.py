@@ -302,6 +302,16 @@ def build_report() -> str:
             "apps/website/index.html",
         ]
     )
+    phase7_authorization_docs_exist = all(
+        (ROOT / path).is_file()
+        for path in [
+            "docs/operations/PHASE7_PREVIEW_AUTHORIZATION_PACKAGE.md",
+            "docs/operations/PHASE7_PREVIEW_EVIDENCE_TEMPLATE.md",
+            "docs/operations/PHASE7_PREVIEW_ABORT_CRITERIA.md",
+            "docs/operations/PHASE7_PRODUCTION_PROMOTION_BLOCKER.md",
+            "docs/operations/PHASE7_APPROVAL_RECORD_TEMPLATE.md",
+        ]
+    )
 
     for path in workflows:
         text = read_text(path)
@@ -407,6 +417,16 @@ def build_report() -> str:
     lines.append(f"- Preview dry-run workflow is manual-only: {'yes' if manual_only_preview_workflow else 'no'}")
     lines.append(f"- `apps/website` preview shape exists: {'yes' if apps_website_preview_shape_exists else 'no'}")
     lines.append("- Merge remains blocked by asset strategy and Cloudflare manual verification.")
+    lines.append("")
+    lines.append("## Phase 7 Authorization Summary")
+    lines.append("")
+    lines.append(f"- Preview authorization docs exist: {'yes' if phase7_authorization_docs_exist else 'no'}")
+    lines.append("- Production promotion remains blocked.")
+    lines.append(f"- Preview workflow remains manual-only: {'yes' if manual_only_preview_workflow else 'no'}")
+    lines.append(
+        f"- Production workflow remains unchanged: {'yes' if old_website_deploy_root and not new_website_deploy_root and release_publishing_behavior else 'no'}"
+    )
+    lines.append("- Merge remains blocked pending human approval and asset strategy.")
     lines.append("")
     lines.append("## Deployment-Related References By File")
     lines.append("")

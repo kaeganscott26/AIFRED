@@ -66,7 +66,7 @@ require_reference() {
 repo_root="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
 cd "$repo_root"
 
-section "AIFRED Monorepo Phase 2/3/4/5/6 Validation"
+section "AIFRED Monorepo Phase 2/3/4/5/6/7 Validation"
 pass "repo root: $repo_root"
 pass "branch: $(git branch --show-current 2>/dev/null || echo unknown)"
 pass "commit: $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
@@ -93,7 +93,7 @@ fi
 if [ -d android_admin ] && [ -d apps/admin-android ]; then
   warn "both android_admin/ and apps/admin-android exist"
 fi
-pass "coexistence is expected during Phase 2/3/4/5/6"
+pass "coexistence is expected during Phase 2/3/4/5/6/7"
 
 section "Website Worker Files"
 for path in \
@@ -295,5 +295,16 @@ do
   require_file "$path"
 done
 
+section "Phase 7 Preview Authorization Files"
+for path in \
+  docs/operations/PHASE7_PREVIEW_AUTHORIZATION_PACKAGE.md \
+  docs/operations/PHASE7_PREVIEW_EVIDENCE_TEMPLATE.md \
+  docs/operations/PHASE7_PREVIEW_ABORT_CRITERIA.md \
+  docs/operations/PHASE7_PRODUCTION_PROMOTION_BLOCKER.md \
+  docs/operations/PHASE7_APPROVAL_RECORD_TEMPLATE.md
+do
+  require_file "$path"
+done
+
 section "Final Result"
-pass "AIFRED monorepo Phase 6 validation PASS"
+pass "AIFRED monorepo Phase 7 validation PASS"
