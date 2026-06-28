@@ -170,3 +170,26 @@ Phase 4 smoke tests must not:
 - delete old runtime folders,
 - move `plugin-aifred`,
 - or move `tools/AifredEngine`.
+
+## Phase 5 Preview Planning Checks
+
+Run the Phase 5 validator and report checks:
+
+```sh
+./tools/release/aifred_monorepo_validate.sh
+python3 tools/release/aifred_website_dryrun_check.py --check
+python3 tools/release/aifred_admin_dryrun_check.py --check
+python3 tools/release/aifred_workflow_audit.py --check
+python3 tools/release/aifred_repo_inventory.py --check
+```
+
+Manual workflow notes:
+
+- `AIFRED Monorepo Validation` is manual-only.
+- `AIFRED Website Preview Dry-Run` is manual-only.
+- Neither workflow deploys.
+- Neither workflow uses secrets.
+- Neither workflow publishes releases.
+- Neither workflow uploads artifacts.
+
+Phase 5 smoke tests must not deploy, push, merge, run Gradle, run Cloudflare commands, publish releases, delete old folders, move `plugin-aifred`, or move `tools/AifredEngine`.

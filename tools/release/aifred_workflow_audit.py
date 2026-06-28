@@ -106,6 +106,20 @@ SECRET_NAME_WARNINGS = [
     "PAYPAL_CLIENT_SECRET",
 ]
 
+PREVIEW_FORBIDDEN_TOKENS = [
+    "wrangler deploy",
+    "pages deploy",
+    "CLOUDFLARE_API_TOKEN",
+    "CF_API_TOKEN",
+    "gh release create",
+    "git push",
+    "upload-artifact",
+    "actions/upload-artifact",
+    "assembleRelease",
+    "PAYPAL_CLIENT_SECRET",
+    "OPENAI_API_KEY",
+]
+
 
 def git_output(*args: str) -> str:
     try:
@@ -274,6 +288,10 @@ def build_report() -> str:
     release_publishing_behavior = False
     tag_triggered_release_behavior = False
     manual_only_validation_workflow = False
+    manual_only_preview_workflow = False
+    preview_workflow_uses_apps_website = False
+    preview_workflow_uses_secrets = False
+    preview_workflow_has_deploy_commands = False
 
     for path in workflows:
         text = read_text(path)
@@ -294,6 +312,17 @@ def build_report() -> str:
         tag_triggered_release_behavior = tag_triggered_release_behavior or "refs/tags" in lower_text or "tags:" in lower_text
         if path.name == "aifred-monorepo-validate.yml" and triggers == ["workflow_dispatch"]:
             manual_only_validation_workflow = True
+        if path.name == "aifred-website-preview-dryrun.yml":
+            manual_only_preview_workflow = triggers == ["workflow_dispatch"]
+            preview_workflow_uses_apps_website = "apps/website" in lower_text
+            preview_workflow_uses_secrets = "secrets." in lower_text or any(
+                token.lower() in lower_text
+                for token in ["CLOUDFLARE_API_TOKEN", "CF_API_TOKEN", "PAYPAL_CLIENT_SECRET", "OPENAI_API_KEY"]
+            )
+            preview_workflow_has_deploy_commands = any(
+                token.lower() in lower_text
+                for token in PREVIEW_FORBIDDEN_TOKENS
+            )
 
     duplicate_authority_warnings: list[str] = []
     if references_old_website and references_new_website:
@@ -352,6 +381,13 @@ def build_report() -> str:
     lines.append(f"- Release publishing behavior detected: {'yes' if release_publishing_behavior else 'no'}")
     lines.append(f"- Tag-triggered release behavior detected: {'yes' if tag_triggered_release_behavior else 'no'}")
     lines.append(f"- Manual-only monorepo validation workflow detected: {'yes' if manual_only_validation_workflow else 'no'}")
+    lines.append("")
+    lines.append("## Preview Dry-Run Workflow Detection")
+    lines.append("")
+    lines.append(f"- Manual-only preview dry-run workflow detected: {'yes' if manual_only_preview_workflow else 'no'}")
+    lines.append(f"- Preview workflow uses `apps/website`: {'yes' if preview_workflow_uses_apps_website else 'no'}")
+    lines.append(f"- Preview workflow uses secrets: {'yes' if preview_workflow_uses_secrets else 'no'}")
+    lines.append(f"- Preview workflow contains deploy/release/artifact commands: {'yes' if preview_workflow_has_deploy_commands else 'no'}")
     lines.append("")
     lines.append("## Deployment-Related References By File")
     lines.append("")

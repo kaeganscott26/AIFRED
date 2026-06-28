@@ -1,21 +1,22 @@
 # Phase 3 Workflow Audit
 
-Timestamp: 2026-06-27T16:17:51-05:00
+Timestamp: 2026-06-27T20:26:55-05:00
 
-Git branch: `aifred-consolidation-phase4-deploy-dryrun`
-Git commit: `37584e4`
+Git branch: `aifred-consolidation-phase5-preview-plan`
+Git commit: `4e3cefe`
 
 ## Workflows Found
 
 | File | Name | Triggers |
 | --- | --- | --- |
 | `.github/workflows/aifred-monorepo-validate.yml` | AIFRED Monorepo Validation | workflow_dispatch |
+| `.github/workflows/aifred-website-preview-dryrun.yml` | AIFRED Website Preview Dry-Run | workflow_dispatch |
 | `.github/workflows/build.yml` | Build AIFRED | push, pull_request, workflow_dispatch |
 
 ## Existing Workflow Path Usage
 
 - References old `website/`: yes
-- References new `apps/website`: no
+- References new `apps/website`: yes
 - References old `android_admin`: no
 - References new `apps/admin-android`: no
 - References `plugin-aifred`: no
@@ -28,6 +29,13 @@ Git commit: `37584e4`
 - Release publishing behavior detected: yes
 - Tag-triggered release behavior detected: yes
 - Manual-only monorepo validation workflow detected: yes
+
+## Preview Dry-Run Workflow Detection
+
+- Manual-only preview dry-run workflow detected: yes
+- Preview workflow uses `apps/website`: yes
+- Preview workflow uses secrets: no
+- Preview workflow contains deploy/release/artifact commands: no
 
 ## Deployment-Related References By File
 
@@ -80,6 +88,10 @@ Git commit: `37584e4`
 | `docs/operations/PHASE3_WORKFLOW_LOG.md` | `pages deploy`, `cloudflare`, `github release` |
 | `docs/operations/PHASE3_WORKFLOW_SAFETY.md` | `cloudflare`, `north3rnlight3r`, `aifred-site` |
 | `docs/operations/PHASE4_PATH_MIGRATION_PLAN.md` | `cloudflare` |
+| `docs/operations/PHASE5_ADMIN_GRADLE_DISCOVERY_PLAN.md` | `gradlew`, `assembleRelease` |
+| `docs/operations/PHASE5_ASSET_DECISION_RECORD.md` | `cloudflare`, `R2` |
+| `docs/operations/PHASE5_PREVIEW_MIGRATION_PLAN.md` | `cloudflare`, `PAYPAL`, `R2` |
+| `docs/operations/PHASE5_ROLLBACK_PLAN.md` | `aifred-site` |
 | `docs/operations/RELEASE_WORKFLOW_SAFETY_CHECKLIST.md` | `github release` |
 | `docs/operations/SMOKE_TESTS.md` | `cloudflare`, `VST3`, `cmake`, `gradlew` |
 | `docs/wiki/Admin-App-Guide.md` | `cloudflare`, `github release`, `gradlew`, `openai`, `OPENAI_API_KEY` |
@@ -105,7 +117,7 @@ Git commit: `37584e4`
 | `tools/macos/package-aifred-macos.sh` | `setup-aifred-local-ai`, `VST3`, `.vst3`, `dotnet publish`, `openai`, `OPENAI_API_KEY` |
 | `tools/package-aifred.ps1` | `setup-aifred-local-ai`, `VST3`, `.vst3`, `dotnet publish`, `openai`, `OPENAI_API_KEY` |
 | `tools/release/aifred_admin_dryrun_check.py` | `wrangler`, `north3rnlight3r`, `gradlew` |
-| `tools/release/aifred_monorepo_validate.sh` | `wrangler`, `cloudflare`, `CLOUDFLARE_API_TOKEN`, `north3rnlight3r`, `gh release`, `cmake`, `gradlew`, `assembleRelease`, `openai`, `OPENAI_API_KEY`, `PAYPAL` |
+| `tools/release/aifred_monorepo_validate.sh` | `wrangler`, `pages deploy`, `cloudflare`, `CLOUDFLARE_API_TOKEN`, `north3rnlight3r`, `gh release`, `upload-artifact`, `cmake`, `gradlew`, `assembleRelease`, `openai`, `OPENAI_API_KEY`, `PAYPAL` |
 | `tools/release/aifred_repo_inventory.py` | `cloudflare`, `north3rnlight3r` |
 | `tools/release/aifred_website_dryrun_check.py` | `wrangler`, `cloudflare`, `north3rnlight3r`, `github release`, `PAYPAL`, `R2` |
 | `tools/release/aifred_workflow_audit.py` | `wrangler`, `pages deploy`, `cloudflare`, `CLOUDFLARE_API_TOKEN`, `project-name`, `north3rnlight3r`, `aifred-site`, `github release`, `gh release`, `upload-artifact`, `download-artifact`, `AIFRED_RELEASE_VERSION`, `AIFRED_PLUGIN_RELEASE_TAG`, `AIFRED_GITHUB_REPO`, `package-aifred`, `package-aifred-macos`, `setup-aifred-local-ai`, `AifredWindowsInstaller`, `AifredWindowsUninstaller`, `VST3`, `.vst3`, `msbuild`, `cmake`, `dotnet publish`, `gradlew`, `assembleRelease`, `openai`, `OPENAI_API_KEY`, `PAYPAL`, `R2`, `AIFRED_REFERENCE_POOL` |
@@ -130,6 +142,7 @@ Git commit: `37584e4`
 
 | File | References |
 | --- | --- |
+| `.github/workflows/aifred-website-preview-dryrun.yml` | `website/`, `apps/website` |
 | `.github/workflows/build.yml` | `website/` |
 | `README.md` | `website/`, `apps/website`, `android_admin`, `apps/admin-android`, `plugin-aifred`, `tools/AifredEngine` |
 | `android_admin/app/src/main/java/com/aifred/admin/MainActivity.kt` | `website/` |
@@ -148,6 +161,10 @@ Git commit: `37584e4`
 | `docs/operations/PHASE3_WORKFLOW_LOG.md` | `website/`, `apps/website`, `android_admin`, `plugin-aifred`, `tools/AifredEngine` |
 | `docs/operations/PHASE3_WORKFLOW_SAFETY.md` | `apps/website`, `plugin-aifred`, `tools/AifredEngine` |
 | `docs/operations/PHASE4_PATH_MIGRATION_PLAN.md` | `website/`, `apps/website`, `android_admin`, `apps/admin-android`, `plugin-aifred`, `tools/AifredEngine` |
+| `docs/operations/PHASE5_ADMIN_GRADLE_DISCOVERY_PLAN.md` | `apps/admin-android` |
+| `docs/operations/PHASE5_ASSET_DECISION_RECORD.md` | `website/`, `apps/website` |
+| `docs/operations/PHASE5_PREVIEW_MIGRATION_PLAN.md` | `website/`, `apps/website` |
+| `docs/operations/PHASE5_ROLLBACK_PLAN.md` | `website/`, `android_admin`, `apps/admin-android`, `plugin-aifred`, `tools/AifredEngine` |
 | `docs/operations/RELEASE_WORKFLOW_SAFETY_CHECKLIST.md` | `plugin-aifred`, `tools/AifredEngine` |
 | `docs/operations/SMOKE_TESTS.md` | `website/`, `apps/website`, `android_admin`, `apps/admin-android`, `plugin-aifred`, `tools/AifredEngine` |
 | `docs/wiki/Admin-App-Guide.md` | `website/`, `android_admin` |
@@ -172,7 +189,7 @@ Git commit: `37584e4`
 
 ## Potential Duplicate Deployment Authorities
 
-- Workflows currently reference old `website/` paths.
+- Workflows reference both `website/` and `apps/website`.
 - No workflow Android admin path reference detected.
 
 ## Deployment-Looking Command Warnings
@@ -188,6 +205,7 @@ Git commit: `37584e4`
 | `docs/PLUGIN-STABILIZATION.md` | `cmake` |
 | `docs/operations/PHASE1_CONSOLIDATION_LOG.md` | `cmake` |
 | `docs/operations/PHASE3_WORKFLOW_LOG.md` | `pages deploy` |
+| `docs/operations/PHASE5_ADMIN_GRADLE_DISCOVERY_PLAN.md` | `assembleRelease` |
 | `docs/operations/SMOKE_TESTS.md` | `cmake` |
 | `docs/wiki/Developer-Guide.md` | `pages deploy`, `dotnet publish`, `cmake` |
 | `docs/wiki/PayPal-Cloudflare-R2-Setup-Guide.md` | `pages deploy` |
@@ -195,7 +213,7 @@ Git commit: `37584e4`
 | `tools/check-no-hardcoded-paths.ps1` | `cmake` |
 | `tools/macos/package-aifred-macos.sh` | `dotnet publish` |
 | `tools/package-aifred.ps1` | `dotnet publish` |
-| `tools/release/aifred_monorepo_validate.sh` | `wrangler deploy`, `gh release`, `assembleRelease`, `cmake` |
+| `tools/release/aifred_monorepo_validate.sh` | `wrangler deploy`, `pages deploy`, `gh release`, `upload-artifact`, `assembleRelease`, `cmake` |
 | `tools/release/aifred_workflow_audit.py` | `wrangler deploy`, `pages deploy`, `gh release`, `upload-artifact`, `download-artifact`, `assembleRelease`, `dotnet publish`, `cmake`, `msbuild` |
 | `website/functions/api/v1/[[path]].js` | `pages deploy` |
 
@@ -222,6 +240,7 @@ Git commit: `37584e4`
 | `docs/architecture/BACKEND_SEPARATION_CONTRACT.md` | `PAYPAL` |
 | `docs/operations/CLOUDFLARE_MANUAL_VERIFICATION_CHECKLIST.md` | `PAYPAL` |
 | `docs/operations/PHASE1_CONSOLIDATION_LOG.md` | `PAYPAL` |
+| `docs/operations/PHASE5_PREVIEW_MIGRATION_PLAN.md` | `PAYPAL` |
 | `docs/wiki/Admin-App-Guide.md` | `OPENAI_API_KEY` |
 | `docs/wiki/Backend-Map.md` | `CLOUDFLARE_API_TOKEN`, `OPENAI_API_KEY`, `PAYPAL` |
 | `docs/wiki/PayPal-Cloudflare-R2-Setup-Guide.md` | `CLOUDFLARE_API_TOKEN`, `PAYPAL`, `PAYPAL_CLIENT_SECRET` |

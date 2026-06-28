@@ -23,6 +23,8 @@ Phase 3 adds workflow audit tooling and a manual-only monorepo validation workfl
 
 Phase 4 adds deployment dry-run checks and path migration readiness docs. `apps/website` is not the live deployment root yet, `apps/admin-android` is not the release build root yet, the plugin and engine remain unmoved, old `website/` and `android_admin/` remain preserved, and Cloudflare manual verification plus asset strategy are required before merging to `main`.
 
+Phase 5 adds preview migration planning and a manual-only website preview dry-run workflow. The preview workflow does not deploy, production still uses existing behavior, `apps/website` is still not production root, asset strategy remains a merge blocker, and the plugin and engine remain unmoved.
+
 ## Production
 
 - Website: https://www.north3rnlight3r.com
