@@ -292,6 +292,16 @@ def build_report() -> str:
     preview_workflow_uses_apps_website = False
     preview_workflow_uses_secrets = False
     preview_workflow_has_deploy_commands = False
+    apps_website_preview_shape_exists = all(
+        (ROOT / path).is_file()
+        for path in [
+            "apps/website/_worker.js",
+            "apps/website/functions/api/[[path]].js",
+            "apps/website/functions/api/v1/[[path]].js",
+            "apps/website/functions/ws/chat.js",
+            "apps/website/index.html",
+        ]
+    )
 
     for path in workflows:
         text = read_text(path)
@@ -388,6 +398,15 @@ def build_report() -> str:
     lines.append(f"- Preview workflow uses `apps/website`: {'yes' if preview_workflow_uses_apps_website else 'no'}")
     lines.append(f"- Preview workflow uses secrets: {'yes' if preview_workflow_uses_secrets else 'no'}")
     lines.append(f"- Preview workflow contains deploy/release/artifact commands: {'yes' if preview_workflow_has_deploy_commands else 'no'}")
+    lines.append("")
+    lines.append("## Phase 6 Gate Summary")
+    lines.append("")
+    lines.append(
+        f"- Production workflow still unchanged: {'yes' if old_website_deploy_root and not new_website_deploy_root and release_publishing_behavior else 'no'}"
+    )
+    lines.append(f"- Preview dry-run workflow is manual-only: {'yes' if manual_only_preview_workflow else 'no'}")
+    lines.append(f"- `apps/website` preview shape exists: {'yes' if apps_website_preview_shape_exists else 'no'}")
+    lines.append("- Merge remains blocked by asset strategy and Cloudflare manual verification.")
     lines.append("")
     lines.append("## Deployment-Related References By File")
     lines.append("")

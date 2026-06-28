@@ -66,7 +66,7 @@ require_reference() {
 repo_root="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
 cd "$repo_root"
 
-section "AIFRED Monorepo Phase 2/3/4/5 Validation"
+section "AIFRED Monorepo Phase 2/3/4/5/6 Validation"
 pass "repo root: $repo_root"
 pass "branch: $(git branch --show-current 2>/dev/null || echo unknown)"
 pass "commit: $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
@@ -93,7 +93,7 @@ fi
 if [ -d android_admin ] && [ -d apps/admin-android ]; then
   warn "both android_admin/ and apps/admin-android exist"
 fi
-pass "coexistence is expected during Phase 2/3/4/5"
+pass "coexistence is expected during Phase 2/3/4/5/6"
 
 section "Website Worker Files"
 for path in \
@@ -203,6 +203,12 @@ if ! grep -F -q "workflow_dispatch" "$validation_workflow"; then
 fi
 pass "validation workflow contains workflow_dispatch"
 
+if grep -E -q "^[[:space:]]+(push|pull_request):" "$validation_workflow"; then
+  echo "Validation workflow must not include push or pull_request triggers" >&2
+  exit 1
+fi
+pass "validation workflow does not include push or pull_request triggers"
+
 for forbidden in \
   "wrangler deploy" \
   "gh release create" \
@@ -242,6 +248,12 @@ if ! grep -F -q "workflow_dispatch" "$preview_workflow"; then
 fi
 pass "preview dry-run workflow contains workflow_dispatch"
 
+if grep -E -q "^[[:space:]]+(push|pull_request):" "$preview_workflow"; then
+  echo "Preview dry-run workflow must not include push or pull_request triggers" >&2
+  exit 1
+fi
+pass "preview dry-run workflow does not include push or pull_request triggers"
+
 for forbidden in \
   "wrangler deploy" \
   "pages deploy" \
@@ -272,5 +284,16 @@ do
   require_file "$path"
 done
 
+section "Phase 6 Preview Gate Files"
+for path in \
+  docs/operations/PHASE6_PREVIEW_APPROVAL_CHECKLIST.md \
+  docs/operations/PHASE6_MERGE_BLOCKER_REPORT.md \
+  docs/operations/PHASE6_PRODUCTION_NON_CHANGE_STATEMENT.md \
+  docs/operations/PHASE6_PREVIEW_RUNBOOK_DRAFT.md \
+  docs/operations/PHASE6_ASSET_ACCEPTANCE_CHECKLIST.md
+do
+  require_file "$path"
+done
+
 section "Final Result"
-pass "AIFRED monorepo Phase 5 validation PASS"
+pass "AIFRED monorepo Phase 6 validation PASS"

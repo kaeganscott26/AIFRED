@@ -1,9 +1,9 @@
 # Phase 3 Workflow Audit
 
-Timestamp: 2026-06-27T20:26:55-05:00
+Timestamp: 2026-06-27T20:38:56-05:00
 
-Git branch: `aifred-consolidation-phase5-preview-plan`
-Git commit: `4e3cefe`
+Git branch: `aifred-consolidation-phase6-preview-gate`
+Git commit: `e113b81`
 
 ## Workflows Found
 
@@ -36,6 +36,13 @@ Git commit: `4e3cefe`
 - Preview workflow uses `apps/website`: yes
 - Preview workflow uses secrets: no
 - Preview workflow contains deploy/release/artifact commands: no
+
+## Phase 6 Gate Summary
+
+- Production workflow still unchanged: yes
+- Preview dry-run workflow is manual-only: yes
+- `apps/website` preview shape exists: yes
+- Merge remains blocked by asset strategy and Cloudflare manual verification.
 
 ## Deployment-Related References By File
 
@@ -92,6 +99,11 @@ Git commit: `4e3cefe`
 | `docs/operations/PHASE5_ASSET_DECISION_RECORD.md` | `cloudflare`, `R2` |
 | `docs/operations/PHASE5_PREVIEW_MIGRATION_PLAN.md` | `cloudflare`, `PAYPAL`, `R2` |
 | `docs/operations/PHASE5_ROLLBACK_PLAN.md` | `aifred-site` |
+| `docs/operations/PHASE6_ASSET_ACCEPTANCE_CHECKLIST.md` | `R2` |
+| `docs/operations/PHASE6_MERGE_BLOCKER_REPORT.md` | `cloudflare`, `R2` |
+| `docs/operations/PHASE6_PREVIEW_APPROVAL_CHECKLIST.md` | `cloudflare`, `PAYPAL`, `R2` |
+| `docs/operations/PHASE6_PREVIEW_RUNBOOK_DRAFT.md` | `cloudflare` |
+| `docs/operations/PHASE6_PRODUCTION_NON_CHANGE_STATEMENT.md` | `cloudflare` |
 | `docs/operations/RELEASE_WORKFLOW_SAFETY_CHECKLIST.md` | `github release` |
 | `docs/operations/SMOKE_TESTS.md` | `cloudflare`, `VST3`, `cmake`, `gradlew` |
 | `docs/wiki/Admin-App-Guide.md` | `cloudflare`, `github release`, `gradlew`, `openai`, `OPENAI_API_KEY` |
@@ -165,6 +177,10 @@ Git commit: `4e3cefe`
 | `docs/operations/PHASE5_ASSET_DECISION_RECORD.md` | `website/`, `apps/website` |
 | `docs/operations/PHASE5_PREVIEW_MIGRATION_PLAN.md` | `website/`, `apps/website` |
 | `docs/operations/PHASE5_ROLLBACK_PLAN.md` | `website/`, `android_admin`, `apps/admin-android`, `plugin-aifred`, `tools/AifredEngine` |
+| `docs/operations/PHASE6_MERGE_BLOCKER_REPORT.md` | `website/`, `apps/website`, `android_admin`, `apps/admin-android`, `plugin-aifred`, `tools/AifredEngine` |
+| `docs/operations/PHASE6_PREVIEW_APPROVAL_CHECKLIST.md` | `website/`, `apps/website`, `android_admin`, `plugin-aifred`, `tools/AifredEngine` |
+| `docs/operations/PHASE6_PREVIEW_RUNBOOK_DRAFT.md` | `website/`, `apps/website` |
+| `docs/operations/PHASE6_PRODUCTION_NON_CHANGE_STATEMENT.md` | `website/`, `android_admin`, `plugin-aifred`, `tools/AifredEngine` |
 | `docs/operations/RELEASE_WORKFLOW_SAFETY_CHECKLIST.md` | `plugin-aifred`, `tools/AifredEngine` |
 | `docs/operations/SMOKE_TESTS.md` | `website/`, `apps/website`, `android_admin`, `apps/admin-android`, `plugin-aifred`, `tools/AifredEngine` |
 | `docs/wiki/Admin-App-Guide.md` | `website/`, `android_admin` |
@@ -241,6 +257,7 @@ Git commit: `4e3cefe`
 | `docs/operations/CLOUDFLARE_MANUAL_VERIFICATION_CHECKLIST.md` | `PAYPAL` |
 | `docs/operations/PHASE1_CONSOLIDATION_LOG.md` | `PAYPAL` |
 | `docs/operations/PHASE5_PREVIEW_MIGRATION_PLAN.md` | `PAYPAL` |
+| `docs/operations/PHASE6_PREVIEW_APPROVAL_CHECKLIST.md` | `PAYPAL` |
 | `docs/wiki/Admin-App-Guide.md` | `OPENAI_API_KEY` |
 | `docs/wiki/Backend-Map.md` | `CLOUDFLARE_API_TOKEN`, `OPENAI_API_KEY`, `PAYPAL` |
 | `docs/wiki/PayPal-Cloudflare-R2-Setup-Guide.md` | `CLOUDFLARE_API_TOKEN`, `PAYPAL`, `PAYPAL_CLIENT_SECRET` |

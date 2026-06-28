@@ -25,6 +25,8 @@ Phase 4 adds deployment dry-run checks and path migration readiness docs. `apps/
 
 Phase 5 adds preview migration planning and a manual-only website preview dry-run workflow. The preview workflow does not deploy, production still uses existing behavior, `apps/website` is still not production root, asset strategy remains a merge blocker, and the plugin and engine remain unmoved.
 
+Phase 6 adds preview approval gates, merge-blocker review, a production non-change statement, a preview runbook draft, and an asset acceptance checklist. No production behavior changed, no deployment path changed, and `main` should still not be merged until asset strategy and Cloudflare binding are approved.
+
 ## Production
 
 - Website: https://www.north3rnlight3r.com

@@ -193,3 +193,28 @@ Manual workflow notes:
 - Neither workflow uploads artifacts.
 
 Phase 5 smoke tests must not deploy, push, merge, run Gradle, run Cloudflare commands, publish releases, delete old folders, move `plugin-aifred`, or move `tools/AifredEngine`.
+
+## Phase 6 Preview Gate Checks
+
+Run the Phase 6 validator and report checks:
+
+```sh
+./tools/release/aifred_monorepo_validate.sh
+python3 tools/release/aifred_website_dryrun_check.py --check
+python3 tools/release/aifred_admin_dryrun_check.py --check
+python3 tools/release/aifred_workflow_audit.py --check
+python3 tools/release/aifred_repo_inventory.py --check
+```
+
+Phase 6 smoke tests must not:
+
+- deploy,
+- push,
+- merge,
+- run any Cloudflare command,
+- run a Gradle build,
+- publish releases,
+- move `plugin-aifred`,
+- move `tools/AifredEngine`,
+- delete `website/`,
+- or delete `android_admin/`.
