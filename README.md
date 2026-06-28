@@ -31,6 +31,8 @@ Phase 7 adds preview authorization docs, an evidence template, abort criteria, a
 
 Phase 8 adds local preview preflight harnesses, website/admin parity manifests, and a preview gate report. No deployment occurred, no production behavior changed, `apps/website` remains preview candidate only, `apps/admin-android` remains task-discovery candidate only, and asset strategy plus Cloudflare verification remain blockers.
 
+Phase 9 adds a human preview review packet, blocker closure checklist, evidence readiness checklist, final non-approval statement, and preview readiness closure report. No deployment occurred, no production behavior changed, preview remains not executed, and merge to `main` remains blocked.
+
 ## Production
 
 - Website: https://www.north3rnlight3r.com

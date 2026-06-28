@@ -321,6 +321,21 @@ def build_report() -> str:
     phase8_production_promotion_blocked = (
         ROOT / "docs/operations/PHASE7_PRODUCTION_PROMOTION_BLOCKER.md"
     ).is_file()
+    phase9_human_review_packet_exists = (
+        ROOT / "docs/operations/PHASE9_HUMAN_PREVIEW_REVIEW_PACKET.md"
+    ).is_file()
+    phase9_blocker_closure_checklist_exists = (
+        ROOT / "docs/operations/PHASE9_BLOCKER_CLOSURE_CHECKLIST.md"
+    ).is_file()
+    phase9_preview_evidence_readiness_exists = (
+        ROOT / "docs/operations/PHASE9_PREVIEW_EVIDENCE_READINESS_CHECKLIST.md"
+    ).is_file()
+    phase9_final_non_approval_exists = (
+        ROOT / "docs/operations/PHASE9_FINAL_NON_APPROVAL_STATEMENT.md"
+    ).is_file()
+    phase9_preview_readiness_closure_exists = (
+        ROOT / "docs/operations/PHASE9_PREVIEW_READINESS_CLOSURE_REPORT.md"
+    ).is_file()
 
     for path in workflows:
         text = read_text(path)
@@ -447,6 +462,16 @@ def build_report() -> str:
         f"- Production workflow remains unchanged: {'yes' if old_website_deploy_root and not new_website_deploy_root and release_publishing_behavior else 'no'}"
     )
     lines.append(f"- Production promotion remains blocked: {'yes' if phase8_production_promotion_blocked else 'no'}")
+    lines.append("")
+    lines.append("## Phase 9 Review Closure Summary")
+    lines.append("")
+    lines.append(f"- Human review packet exists: {'yes' if phase9_human_review_packet_exists else 'no'}")
+    lines.append(f"- Blocker closure checklist exists: {'yes' if phase9_blocker_closure_checklist_exists else 'no'}")
+    lines.append(f"- Preview evidence readiness checklist exists: {'yes' if phase9_preview_evidence_readiness_exists else 'no'}")
+    lines.append(f"- Final non-approval statement exists: {'yes' if phase9_final_non_approval_exists else 'no'}")
+    lines.append(f"- Preview readiness closure report exists: {'yes' if phase9_preview_readiness_closure_exists else 'no'}")
+    lines.append(f"- Production promotion remains blocked: {'yes' if phase8_production_promotion_blocked else 'no'}")
+    lines.append("- Preview remains not executed.")
     lines.append("")
     lines.append("## Deployment-Related References By File")
     lines.append("")
