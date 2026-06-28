@@ -33,6 +33,8 @@ Phase 8 adds local preview preflight harnesses, website/admin parity manifests, 
 
 Phase 9 adds a human preview review packet, blocker closure checklist, evidence readiness checklist, final non-approval statement, and preview readiness closure report. No deployment occurred, no production behavior changed, preview remains not executed, and merge to `main` remains blocked.
 
+Phase 10 adds a preview execution checklist draft, go/no-go criteria, evidence capture table, rollback observation plan, and preview evidence readiness report. No preview was executed, no deployment occurred, no production behavior changed, and merge to `main` remains blocked.
+
 ## Production
 
 - Website: https://www.north3rnlight3r.com

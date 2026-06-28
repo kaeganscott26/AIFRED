@@ -1,9 +1,9 @@
 # Phase 2 Repository Inventory
 
-Timestamp: 2026-06-27T23:47:05-05:00
+Timestamp: 2026-06-27T23:54:52-05:00
 
-Git branch: `aifred-consolidation-phase9-preview-review-closure`
-Git commit: `158d1df`
+Git branch: `aifred-consolidation-phase10-preview-evidence-plan`
+Git commit: `fc867ba`
 
 ## Top-Level Directory Summary
 
@@ -23,7 +23,7 @@ Git commit: `158d1df`
 - `ops/` - 1 dirs, 0 files at top level
 - `packages/` - 2 dirs, 0 files at top level
 - `plugin-aifred/` - 2 dirs, 1 files at top level
-- `README.md` - file, 9.6 KB
+- `README.md` - file, 9.9 KB
 - `tools/` - 8 dirs, 6 files at top level
 - `website/` - 2 dirs, 8 files at top level
 - `wrangler.jsonc` - file, 300 B
@@ -40,7 +40,7 @@ Git commit: `158d1df`
 | `android_admin` | 13 | 1.7 MB |
 | `infra/cloudflare` | 5 | 10.2 KB |
 | `packages` | 2 | 1.0 KB |
-| `docs` | 49 | 111.8 KB |
+| `docs` | 54 | 119.4 KB |
 
 ## Largest 25 Files
 
@@ -92,7 +92,7 @@ Git commit: `158d1df`
 | Reference | Count |
 | --- | ---: |
 | `north3rnlight3r.com` | 61 |
-| `/api/v1` | 250 |
+| `/api/v1` | 252 |
 | `127.0.0.1:8787` | 49 |
 | `127.0.0.1:11434` | 45 |
 | `aifred:latest` | 68 |
