@@ -29,6 +29,8 @@ Phase 6 adds preview approval gates, merge-blocker review, a production non-chan
 
 Phase 7 adds preview authorization docs, an evidence template, abort criteria, a production promotion blocker, and an approval record template. No deployment occurred, no production behavior changed, and no merge should happen until human preview approval, asset strategy, and Cloudflare binding are complete.
 
+Phase 8 adds local preview preflight harnesses, website/admin parity manifests, and a preview gate report. No deployment occurred, no production behavior changed, `apps/website` remains preview candidate only, `apps/admin-android` remains task-discovery candidate only, and asset strategy plus Cloudflare verification remain blockers.
+
 ## Production
 
 - Website: https://www.north3rnlight3r.com

@@ -40,6 +40,15 @@ jobs:
       - name: Check admin dry-run report
         run: python3 tools/release/aifred_admin_dryrun_check.py --check
 
+      - name: Check website parity manifest
+        run: python3 tools/release/aifred_website_parity_manifest.py --check
+
+      - name: Check admin parity manifest
+        run: python3 tools/release/aifred_admin_parity_manifest.py --check
+
+      - name: Check preview gate report
+        run: python3 tools/release/aifred_preview_gate_report.py --check
+
       - name: Confirm read-only CI state
         run: |
           git status --short

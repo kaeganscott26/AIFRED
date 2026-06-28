@@ -1,9 +1,9 @@
 # Phase 3 Workflow Audit
 
-Timestamp: 2026-06-27T20:49:45-05:00
+Timestamp: 2026-06-27T23:41:28-05:00
 
-Git branch: `aifred-consolidation-phase7-preview-authorization`
-Git commit: `8696369`
+Git branch: `aifred-consolidation-phase8-local-preview-harness`
+Git commit: `832cc92`
 
 ## Workflows Found
 
@@ -51,6 +51,15 @@ Git commit: `8696369`
 - Preview workflow remains manual-only: yes
 - Production workflow remains unchanged: yes
 - Merge remains blocked pending human approval and asset strategy.
+
+## Phase 8 Local Preview Harness Summary
+
+- Website parity manifest exists: yes
+- Admin parity manifest exists: yes
+- Preview gate report exists: yes
+- Preview workflow remains manual-only: yes
+- Production workflow remains unchanged: yes
+- Production promotion remains blocked: yes
 
 ## Deployment-Related References By File
 
@@ -116,6 +125,7 @@ Git commit: `8696369`
 | `docs/operations/PHASE7_PREVIEW_AUTHORIZATION_PACKAGE.md` | `cloudflare`, `PAYPAL`, `R2` |
 | `docs/operations/PHASE7_PREVIEW_EVIDENCE_TEMPLATE.md` | `cloudflare` |
 | `docs/operations/PHASE7_PRODUCTION_PROMOTION_BLOCKER.md` | `cloudflare` |
+| `docs/operations/PHASE8_LOCAL_PREVIEW_PREFLIGHT.md` | `cloudflare` |
 | `docs/operations/RELEASE_WORKFLOW_SAFETY_CHECKLIST.md` | `github release` |
 | `docs/operations/SMOKE_TESTS.md` | `cloudflare`, `VST3`, `cmake`, `gradlew` |
 | `docs/wiki/Admin-App-Guide.md` | `cloudflare`, `github release`, `gradlew`, `openai`, `OPENAI_API_KEY` |
@@ -141,9 +151,12 @@ Git commit: `8696369`
 | `tools/macos/package-aifred-macos.sh` | `setup-aifred-local-ai`, `VST3`, `.vst3`, `dotnet publish`, `openai`, `OPENAI_API_KEY` |
 | `tools/package-aifred.ps1` | `setup-aifred-local-ai`, `VST3`, `.vst3`, `dotnet publish`, `openai`, `OPENAI_API_KEY` |
 | `tools/release/aifred_admin_dryrun_check.py` | `wrangler`, `north3rnlight3r`, `gradlew` |
+| `tools/release/aifred_admin_parity_manifest.py` | `wrangler`, `north3rnlight3r`, `gradlew`, `assembleRelease` |
 | `tools/release/aifred_monorepo_validate.sh` | `wrangler`, `pages deploy`, `cloudflare`, `CLOUDFLARE_API_TOKEN`, `north3rnlight3r`, `gh release`, `upload-artifact`, `cmake`, `gradlew`, `assembleRelease`, `openai`, `OPENAI_API_KEY`, `PAYPAL` |
+| `tools/release/aifred_preview_gate_report.py` | `wrangler`, `pages deploy`, `cloudflare`, `CLOUDFLARE_API_TOKEN`, `gh release`, `upload-artifact`, `download-artifact`, `assembleRelease`, `openai`, `OPENAI_API_KEY`, `PAYPAL` |
 | `tools/release/aifred_repo_inventory.py` | `cloudflare`, `north3rnlight3r` |
 | `tools/release/aifred_website_dryrun_check.py` | `wrangler`, `cloudflare`, `north3rnlight3r`, `github release`, `PAYPAL`, `R2` |
+| `tools/release/aifred_website_parity_manifest.py` | `wrangler`, `north3rnlight3r`, `PAYPAL`, `R2` |
 | `tools/release/aifred_workflow_audit.py` | `wrangler`, `pages deploy`, `cloudflare`, `CLOUDFLARE_API_TOKEN`, `project-name`, `north3rnlight3r`, `aifred-site`, `github release`, `gh release`, `upload-artifact`, `download-artifact`, `AIFRED_RELEASE_VERSION`, `AIFRED_PLUGIN_RELEASE_TAG`, `AIFRED_GITHUB_REPO`, `package-aifred`, `package-aifred-macos`, `setup-aifred-local-ai`, `AifredWindowsInstaller`, `AifredWindowsUninstaller`, `VST3`, `.vst3`, `msbuild`, `cmake`, `dotnet publish`, `gradlew`, `assembleRelease`, `openai`, `OPENAI_API_KEY`, `PAYPAL`, `R2`, `AIFRED_REFERENCE_POOL` |
 | `tools/serve-website.mjs` | `cloudflare`, `north3rnlight3r`, `openai`, `OPENAI_API_KEY` |
 | `tools/windows/setup-aifred-local-ai.ps1` | `openai`, `OPENAI_API_KEY` |
@@ -197,6 +210,7 @@ Git commit: `8696369`
 | `docs/operations/PHASE7_PREVIEW_ABORT_CRITERIA.md` | `website/`, `apps/website` |
 | `docs/operations/PHASE7_PREVIEW_AUTHORIZATION_PACKAGE.md` | `website/`, `apps/website`, `android_admin`, `plugin-aifred`, `tools/AifredEngine` |
 | `docs/operations/PHASE7_PRODUCTION_PROMOTION_BLOCKER.md` | `website/` |
+| `docs/operations/PHASE8_LOCAL_PREVIEW_PREFLIGHT.md` | `website/`, `apps/website`, `android_admin`, `apps/admin-android`, `plugin-aifred`, `tools/AifredEngine` |
 | `docs/operations/RELEASE_WORKFLOW_SAFETY_CHECKLIST.md` | `plugin-aifred`, `tools/AifredEngine` |
 | `docs/operations/SMOKE_TESTS.md` | `website/`, `apps/website`, `android_admin`, `apps/admin-android`, `plugin-aifred`, `tools/AifredEngine` |
 | `docs/wiki/Admin-App-Guide.md` | `website/`, `android_admin` |
@@ -212,9 +226,12 @@ Git commit: `8696369`
 | `tools/check-no-hardcoded-paths.ps1` | `apps/website`, `android_admin`, `plugin-aifred` |
 | `tools/macos/package-aifred-macos.sh` | `website/`, `tools/AifredEngine` |
 | `tools/release/aifred_admin_dryrun_check.py` | `android_admin`, `apps/admin-android` |
+| `tools/release/aifred_admin_parity_manifest.py` | `android_admin`, `apps/admin-android` |
 | `tools/release/aifred_monorepo_validate.sh` | `website/`, `apps/website`, `android_admin`, `apps/admin-android`, `plugin-aifred`, `tools/AifredEngine` |
+| `tools/release/aifred_preview_gate_report.py` | `website/`, `apps/website`, `android_admin`, `apps/admin-android`, `plugin-aifred`, `tools/AifredEngine` |
 | `tools/release/aifred_repo_inventory.py` | `website/`, `apps/website`, `android_admin`, `apps/admin-android`, `plugin-aifred`, `tools/AifredEngine` |
 | `tools/release/aifred_website_dryrun_check.py` | `website/`, `apps/website` |
+| `tools/release/aifred_website_parity_manifest.py` | `website/`, `apps/website` |
 | `tools/release/aifred_workflow_audit.py` | `website/`, `apps/website`, `android_admin`, `apps/admin-android`, `plugin-aifred`, `tools/AifredEngine` |
 | `website/assets/docs/aifred-installation.txt` | `website/` |
 | `website/functions/api/v1/[[path]].js` | `website/` |
@@ -245,7 +262,9 @@ Git commit: `8696369`
 | `tools/check-no-hardcoded-paths.ps1` | `cmake` |
 | `tools/macos/package-aifred-macos.sh` | `dotnet publish` |
 | `tools/package-aifred.ps1` | `dotnet publish` |
+| `tools/release/aifred_admin_parity_manifest.py` | `assembleRelease` |
 | `tools/release/aifred_monorepo_validate.sh` | `wrangler deploy`, `pages deploy`, `gh release`, `upload-artifact`, `assembleRelease`, `cmake` |
+| `tools/release/aifred_preview_gate_report.py` | `wrangler deploy`, `pages deploy`, `gh release`, `upload-artifact`, `download-artifact`, `assembleRelease` |
 | `tools/release/aifred_workflow_audit.py` | `wrangler deploy`, `pages deploy`, `gh release`, `upload-artifact`, `download-artifact`, `assembleRelease`, `dotnet publish`, `cmake`, `msbuild` |
 | `website/functions/api/v1/[[path]].js` | `pages deploy` |
 
@@ -288,7 +307,9 @@ Git commit: `8696369`
 | `tools/macos/package-aifred-macos.sh` | `OPENAI_API_KEY` |
 | `tools/package-aifred.ps1` | `OPENAI_API_KEY` |
 | `tools/release/aifred_monorepo_validate.sh` | `CLOUDFLARE_API_TOKEN`, `OPENAI_API_KEY`, `PAYPAL`, `PAYPAL_CLIENT_SECRET` |
+| `tools/release/aifred_preview_gate_report.py` | `CLOUDFLARE_API_TOKEN`, `OPENAI_API_KEY`, `PAYPAL`, `PAYPAL_CLIENT_SECRET` |
 | `tools/release/aifred_website_dryrun_check.py` | `PAYPAL` |
+| `tools/release/aifred_website_parity_manifest.py` | `PAYPAL` |
 | `tools/release/aifred_workflow_audit.py` | `CLOUDFLARE_API_TOKEN`, `OPENAI_API_KEY`, `PAYPAL`, `PAYPAL_CLIENT_SECRET` |
 | `tools/serve-website.mjs` | `OPENAI_API_KEY` |
 | `tools/windows/setup-aifred-local-ai.ps1` | `OPENAI_API_KEY` |

@@ -66,7 +66,7 @@ require_reference() {
 repo_root="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
 cd "$repo_root"
 
-section "AIFRED Monorepo Phase 2/3/4/5/6/7 Validation"
+section "AIFRED Monorepo Phase 2/3/4/5/6/7/8 Validation"
 pass "repo root: $repo_root"
 pass "branch: $(git branch --show-current 2>/dev/null || echo unknown)"
 pass "commit: $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
@@ -93,7 +93,7 @@ fi
 if [ -d android_admin ] && [ -d apps/admin-android ]; then
   warn "both android_admin/ and apps/admin-android exist"
 fi
-pass "coexistence is expected during Phase 2/3/4/5/6/7"
+pass "coexistence is expected during Phase 2/3/4/5/6/7/8"
 
 section "Website Worker Files"
 for path in \
@@ -306,5 +306,18 @@ do
   require_file "$path"
 done
 
+section "Phase 8 Local Preview Harness Files"
+for path in \
+  tools/release/aifred_website_parity_manifest.py \
+  tools/release/aifred_admin_parity_manifest.py \
+  tools/release/aifred_preview_gate_report.py \
+  docs/operations/PHASE8_WEBSITE_PARITY_MANIFEST.md \
+  docs/operations/PHASE8_ADMIN_PARITY_MANIFEST.md \
+  docs/operations/PHASE8_PREVIEW_GATE_REPORT.md \
+  docs/operations/PHASE8_LOCAL_PREVIEW_PREFLIGHT.md
+do
+  require_file "$path"
+done
+
 section "Final Result"
-pass "AIFRED monorepo Phase 7 validation PASS"
+pass "AIFRED monorepo Phase 8 validation PASS"

@@ -19,6 +19,9 @@ VOLATILE_REPORTS = {
     "docs/operations/PHASE3_WORKFLOW_AUDIT.md",
     "docs/operations/PHASE4_WEBSITE_DRYRUN_REPORT.md",
     "docs/operations/PHASE4_ADMIN_DRYRUN_REPORT.md",
+    "docs/operations/PHASE8_WEBSITE_PARITY_MANIFEST.md",
+    "docs/operations/PHASE8_ADMIN_PARITY_MANIFEST.md",
+    "docs/operations/PHASE8_PREVIEW_GATE_REPORT.md",
 }
 
 MAJOR_AREAS = [

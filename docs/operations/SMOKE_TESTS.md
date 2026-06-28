@@ -243,3 +243,31 @@ Phase 7 smoke tests must not:
 - move `tools/AifredEngine`,
 - delete `website/`,
 - or delete `android_admin/`.
+
+## Phase 8 Local Preview Preflight Checks
+
+Run the Phase 8 validator and report checks:
+
+```sh
+./tools/release/aifred_monorepo_validate.sh
+python3 tools/release/aifred_website_parity_manifest.py --check
+python3 tools/release/aifred_admin_parity_manifest.py --check
+python3 tools/release/aifred_preview_gate_report.py --check
+python3 tools/release/aifred_website_dryrun_check.py --check
+python3 tools/release/aifred_admin_dryrun_check.py --check
+python3 tools/release/aifred_workflow_audit.py --check
+python3 tools/release/aifred_repo_inventory.py --check
+```
+
+Phase 8 smoke tests must not:
+
+- deploy,
+- push,
+- merge,
+- run any Cloudflare command,
+- run a Gradle build,
+- publish releases,
+- move `plugin-aifred`,
+- move `tools/AifredEngine`,
+- delete `website/`,
+- or delete `android_admin/`.

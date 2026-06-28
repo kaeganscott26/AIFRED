@@ -20,6 +20,9 @@ GENERATED_REPORTS = {
     "docs/operations/PHASE3_WORKFLOW_AUDIT.md",
     "docs/operations/PHASE4_WEBSITE_DRYRUN_REPORT.md",
     "docs/operations/PHASE4_ADMIN_DRYRUN_REPORT.md",
+    "docs/operations/PHASE8_WEBSITE_PARITY_MANIFEST.md",
+    "docs/operations/PHASE8_ADMIN_PARITY_MANIFEST.md",
+    "docs/operations/PHASE8_PREVIEW_GATE_REPORT.md",
 }
 
 SCAN_ROOTS = [
@@ -312,6 +315,12 @@ def build_report() -> str:
             "docs/operations/PHASE7_APPROVAL_RECORD_TEMPLATE.md",
         ]
     )
+    phase8_website_manifest_exists = (ROOT / "docs/operations/PHASE8_WEBSITE_PARITY_MANIFEST.md").is_file()
+    phase8_admin_manifest_exists = (ROOT / "docs/operations/PHASE8_ADMIN_PARITY_MANIFEST.md").is_file()
+    phase8_preview_gate_exists = (ROOT / "docs/operations/PHASE8_PREVIEW_GATE_REPORT.md").is_file()
+    phase8_production_promotion_blocked = (
+        ROOT / "docs/operations/PHASE7_PRODUCTION_PROMOTION_BLOCKER.md"
+    ).is_file()
 
     for path in workflows:
         text = read_text(path)
@@ -427,6 +436,17 @@ def build_report() -> str:
         f"- Production workflow remains unchanged: {'yes' if old_website_deploy_root and not new_website_deploy_root and release_publishing_behavior else 'no'}"
     )
     lines.append("- Merge remains blocked pending human approval and asset strategy.")
+    lines.append("")
+    lines.append("## Phase 8 Local Preview Harness Summary")
+    lines.append("")
+    lines.append(f"- Website parity manifest exists: {'yes' if phase8_website_manifest_exists else 'no'}")
+    lines.append(f"- Admin parity manifest exists: {'yes' if phase8_admin_manifest_exists else 'no'}")
+    lines.append(f"- Preview gate report exists: {'yes' if phase8_preview_gate_exists else 'no'}")
+    lines.append(f"- Preview workflow remains manual-only: {'yes' if manual_only_preview_workflow else 'no'}")
+    lines.append(
+        f"- Production workflow remains unchanged: {'yes' if old_website_deploy_root and not new_website_deploy_root and release_publishing_behavior else 'no'}"
+    )
+    lines.append(f"- Production promotion remains blocked: {'yes' if phase8_production_promotion_blocked else 'no'}")
     lines.append("")
     lines.append("## Deployment-Related References By File")
     lines.append("")
