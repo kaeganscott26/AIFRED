@@ -1,14 +1,14 @@
 # Backend Map
 
-The backend is a Cloudflare Pages Worker mounted from `website/_worker.js`.
+The backend is a Cloudflare Pages Worker mounted from `apps/website/_worker.js`.
 
 ## Worker Entrypoints
 
 | Route | Handler |
 | --- | --- |
-| `/api/v1/*` | `website/functions/api/v1/[[path]].js` |
-| `/api/*` | `website/functions/api/[[path]].js` |
-| `/ws/chat` | `website/functions/ws/chat.js` |
+| `/api/v1/*` | `apps/website/functions/api/v1/[[path]].js` |
+| `/api/*` | `apps/website/functions/api/[[path]].js` |
+| `/ws/chat` | `apps/website/functions/ws/chat.js` |
 | static assets | `env.ASSETS.fetch(request)` |
 
 ## Public API
@@ -82,6 +82,9 @@ Cloudflare Pages:
 - `AIFRED_GITHUB_REPO`
 - `AIFRED_GITHUB_BRANCH`
 - `AIFRED_REFERENCE_POOL` KV binding, optional
+- `AIFRED_WEBSITE_ASSETS` R2 binding for catalog audio and website asset streaming
+- `AIFRED_DOWNLOADS` R2 binding for installer downloads
+- `AIFRED_REFERENCE_BUCKET` R2 binding for accepted reference material
 
 GitHub Actions:
 

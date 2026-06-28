@@ -4,6 +4,33 @@
 
 The public-facing product is the AIFRED VST3 and North3rnLight3r beat catalog. The source code, admin app, credentials, prompts, backend maps, and deployment controls are private operational assets.
 
+## Monorepo Consolidation Status
+
+AIFRED is now consolidated into one private product monorepo.
+
+Active authorities:
+
+- `plugin-aifred/` is the active JUCE VST3 plugin source.
+- `tools/AifredEngine/` is the active local engine source.
+- `apps/website/` is the active Cloudflare Pages website and backend source.
+- `apps/admin-android/` is the active private Android admin app source.
+- `infra/cloudflare/` contains Cloudflare support configuration.
+
+The old duplicate `website/`, `android_admin/`, and raw `North3rnlight3r_Beatz/` trees were removed from this repo. The historical phase reports remain under `docs/operations/` as migration evidence, but they are superseded by [Final Monorepo Consolidation Report](docs/operations/FINAL_MONOREPO_CONSOLIDATION_REPORT.md).
+
+Backend split:
+
+- The website/admin backend lives at `https://www.north3rnlight3r.com/api/v1` and `/ws/chat`.
+- The local engine serves plugin AI/chat at `http://127.0.0.1:8787`.
+- The local engine talks to Ollama at `http://127.0.0.1:11434` with model `aifred:latest`.
+- OpenAI mode uses `https://api.openai.com/v1/responses` when an API key is configured.
+
+Website assets:
+
+- Catalog audio URLs route through `/api/v1/assets/audio/catalog/<file>`.
+- The Cloudflare Worker reads catalog objects from the `AIFRED_WEBSITE_ASSETS` R2 binding first.
+- Local static files under `apps/website/assets/` remain a development fallback.
+
 ## Production
 
 - Website: https://www.north3rnlight3r.com
@@ -53,8 +80,8 @@ Current v0.3.6 JUCE metering surface:
 | Path | Role |
 | --- | --- |
 | `plugin-aifred/` | JUCE/C++ VST3 source |
-| `website/` | Cloudflare Pages site, static catalog, browser analyzer, backend Worker routes |
-| `android_admin/` | Private Android admin app |
+| `apps/website/` | Cloudflare Pages site, static catalog, browser analyzer, backend Worker routes |
+| `apps/admin-android/` | Private Android admin app |
 | `tools/AifredEngine/` | Windows local engine source |
 | `tools/AifredWindowsInstaller/` | Windows installer source |
 | `tools/AifredWindowsUninstaller/` | Windows uninstaller source |
@@ -95,13 +122,19 @@ $env:JAVA_HOME='C:\Program Files\Microsoft\jdk-17.0.18.8-hotspot'
 $env:ANDROID_HOME=Join-Path $env:LOCALAPPDATA 'Android\Sdk'
 $env:ANDROID_SDK_ROOT=$env:ANDROID_HOME
 $env:Path="$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:ANDROID_HOME\cmdline-tools\latest\bin;$env:Path"
-cd android_admin
+cd apps/admin-android
 .\gradlew.bat assembleDebug
+```
+
+Final monorepo validation:
+
+```powershell
+.\tools\release\aifred_monorepo_validate.sh
 ```
 
 ## Cloudflare Deployment
 
-Cloudflare Pages serves `website/` with custom domains:
+Cloudflare Pages serves `apps/website/` with custom domains:
 
 - `www.north3rnlight3r.com`
 - `north3rnlight3r.com`
@@ -109,7 +142,7 @@ Cloudflare Pages serves `website/` with custom domains:
 The Pages project can be deployed locally with Wrangler:
 
 ```powershell
-npx wrangler pages deploy website --project-name=north3rnlight3r --branch=main
+npx wrangler pages deploy apps/website --project-name=north3rnlight3r --branch=main
 ```
 
 GitHub Actions can deploy only when repository secrets contain valid Cloudflare deploy credentials. If credentials are rejected, the build still passes and emits a warning because package builds must not be blocked by Cloudflare auth rotation.
@@ -139,7 +172,3 @@ Start here:
 - [Function Map](docs/wiki/Function-Map.md)
 - [Troubleshooting](docs/wiki/Troubleshooting.md)
 - [Security And Distribution](docs/wiki/Security-And-Distribution.md)
-
-
-
-

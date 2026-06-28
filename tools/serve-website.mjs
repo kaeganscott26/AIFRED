@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const siteRoot = path.join(repoRoot, "website");
+const siteRoot = path.join(repoRoot, "apps", "website");
 const port = Number(process.env.AIFRED_SITE_PORT || 4173);
 
 const mime = new Map([
@@ -45,6 +45,19 @@ async function routeApi(request, response, url) {
   if (url.pathname === "/api/v1/catalog/list") {
     const raw = await readFile(path.join(siteRoot, "assets", "data", "beat_catalog.json"), "utf8");
     return sendJson(response, 200, { ok: true, tracks: JSON.parse(raw) });
+  }
+
+  if (url.pathname.startsWith("/api/v1/assets/")) {
+    const assetPath = staticPath(url.pathname.replace("/api/v1/assets", "/assets"));
+    if (!assetPath || !existsSync(assetPath)) {
+      return sendJson(response, 404, { ok: false, error: "asset not found" });
+    }
+    response.writeHead(200, {
+      "content-type": mime.get(path.extname(assetPath).toLowerCase()) || "application/octet-stream",
+      "x-aifred-asset-source": "local-static-fallback"
+    });
+    createReadStream(assetPath).pipe(response);
+    return;
   }
 
   if (url.pathname === "/api/v1/models/list") {

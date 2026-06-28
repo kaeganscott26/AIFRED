@@ -1,0 +1,11 @@
+AIFRED Installation
+
+Windows is the first distribution target. Run the installer first when available; it now configures Ollama with the `aifred:latest` default automatically and only needs optional OpenAI credentials for online chat.
+
+If you are installing from a release zip, copy the packaged Aifred.vst3 bundle into the system VST3 folder, then rescan plugins in FL Studio.
+
+Use the consolidated monorepo layout. The website/backend source lives under apps/website, catalog metadata stays under apps/website/assets/data/beat_catalog.json, and backend routes stay under apps/website/functions/api.
+
+Catalog audio is served through /api/v1/assets/audio/catalog/<file> so Cloudflare can read from the AIFRED_WEBSITE_ASSETS R2 bucket. Local static files remain a development fallback only.
+
+Set OPENAI_API_KEY and OPENAI_MODEL for OpenAI chat. Set OLLAMA_BASE_URL and OLLAMA_MODEL for Ollama chat. Do not store API keys in website files. The Android admin app logs site activity, PayPal events, downloads, and uploads from the same backend feed.

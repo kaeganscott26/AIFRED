@@ -7,7 +7,7 @@ The Android admin app is private owner-only software. It is not shipped with the
 Build the APK locally:
 
 ```powershell
-cd android_admin
+cd apps/admin-android
 .\gradlew.bat assembleDebug
 ```
 
@@ -15,15 +15,15 @@ Install over ADB:
 
 ```powershell
 $adb=Join-Path $env:LOCALAPPDATA 'Android\Sdk\platform-tools\adb.exe'
-& $adb install -r android_admin\app\build\outputs\apk\debug\app-debug.apk
+& $adb install -r apps\admin-android\app\build\outputs\apk\debug\app-debug.apk
 ```
 
-After the repository split, the private `aifred-admin` repo should publish a private GitHub release artifact for owner download. Installing an APK directly from GitHub on Android still requires Android's normal "install unknown apps" permission unless the app is distributed through Google Play Internal Testing or another managed app store. There is no honest way to install a private APK from GitHub without Android treating it as a sideload.
+After the repository split, the private `AIFRED` repo should publish a private GitHub release artifact for owner download. Installing an APK directly from GitHub on Android still requires Android's normal "install unknown apps" permission unless the app is distributed through Google Play Internal Testing or another managed app store. There is no honest way to install a private APK from GitHub without Android treating it as a sideload.
 
 Required private admin release behavior:
 
 - CI builds `app-debug.apk` or a signed owner APK.
-- The artifact is attached only to a private `aifred-admin` release.
+- The artifact is attached only to a private `AIFRED` release.
 - The public plugin release never includes the admin APK.
 - The app clearly reports whether analytics, sales storage, deploy control, and upload control are configured.
 
@@ -93,7 +93,7 @@ The app can call:
 - `POST /api/v1/admin/files/delete`
 - `POST /api/v1/admin/files/upload`
 
-Delete is restricted to `website/` paths. The backend rejects unsafe paths containing traversal or `.git/`.
+Delete is restricted to `apps/website/` paths. The backend rejects unsafe paths containing traversal or `.git/`.
 
 ## Ollama And OpenAI
 
@@ -108,14 +108,14 @@ The app can also be built for direct provider access:
 OpenAI direct:
 
 ```powershell
-cd android_admin
+cd apps/admin-android
 .\gradlew.bat assembleDebug -PAIFRED_BASE_URL=https://api.openai.com/v1 -PAIFRED_API_TOKEN=sk-your-key
 ```
 
 Ollama direct:
 
 ```powershell
-cd android_admin
+cd apps/admin-android
 .\gradlew.bat assembleDebug -PAIFRED_BASE_URL=http://192.168.x.x:11434
 ```
 

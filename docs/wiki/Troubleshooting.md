@@ -23,10 +23,10 @@ Expected JSON:
 
 ## API Returns HTML
 
-If `/api/v1/health` returns HTML, the Pages Worker did not deploy. Confirm `website/_worker.js` exists and redeploy:
+If `/api/v1/health` returns HTML, the Pages Worker did not deploy. Confirm `apps/website/_worker.js` exists and redeploy:
 
 ```powershell
-npx wrangler pages deploy website --project-name=north3rnlight3r --branch=main
+npx wrangler pages deploy apps/website --project-name=north3rnlight3r --branch=main
 ```
 
 ## GitHub Actions Cloudflare Deploy Warning
@@ -68,7 +68,7 @@ $adb=Join-Path $env:LOCALAPPDATA 'Android\Sdk\platform-tools\adb.exe'
 Install:
 
 ```powershell
-& $adb install -r android_admin\app\build\outputs\apk\debug\app-debug.apk
+& $adb install -r apps\admin-android\app\build\outputs\apk\debug\app-debug.apk
 ```
 
 If the device is unauthorized, unlock the phone and accept the USB debugging prompt.

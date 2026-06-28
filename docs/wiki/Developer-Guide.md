@@ -77,7 +77,7 @@ $env:JAVA_HOME='C:\Program Files\Microsoft\jde-17.0.18.8-hotspot'
 $env:ANDROID_HOME=Join-Path $env:LOCALAPPDATA 'Android\Sde'
 $env:ANDROID_SDK_ROOT=$env:ANDROID_HOME
 $env:Path="$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:ANDROID_HOME\cmdline-tools\latest\bin;$env:Path"
-cd android_admin
+cd apps/admin-android
 .\gradlew.bat assembleDebug
 ```
 
@@ -86,7 +86,7 @@ The APK is private and should stay local.
 ## Website Deploy
 
 ```powershell
-npx wrangler pages deploy website --project-name=north3rnlight3r --branch=main
+npx wrangler pages deploy apps/website --project-name=north3rnlight3r --branch=main
 ```
 
 Production must resolve through the custom domains:

@@ -14,13 +14,13 @@
 
 | File | Responsibility |
 | --- | --- |
-| `website/index.html` | Public page structure |
-| `website/styles.css` | Brand styling, analyzer, catalog, release download layout |
-| `website/app.js` | Catalog player, free beta release links, analyzer DSP, chat form, metadata gate submission |
-| `website/config.js` | Public runtime config and release URLs |
-| `website/_worker.js` | Cloudflare Pages Worker router |
-| `website/functions/api/v1/[[path]].js` | Main backend and admin API |
-| `website/functions/ws/chat.js` | WebSocket chat bridge |
+| `apps/website/index.html` | Public page structure |
+| `apps/website/styles.css` | Brand styling, analyzer, catalog, release download layout |
+| `apps/website/app.js` | Catalog player, free beta release links, analyzer DSP, chat form, metadata gate submission |
+| `apps/website/config.js` | Public runtime config and release URLs |
+| `apps/website/_worker.js` | Cloudflare Pages Worker router |
+| `apps/website/functions/api/v1/[[path]].js` | Main backend and admin API |
+| `apps/website/functions/ws/chat.js` | WebSocket chat bridge |
 
 ## Android Admin App
 
@@ -51,8 +51,8 @@
 | `chatSettingsPayload` | Settings shape for app/backend |
 | `commandCatalog` | Registered admin command definitions |
 | `githubRequest` | GitHub Contents/Actions API wrapper |
-| `handleAdminFileRead` | Read website/repo files |
-| `handleAdminFileWrite` | Commit website/repo text updates |
+| `handleAdminFileRead` | Read apps/website/repo files |
+| `handleAdminFileWrite` | Commit apps/website/repo text updates |
 | `handleAdminFileList` | List GitHub-backed repo paths |
 | `handleAdminFileDelete` | Delete website paths |
 | `handleAdminFileUpload` | Upload binary website assets |
