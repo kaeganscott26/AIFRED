@@ -308,6 +308,23 @@ sealed class AifredRuntime
         using var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(GetInt(config, "timeout_ms", 30000)) };
         var apiKey = EffectiveApiKey();
         if (!string.IsNullOrWhiteSpace(apiKey)) client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+        if (endpoint.Contains("api.openai.com", StringComparison.OrdinalIgnoreCase))
+        {
+            var responsesBody = new JsonObject
+            {
+                ["model"] = model,
+                ["input"] = new JsonArray
+                {
+                    new JsonObject { ["role"] = "system", ["content"] = SystemPrompt() },
+                    new JsonObject { ["role"] = "user", ["content"] = BuildMixPrompt(message, context) }
+                }
+            };
+            var responsesResult = await client.PostAsync($"{endpoint}/responses", new StringContent(responsesBody.ToJsonString(), Encoding.UTF8, "application/json"));
+            responsesResult.EnsureSuccessStatusCode();
+            var responsesJson = JsonNode.Parse(await responsesResult.Content.ReadAsStringAsync())?.AsObject() ?? new JsonObject();
+            return CleanAiText(ExtractResponsesText(responsesJson));
+        }
+
         var body = new JsonObject
         {
             ["model"] = model,
@@ -323,6 +340,26 @@ sealed class AifredRuntime
         var json = JsonNode.Parse(await response.Content.ReadAsStringAsync())?.AsObject() ?? new JsonObject();
         var content = json["choices"]?[0]?["message"]?["content"]?.GetValue<string>() ?? "";
         return CleanAiText(content);
+    }
+
+    static string ExtractResponsesText(JsonObject json)
+    {
+        var direct = GetString(json, "output_text", "");
+        if (!string.IsNullOrWhiteSpace(direct)) return direct;
+        var output = json["output"] as JsonArray;
+        if (output == null) return "";
+        var builder = new StringBuilder();
+        foreach (var item in output)
+        {
+            var content = item?["content"] as JsonArray;
+            if (content == null) continue;
+            foreach (var part in content)
+            {
+                var text = part?["text"]?.GetValue<string>() ?? "";
+                if (!string.IsNullOrWhiteSpace(text)) builder.Append(text);
+            }
+        }
+        return builder.ToString().Trim();
     }
 
     string BuildMixPrompt(string message, JsonObject context)
@@ -498,16 +535,27 @@ sealed class AifredRuntime
     string EffectiveEndpoint()
     {
         var overrideEnabled = GetBool(userSettings, "provider_override_enabled", false);
+        var provider = EffectiveProvider();
         var endpoint = overrideEnabled
-            ? GetString(userSettings, "ollama_url", GetString(userSettings, "custom_endpoint", ""))
-            : GetString(config, "ollama_url", GetString(config, "custom_endpoint", ""));
+            ? GetString(userSettings, "custom_endpoint", "")
+            : GetString(config, "custom_endpoint", "");
+        if (string.IsNullOrWhiteSpace(endpoint) && provider.Contains("ollama", StringComparison.OrdinalIgnoreCase))
+        {
+            endpoint = overrideEnabled ? GetString(userSettings, "ollama_url", "") : GetString(config, "ollama_url", "");
+        }
+        if (string.IsNullOrWhiteSpace(endpoint) && provider.Contains("openai", StringComparison.OrdinalIgnoreCase))
+        {
+            return "https://api.openai.com/v1";
+        }
         return string.IsNullOrWhiteSpace(endpoint) ? "http://127.0.0.1:11434" : endpoint;
     }
 
     string EffectiveModelName()
     {
         var overrideEnabled = GetBool(userSettings, "provider_override_enabled", false);
+        var provider = EffectiveProvider();
         var model = overrideEnabled ? GetString(userSettings, "model_name", "") : GetString(config, "model_name", "");
+        if (string.IsNullOrWhiteSpace(model) && provider.Contains("openai", StringComparison.OrdinalIgnoreCase)) return "gpt-5.4-mini";
         return string.IsNullOrWhiteSpace(model) ? "aifred:latest" : model;
     }
 

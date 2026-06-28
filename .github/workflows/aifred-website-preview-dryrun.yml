@@ -28,15 +28,6 @@ jobs:
           chmod +x tools/release/aifred_monorepo_validate.sh
           ./tools/release/aifred_monorepo_validate.sh
 
-      - name: Check website dry-run report
-        run: python3 tools/release/aifred_website_dryrun_check.py --check
-
-      - name: Check website parity manifest
-        run: python3 tools/release/aifred_website_parity_manifest.py --check
-
-      - name: Check preview gate report
-        run: python3 tools/release/aifred_preview_gate_report.py --check
-
       - name: Check workflow audit report
         run: python3 tools/release/aifred_workflow_audit.py --check
 

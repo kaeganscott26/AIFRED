@@ -57,7 +57,7 @@ Do not bypass the token route with a public direct installer URL unless the rele
 
 ## Admin API Controls
 
-Admin endpoints require a signed admin session. File operations reject unsafe paths. Delete is restricted to `website/`.
+Admin endpoints require a signed admin session. File operations reject unsafe paths. Delete is restricted to `apps/website/`.
 
 High-risk routes:
 

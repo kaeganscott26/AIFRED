@@ -29,12 +29,22 @@ MAJOR_AREAS = [
     "apps/admin-android",
     "plugin-aifred",
     "tools/AifredEngine",
-    "website",
-    "android_admin",
     "infra/cloudflare",
     "packages",
     "docs",
 ]
+
+EXCLUDED_DIRS = {
+    ".git",
+    "node_modules",
+    ".wrangler",
+    ".gradle",
+    "build",
+    "dist",
+    "cache",
+    "bin",
+    "obj",
+}
 
 BACKEND_REFERENCES = [
     "north3rnlight3r.com",
@@ -77,7 +87,7 @@ def git_output(*args: str) -> str:
 def iter_files() -> list[Path]:
     files: list[Path] = []
     for dirpath, dirnames, filenames in os.walk(ROOT):
-        dirnames[:] = [name for name in dirnames if name != ".git"]
+        dirnames[:] = [name for name in dirnames if name not in EXCLUDED_DIRS]
         base = Path(dirpath)
         for filename in filenames:
             path = base / filename
@@ -215,9 +225,9 @@ def build_report() -> str:
     lines.append("")
     lines.append("## Duplicated Authority Warning")
     lines.append("")
-    lines.append(f"- `website/` and `apps/website/` both exist: {'yes' if (ROOT / 'website').is_dir() and (ROOT / 'apps/website').is_dir() else 'no'}")
-    lines.append(f"- `android_admin/` and `apps/admin-android/` both exist: {'yes' if (ROOT / 'android_admin').is_dir() and (ROOT / 'apps/admin-android').is_dir() else 'no'}")
-    lines.append("- This coexistence is expected during Phase 2 and must be resolved only in a later approved migration phase.")
+    lines.append(f"- Stale `website/` exists: {'yes' if (ROOT / 'website').is_dir() else 'no'}")
+    lines.append(f"- Stale `android_admin/` exists: {'yes' if (ROOT / 'android_admin').is_dir() else 'no'}")
+    lines.append("- Final authority is `apps/website/` and `apps/admin-android/`.")
     lines.append("")
     lines.append("## Backend Reference Counts")
     lines.append("")

@@ -244,20 +244,20 @@ data class WebsitePathPreset(
 )
 
 private val WebsiteTextPresets = listOf(
-    WebsitePathPreset("Home HTML", "website/index.html"),
-    WebsitePathPreset("Styles", "website/styles.css"),
-    WebsitePathPreset("App JS", "website/app.js"),
-    WebsitePathPreset("Config", "website/config.js"),
-    WebsitePathPreset("Catalog JSON", "website/assets/data/beat_catalog.json"),
-    WebsitePathPreset("Release Notes", "website/assets/docs/aifred-release-notes.txt"),
-    WebsitePathPreset("Install Notes", "website/assets/docs/aifred-installation.txt")
+    WebsitePathPreset("Home HTML", "apps/website/index.html"),
+    WebsitePathPreset("Styles", "apps/website/styles.css"),
+    WebsitePathPreset("App JS", "apps/website/app.js"),
+    WebsitePathPreset("Config", "apps/website/config.js"),
+    WebsitePathPreset("Catalog JSON", "apps/website/assets/data/beat_catalog.json"),
+    WebsitePathPreset("Release Notes", "apps/website/assets/docs/aifred-release-notes.txt"),
+    WebsitePathPreset("Install Notes", "apps/website/assets/docs/aifred-installation.txt")
 )
 
 private val WebsiteAssetPresets = listOf(
-    WebsitePathPreset("Mascot", "website/assets/brand/aifred-mascot.jpg"),
-    WebsitePathPreset("Brand Art", "website/assets/brand/north3rnlight3r-brand.jpg"),
-    WebsitePathPreset("Background", "website/assets/brand/north3rnlight3r-background.jpg"),
-    WebsitePathPreset("Gallery Image", "website/assets/artwork/gallery/new-gallery-image.jpg")
+    WebsitePathPreset("Mascot", "apps/website/assets/brand/aifred-mascot.jpg"),
+    WebsitePathPreset("Brand Art", "apps/website/assets/brand/north3rnlight3r-brand.jpg"),
+    WebsitePathPreset("Background", "apps/website/assets/brand/north3rnlight3r-background.jpg"),
+    WebsitePathPreset("Gallery Image", "apps/website/assets/artwork/gallery/new-gallery-image.jpg")
 )
 
 private val ReferenceGenres = listOf("rap", "hip-hop", "edm", "dubstep", "pop", "rock")
@@ -791,7 +791,9 @@ fun AIFREDAdminApp() {
     var chatModels by remember {
         mutableStateOf(
             listOf(
-                "gpt-5.2"
+                "aifred:latest",
+                "gpt-5.4-mini",
+                "gpt-5.5"
             )
         )
     }
@@ -817,12 +819,12 @@ fun AIFREDAdminApp() {
     var soundPackPrice by remember { mutableStateOf(defaultPackPrice("soundpack")) }
     var referenceGenre by remember { mutableStateOf("rap") }
     var websiteAssetPath by remember {
-        mutableStateOf("website/assets/artwork/gallery/new-gallery-image.jpg")
+        mutableStateOf("apps/website/assets/artwork/gallery/new-gallery-image.jpg")
     }
 
     var commandInput by remember { mutableStateOf("curl -s https://www.north3rnlight3r.com/api/v1/health") }
     var commandOutput by remember { mutableStateOf("") }
-    var websiteFilePath by remember { mutableStateOf("website/index.html") }
+    var websiteFilePath by remember { mutableStateOf("apps/website/index.html") }
     var websiteFileContent by remember { mutableStateOf("") }
     var websiteAdminOutput by remember { mutableStateOf("") }
     var saleItemName by remember { mutableStateOf("AIFRED VST3 Plugin") }
@@ -869,8 +871,8 @@ fun AIFREDAdminApp() {
                     }
                 }
                 UploadMode.WEBSITE_ASSET -> {
-                    if (websiteAssetPath.isBlank() || websiteAssetPath == "website/assets/artwork/gallery/new-gallery-image.jpg") {
-                        websiteAssetPath = "website/assets/uploads/$selectedName"
+                    if (websiteAssetPath.isBlank() || websiteAssetPath == "apps/website/assets/artwork/gallery/new-gallery-image.jpg") {
+                        websiteAssetPath = "apps/website/assets/uploads/$selectedName"
                     }
                 }
             }
@@ -2770,16 +2772,16 @@ class ApiClient(private val baseUrl: String, private val token: String) {
         }
         return try {
             val body = JSONObject()
-                .put("model", model.ifBlank { "gpt-5.2" })
+                .put("model", model.ifBlank { "gpt-5.4-mini" })
                 .put(
-                    "messages",
+                    "input",
                     JSONArray()
                         .put(JSONObject().put("role", "system").put("content", "You are AIFRED, the North3rnLight3r admin assistant. Be direct, technical, and useful."))
                         .put(JSONObject().put("role", "user").put("content", prompt))
                 )
                 .toString()
             val request = Request.Builder()
-                .url("${baseUrl.trimEnd('/')}/chat/completions")
+                .url("${baseUrl.trimEnd('/')}/responses")
                 .addHeader("Content-Type", "application/json")
                 .addHeader("Authorization", "Bearer $token")
                 .post(body.toRequestBody("application/json".toMediaType()))
@@ -2788,12 +2790,9 @@ class ApiClient(private val baseUrl: String, private val token: String) {
                 val raw = response.body?.string().orEmpty()
                 val payload = runCatching { JSONObject(raw) }.getOrNull()
                 if (response.isSuccessful && payload != null) {
-                    payload.optJSONArray("choices")
-                        ?.optJSONObject(0)
-                        ?.optJSONObject("message")
-                        ?.optString("content")
-                        ?.ifBlank { raw }
-                        ?: raw
+                    payload.optString("output_text")
+                        .ifBlank { extractResponsesOutputText(payload) }
+                        .ifBlank { raw }
                 } else {
                     payload?.optJSONObject("error")?.optString("message") ?: raw.ifBlank { "OpenAI request failed" }
                 }
@@ -2815,6 +2814,19 @@ class ApiClient(private val baseUrl: String, private val token: String) {
         )
     }
 
+    private fun extractResponsesOutputText(payload: JSONObject): String {
+        val output = payload.optJSONArray("output") ?: return ""
+        val parts = mutableListOf<String>()
+        for (outputIndex in 0 until output.length()) {
+            val content = output.optJSONObject(outputIndex)?.optJSONArray("content") ?: continue
+            for (contentIndex in 0 until content.length()) {
+                val text = content.optJSONObject(contentIndex)?.optString("text").orEmpty()
+                if (text.isNotBlank()) parts.add(text)
+            }
+        }
+        return parts.joinToString("").trim()
+    }
+
     fun listModels(): ModelCatalog {
         if (isDirectOllama()) {
             return try {
@@ -2830,11 +2842,11 @@ class ApiClient(private val baseUrl: String, private val token: String) {
                                 if (name.isNotBlank()) add(name)
                             }
                         }
-                    }.ifEmpty { listOf("aifred") }
+                    }.ifEmpty { listOf("aifred:latest") }
                     ModelCatalog(models, models.first())
                 }
             } catch (_error: Exception) {
-                ModelCatalog(listOf("aifred"), "aifred")
+                ModelCatalog(listOf("aifred:latest"), "aifred:latest")
             }
         }
         if (isDirectOpenAI()) {
@@ -2854,11 +2866,11 @@ class ApiClient(private val baseUrl: String, private val token: String) {
                                 if (id.isNotBlank() && id.startsWith("gpt")) add(id)
                             }
                         }
-                    }.ifEmpty { listOf("gpt-5.2") }
+                    }.ifEmpty { listOf("gpt-5.4-mini", "gpt-5.5") }
                     ModelCatalog(models, models.first())
                 }
             } catch (_error: Exception) {
-                ModelCatalog(listOf("gpt-5.2"), "gpt-5.2")
+                ModelCatalog(listOf("gpt-5.4-mini", "gpt-5.5"), "gpt-5.4-mini")
             }
         }
 
@@ -2881,11 +2893,11 @@ class ApiClient(private val baseUrl: String, private val token: String) {
                         activeModel = payload.optString("active_model", models.first())
                     )
                 } else {
-                    ModelCatalog(listOf("gpt-5.2"), "gpt-5.2")
+                    ModelCatalog(listOf("aifred:latest", "gpt-5.4-mini", "gpt-5.5"), "aifred:latest")
                 }
             }
         } catch (_error: Exception) {
-            ModelCatalog(listOf("gpt-5.2"), "gpt-5.2")
+            ModelCatalog(listOf("aifred:latest", "gpt-5.4-mini", "gpt-5.5"), "aifred:latest")
         }
     }
 

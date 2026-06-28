@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
-$patterns = "DAWAI|DawAI|dawai|Pooh|/home/|C:\\Users\\|apps/website|AIFR3D"
+$patterns = "DAWAI|DawAI|dawai|Pooh|/home/|C:\\Users\\|AIFR3D"
 $scanArgs = @(
   "-n",
   "--glob", "!**/build/**",
@@ -10,8 +10,8 @@ $scanArgs = @(
   "--glob", "*.{cmake,css,gradle,html,js,json,kts,kt,md,ps1,toml,txt,xml,yml}",
   $patterns,
   "plugin-aifred",
-  "website",
-  "android_admin",
+  "apps/website",
+  "apps/admin-android",
   ".github",
   "CMakeLists.txt",
   "CMakePresets.json",

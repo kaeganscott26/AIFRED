@@ -1,9 +1,9 @@
 # Phase 2 Repository Inventory
 
-Timestamp: 2026-06-28T00:09:07-05:00
+Timestamp: 2026-06-28T01:00:25-05:00
 
-Git branch: `aifred-consolidation-phase11-preview-authorization-decision`
-Git commit: `2c669c1`
+Git branch: `aifred-final-monorepo-consolidation`
+Git commit: `fffad59`
 
 ## Top-Level Directory Summary
 
@@ -11,21 +11,19 @@ Git commit: `2c669c1`
 - `.gitignore` - file, 303 B
 - `.obsidian/` - 0 dirs, 5 files at top level
 - `aifred_state.md` - file, 16.1 KB
-- `android_admin/` - 2 dirs, 6 files at top level
 - `apps/` - 2 dirs, 0 files at top level
+- `build/` - 1 dirs, 0 files at top level
 - `CHANGELOG.md` - file, 3.5 KB
 - `CMakeLists.txt` - file, 1.9 KB
 - `CMakePresets.json` - file, 393 B
 - `docs/` - 4 dirs, 5 files at top level
 - `infra/` - 1 dirs, 0 files at top level
 - `models/` - 1 dirs, 0 files at top level
-- `North3rnlight3r_Beatz/` - 0 dirs, 25 files at top level
 - `ops/` - 1 dirs, 0 files at top level
 - `packages/` - 2 dirs, 0 files at top level
 - `plugin-aifred/` - 2 dirs, 1 files at top level
-- `README.md` - file, 10.2 KB
+- `README.md` - file, 8.0 KB
 - `tools/` - 8 dirs, 6 files at top level
-- `website/` - 2 dirs, 8 files at top level
 - `wrangler.jsonc` - file, 300 B
 
 ## File Counts By Major Area
@@ -34,68 +32,65 @@ Git commit: `2c669c1`
 | --- | ---: | ---: |
 | `apps/website` | 77 | 263.6 MB |
 | `apps/admin-android` | 17 | 1.7 MB |
-| `plugin-aifred` | 16 | 177.2 KB |
-| `tools/AifredEngine` | 3 | 26.9 KB |
-| `website` | 76 | 259.2 MB |
-| `android_admin` | 13 | 1.7 MB |
-| `infra/cloudflare` | 5 | 10.2 KB |
+| `plugin-aifred` | 16 | 177.3 KB |
+| `tools/AifredEngine` | 3 | 29.1 KB |
+| `infra/cloudflare` | 5 | 10.3 KB |
 | `packages` | 2 | 1.0 KB |
-| `docs` | 59 | 124.4 KB |
+| `docs` | 60 | 119.8 KB |
 
 ## Largest 25 Files
 
 | Size | Path |
 | ---: | --- |
-| 75.2 MB | `North3rnlight3r_Beatz/Turn The Page cover.wav` |
-| 71.1 MB | `North3rnlight3r_Beatz/LIfe is Reluctant - North3rn Light3r version.wav` |
-| 60.1 MB | `North3rnlight3r_Beatz/Televeve Remix.wav` |
-| 58.8 MB | `North3rnlight3r_Beatz/No Complaints.wav` |
-| 57.2 MB | `North3rnlight3r_Beatz/Knockin Knoggins Rmix.wav` |
-| 57.0 MB | `North3rnlight3r_Beatz/3amDrillinst.wav` |
-| 57.0 MB | `North3rnlight3r_Beatz/3amDrill.wav` |
-| 56.6 MB | `North3rnlight3r_Beatz/Bazar.wav` |
-| 51.9 MB | `North3rnlight3r_Beatz/Lullaby.wav` |
-| 50.1 MB | `North3rnlight3r_Beatz/sugarplum beat.wav` |
-| 49.5 MB | `North3rnlight3r_Beatz/Phantom Dear mixed by North3rnLight3r.wav` |
-| 48.7 MB | `North3rnlight3r_Beatz/Pink Floyd Money North3rnLight3r Flip.wav` |
-| 47.7 MB | `North3rnlight3r_Beatz/uoeno.wav` |
-| 44.1 MB | `North3rnlight3r_Beatz/TrapDubMix.wav` |
-| 43.3 MB | `North3rnlight3r_Beatz/Mongolia Throat Beat.wav` |
-| 41.7 MB | `North3rnlight3r_Beatz/REVENANTpremaster.wav` |
-| 40.4 MB | `North3rnlight3r_Beatz/take off.wav` |
-| 18.4 MB | `North3rnlight3r_Beatz/swingtrap.wav` |
-| 13.6 MB | `North3rnlight3r_Beatz/Streets of Mongolia.mp3` |
-| 10.1 MB | `website/assets/audio/catalog/Streets of Mongolia [mastered].mp3` |
 | 10.1 MB | `apps/website/assets/audio/catalog/Streets of Mongolia [mastered].mp3` |
-| 9.0 MB | `website/assets/audio/catalog/SickAF beat prod by North3rnLight3r.mp3` |
 | 9.0 MB | `apps/website/assets/audio/catalog/SickAF beat prod by North3rnLight3r.mp3` |
-| 8.9 MB | `website/assets/audio/catalog/No Complaintsinst.mp3` |
 | 8.9 MB | `apps/website/assets/audio/catalog/No Complaintsinst.mp3` |
+| 8.4 MB | `apps/website/assets/audio/catalog/smokin green screwed instrummp3.mp3` |
+| 6.9 MB | `apps/website/assets/audio/catalog/Celestial Prequal.mp3` |
+| 6.8 MB | `apps/website/assets/audio/catalog/Turn The Page cover.mp3` |
+| 6.8 MB | `apps/website/assets/audio/catalog/june27remixwav.mp3` |
+| 6.5 MB | `apps/website/assets/audio/catalog/coolvoxboombapbeat.mp3` |
+| 6.3 MB | `apps/website/assets/audio/catalog/suicideboystypewav.mp3` |
+| 6.3 MB | `apps/website/assets/audio/catalog/Bergundy Remix North3rnLight3r.mp3` |
+| 6.0 MB | `apps/website/assets/audio/catalog/North3rnLight3r instru.mp3` |
+| 5.9 MB | `apps/website/assets/audio/catalog/weendinstrumental.mp3` |
+| 5.8 MB | `apps/website/assets/audio/catalog/astromaster.mp3` |
+| 5.8 MB | `apps/website/assets/audio/catalog/IzotopeMix.mp3` |
+| 5.8 MB | `apps/website/assets/audio/catalog/timeforthatmp3.mp3` |
+| 5.5 MB | `apps/website/assets/audio/catalog/yothisbeatiscrazy.mp3` |
+| 5.3 MB | `apps/website/assets/audio/catalog/No Complaints.mp3` |
+| 5.2 MB | `apps/website/assets/audio/catalog/Knockin Knoggins Rmix.mp3` |
+| 5.2 MB | `apps/website/assets/audio/catalog/3amDrillinst.mp3` |
+| 5.2 MB | `apps/website/assets/audio/catalog/3amDrill.mp3` |
+| 5.1 MB | `apps/website/assets/audio/catalog/Bazar.mp3` |
+| 5.0 MB | `apps/website/assets/audio/catalog/Sierra Leone Remix prod. North3rnLight3r.mp3` |
+| 5.0 MB | `apps/website/assets/audio/catalog/Televeve Remix.mp3` |
+| 4.9 MB | `apps/website/assets/audio/catalog/spacemaster.mp3` |
+| 4.8 MB | `apps/website/assets/audio/catalog/LIfe is Reluctant - North3rn Light3r version.mp3` |
 
 ## Media File Summary
 
 | Extension | Files | Size |
 | --- | ---: | ---: |
-| `.jpg` | 7 | 560.4 KB |
-| `.mp3` | 114 | 576.4 MB |
-| `.png` | 2 | 2.9 MB |
-| `.wav` | 18 | 928.7 MB |
+| `.jpg` | 4 | 301.0 KB |
+| `.mp3` | 54 | 263.1 MB |
+| `.png` | 1 | 1.5 MB |
 
 ## Duplicated Authority Warning
 
-- `website/` and `apps/website/` both exist: yes
-- `android_admin/` and `apps/admin-android/` both exist: yes
-- This coexistence is expected during Phase 2 and must be resolved only in a later approved migration phase.
+- Stale `website/` exists: no
+- Stale `android_admin/` exists: no
+- Final authority is `apps/website/` and `apps/admin-android/`.
 
 ## Backend Reference Counts
 
 | Reference | Count |
 | --- | ---: |
-| `north3rnlight3r.com` | 61 |
-| `/api/v1` | 252 |
+| `north3rnlight3r.com` | 48 |
+| `/api/v1` | 368 |
 | `127.0.0.1:8787` | 49 |
-| `127.0.0.1:11434` | 45 |
-| `aifred:latest` | 68 |
+| `127.0.0.1:11434` | 44 |
+| `aifred:latest` | 67 |
 
 ## Notes
 

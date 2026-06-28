@@ -50,10 +50,10 @@ The admin clients do not bypass GitHub. Website/admin edits should go through th
 
 Current source repos:
 
-- Plugin/release monorepo: `C:\Users\North\Documents\Projects\AIFRED`
-- Live website: `C:\Users\North\Documents\Projects\aifred-site`
-- Admin app: `C:\Users\North\Documents\Projects\aifred-admin`
+- Plugin/release monorepo: `AIFRED_REPO_ROOT`
+- Live website: `AIFRED_REPO_ROOT`
+- Admin app: `AIFRED_REPO_ROOT`
 
 Stale source repo:
 
-- `C:\Users\North\Documents\Projects\aifred-plugin` is the old VSTGUI line and should not be used for current release work.
+- `plugin-aifred` is the old VSTGUI line and should not be used for current release work.

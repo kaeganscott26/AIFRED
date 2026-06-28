@@ -90,7 +90,7 @@ Expected result:
 Then test the actual deploy command:
 
 ```powershell
-npx wrangler pages deploy website --project-name=north3rnlight3r --branch=main --commit-dirty=true
+npx wrangler pages deploy apps/website --project-name=north3rnlight3r --branch=main --commit-dirty=true
 ```
 
 Expected result:
@@ -531,4 +531,3 @@ GitHub private repo
   -> public-facing website deploys through Cloudflare
   -> paid downloads served from R2 after PayPal capture
 ```
-

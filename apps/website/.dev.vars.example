@@ -15,4 +15,5 @@ AIFRED_GITHUB_REPO=kaeganscott26/AIFRED
 AIFRED_PLUGIN_REPO=kaeganscott26/AIFRED
 AIFRED_PLUGIN_RELEASE_TAG=v0.3.6-installer-ai-alias
 AIFRED_RELEASE_VERSION=v0.3.6-installer-ai-alias
+AIFRED_WEBSITE_ASSETS_BUCKET=aifred-website-assets
 MAILER_SHARED_TOKEN=replace-with-a-random-shared-token

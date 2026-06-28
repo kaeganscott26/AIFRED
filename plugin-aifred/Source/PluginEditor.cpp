@@ -211,7 +211,7 @@ AifredAudioProcessorEditor::AifredAudioProcessorEditor(AifredAudioProcessor& own
   apiEndpoint_.setTextToShowWhenEmpty("http://127.0.0.1:11434 or https://api.openai.com/v1", Colours::muted);
   apiKey_.setPasswordCharacter('*');
   apiKey_.setTextToShowWhenEmpty("OpenAI key or local proxy token", Colours::muted);
-  aiModel_.setTextToShowWhenEmpty("aifred:latest, llama3.2:3b, or compatible model", Colours::muted);
+  aiModel_.setTextToShowWhenEmpty("aifred:latest, gpt-5.4-mini, gpt-5.5, or compatible model", Colours::muted);
   addAndMakeVisible(apiEndpoint_);
   addAndMakeVisible(apiKey_);
   addAndMakeVisible(aiModel_);

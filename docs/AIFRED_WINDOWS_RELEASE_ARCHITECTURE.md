@@ -19,8 +19,8 @@ tools/
     AifredWindowsInstaller.csproj
     Program.cs
   package-aifred.ps1
-website/
-android_admin/
+apps/website/
+apps/admin-android/
 ```
 
 Distributable repository layout:

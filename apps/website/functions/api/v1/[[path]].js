@@ -79,6 +79,31 @@ async function loadCatalog(request) {
   return Array.isArray(tracks) ? tracks : [];
 }
 
+function websiteAssetUrl(request, relPath) {
+  const safePath = safeRepoPath(relPath);
+  const url = new URL(`/api/v1/assets/${safePath}`, request.url);
+  return url.pathname + url.search;
+}
+
+function withR2CatalogUrls(request, tracks) {
+  return tracks.map((track) => {
+    const fileName = String(track.asset_file_name || track.file_name || "")
+      .replace(/\\/g, "/")
+      .split("/")
+      .pop()
+      .trim();
+    if (!fileName) return track;
+    const encodedName = encodeURIComponent(fileName).replace(/%2F/gi, "/");
+    const streamUrl = websiteAssetUrl(request, `audio/catalog/${encodedName}`);
+    return {
+      ...track,
+      public_url: streamUrl,
+      full_song_url: streamUrl,
+      stream_url: streamUrl
+    };
+  });
+}
+
 function bandScore(value, idealMin, idealMax, acceptMin, acceptMax) {
   if (value >= idealMin && value <= idealMax) return 100;
   if (value < acceptMin || value > acceptMax) return 0;
@@ -706,7 +731,7 @@ function commandCatalog() {
 }
 
 function repoConfig(env) {
-  const repo = String(env.AIFRED_GITHUB_REPO || "kaeganscott26/aifred-site").trim();
+  const repo = String(env.AIFRED_GITHUB_REPO || "kaeganscott26/AIFRED").trim();
   const branch = String(env.AIFRED_GITHUB_BRANCH || "main").trim();
   return { repo, branch };
 }
@@ -1062,6 +1087,45 @@ async function fetchReleaseAssetResponse(env, assetName) {
   return new Response(response.body, { status: 200, headers });
 }
 
+async function fetchWebsiteAssetResponse(request, env, relPath) {
+  const decodedPath = decodeURIComponent(String(relPath || ""));
+  const safePath = safeRepoPath(decodedPath);
+  const objectKey = `assets/${safePath}`;
+  const bucket = env.AIFRED_WEBSITE_ASSETS || env.AIFRED_DOWNLOADS;
+  if (bucket && typeof bucket.get === "function") {
+    const object = await bucket.get(objectKey);
+    if (object) {
+      const headers = new Headers();
+      headers.set("cache-control", "public, max-age=3600");
+      headers.set("content-type", object.httpMetadata?.contentType || contentTypeForPath(safePath));
+      headers.set("content-length", String(object.size));
+      headers.set("x-aifred-asset-source", "r2");
+      return new Response(object.body, { status: 200, headers });
+    }
+  }
+
+  const fallback = await fetch(new URL(`/assets/${safePath}`, request.url), { cache: "no-store" });
+  if (fallback.ok) {
+    const headers = new Headers(fallback.headers);
+    headers.set("x-aifred-asset-source", "static-fallback");
+    return new Response(fallback.body, { status: fallback.status, headers });
+  }
+  return json({ ok: false, error: `asset not found: ${safePath}` }, { status: 404 });
+}
+
+function contentTypeForPath(path) {
+  const lower = String(path || "").toLowerCase();
+  if (lower.endsWith(".mp3")) return "audio/mpeg";
+  if (lower.endsWith(".wav")) return "audio/wav";
+  if (lower.endsWith(".flac")) return "audio/flac";
+  if (lower.endsWith(".m4a")) return "audio/mp4";
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".webp")) return "image/webp";
+  if (lower.endsWith(".json")) return "application/json; charset=utf-8";
+  return "application/octet-stream";
+}
+
 async function handleSalesDownload(request, env) {
   const url = new URL(request.url);
   const token = String(url.searchParams.get("token") || "").trim();
@@ -1353,7 +1417,7 @@ async function handleAdminFileDelete(request, env) {
   if (!(await verifyAdmin(request, env))) return json({ ok: false, error: "admin session required" }, { status: 401 });
   const body = await readJson(request);
   const relPath = safeRepoPath(body.path);
-  if (!relPath.startsWith("website/")) return json({ ok: false, error: "mobile delete is restricted to website/" }, { status: 403 });
+  if (!relPath.startsWith("apps/website/")) return json({ ok: false, error: "mobile delete is restricted to apps/website/" }, { status: 403 });
   const { repo, branch } = repoConfig(env);
   const encodedPath = encodeURIComponent(relPath).replace(/%2F/g, "/");
   const existing = await githubRequest(env, `/repos/${repo}/contents/${encodedPath}?ref=${branch}`);
@@ -1419,7 +1483,7 @@ async function handleAdminFileUpload(request, env) {
   const form = await request.formData();
   const file = form.get("file");
   if (!file || typeof file === "string") return json({ ok: false, error: "file is required" }, { status: 400 });
-  const targetPath = safeRepoPath(form.get("path") || `website/assets/uploads/${safeUploadName(file.name)}`);
+  const targetPath = safeRepoPath(form.get("path") || `apps/website/assets/uploads/${safeUploadName(file.name)}`);
   const written = await writeBinaryRepoFile(env, targetPath, file, `Upload ${targetPath} from AIFRED admin`);
   await persistActivityRecord(env, {
     event_type: "admin.file.upload",
@@ -1438,7 +1502,7 @@ async function handleAdminReferenceUpload(request, env) {
   const file = form.get("file");
   if (!file || typeof file === "string") return json({ ok: false, error: "file is required" }, { status: 400 });
   const genre = String(form.get("genre") || "reference").replace(/[^A-Za-z0-9._-]/g, "-").toLowerCase();
-  const targetPath = `website/assets/reference_pool/${genre}/${safeUploadName(file.name)}`;
+  const targetPath = `apps/website/assets/reference_pool/${genre}/${safeUploadName(file.name)}`;
   const written = await writeBinaryRepoFile(env, targetPath, file, `Upload reference ${targetPath} from AIFRED admin`);
   await persistActivityRecord(env, {
     event_type: "admin.reference.upload",
@@ -1458,7 +1522,7 @@ async function handleAdminCatalogUpload(request, env) {
   if (!file || typeof file === "string") return json({ ok: false, error: "file is required" }, { status: 400 });
   const title = String(form.get("title") || file.name || "North3rnLight3r catalog upload").trim();
   const fileName = safeUploadName(file.name);
-  const audioPath = `website/assets/audio/catalog/${fileName}`;
+  const audioPath = `apps/website/assets/audio/catalog/${fileName}`;
   const audioWrite = await writeBinaryRepoFile(env, audioPath, file, `Upload catalog audio ${fileName} from AIFRED admin`);
   const tracks = await loadCatalog(request);
   const track = {
@@ -1469,14 +1533,14 @@ async function handleAdminCatalogUpload(request, env) {
     duration_label: "",
     price: String(form.get("price") || "$100").trim(),
     asset_file_name: fileName,
-    stream_url: `assets/audio/catalog/${fileName}`,
+    stream_url: `/api/v1/assets/audio/catalog/${fileName}`,
     artwork_url: "assets/brand/aifred-mascot.jpg",
     description: String(form.get("description") || "").trim(),
     key_signature: String(form.get("key") || "").trim(),
     tempo: String(form.get("tempo") || "").trim()
   };
   const { repo, branch } = repoConfig(env);
-  const catalogPath = "website/assets/data/beat_catalog.json";
+  const catalogPath = "apps/website/assets/data/beat_catalog.json";
   const encodedPath = encodeURIComponent(catalogPath).replace(/%2F/g, "/");
   let sha = "";
   try {
@@ -1530,6 +1594,7 @@ async function handleCommand(request, env) {
   else if (normalized === "reference:stats") stdout = JSON.stringify({
     reference_pool_binding: Boolean(env.AIFRED_REFERENCE_POOL),
     reference_bucket_binding: Boolean(env.AIFRED_REFERENCE_BUCKET),
+    website_assets_binding: Boolean(env.AIFRED_WEBSITE_ASSETS),
     accepted_uploads: env.AIFRED_REFERENCE_POOL ? "stored in KV and mirrored to R2 when bound" : "accepted metadata is reported but not persisted until KV is bound"
   }, null, 2);
   else if (normalized === "deploy:status") stdout = "Cloudflare Pages project: aifred-site. Production domains: north3rnlight3r.com and aifred-site.pages.dev.";
@@ -1565,7 +1630,7 @@ export async function onRequest({ request, env, params }) {
   if (request.method === "OPTIONS") return new Response(null, { status: 204 });
   try {
   if (path === "health") return json({ ok: true, service: "AIFRED website backend" });
-  if (path === "catalog/list") return json({ ok: true, tracks: await loadCatalog(request) });
+  if (path === "catalog/list") return json({ ok: true, tracks: withR2CatalogUrls(request, await loadCatalog(request)) });
   if (path === "soundpacks/list") return json({ ok: true, soundpacks: [] });
   if (path === "content/get") return json({ ok: true, content: contentPayload() });
   if (path === "activity/record" && request.method === "POST") return handleActivityRecord(request, env);
@@ -1573,6 +1638,7 @@ export async function onRequest({ request, env, params }) {
   if (path === "analyzer/submit" && request.method === "POST") return handleAnalysisSubmit(request, env);
   if (path === "chat/settings") return json(chatSettingsPayload(request, env));
   if (path === "admin/chat/settings/save" && request.method === "POST") return json(chatSettingsPayload(request, env));
+  if (path.startsWith("assets/")) return fetchWebsiteAssetResponse(request, env, path.slice("assets/".length));
   if (path === "admin/login" && request.method === "POST") return handleAdminLogin(request, env);
   if (path === "command/run" && request.method === "POST") return handleCommand(request, env);
   if (path === "registry/actions") return json({ ok: true, actions: commandCatalog() });
@@ -1599,7 +1665,7 @@ export async function onRequest({ request, env, params }) {
         downloads: eventRecords.filter((entry) => String(entry.event_type || "").includes("download")).length,
         recent: trafficEvents.slice(0, 12)
       },
-      catalog: { tracks: catalog.length, source: "website/assets/data/beat_catalog.json" },
+      catalog: { tracks: catalog.length, source: "apps/website/assets/data/beat_catalog.json" },
       inquiries: {
         count: inquiries.length,
         latest: inquiries.slice(0, 1)
@@ -1617,7 +1683,7 @@ export async function onRequest({ request, env, params }) {
       deploy: { source: repoConfig(env).repo, branch: repoConfig(env).branch, target: "Cloudflare Pages project aifred-site" }
     });
   }
-  if (path === "admin/catalog/list") return json({ ok: true, tracks: await loadCatalog(request) });
+  if (path === "admin/catalog/list") return json({ ok: true, tracks: withR2CatalogUrls(request, await loadCatalog(request)) });
   if (path === "admin/files/read" && request.method === "POST") return handleAdminFileRead(request, env);
   if (path === "admin/files/write" && request.method === "POST") return handleAdminFileWrite(request, env);
   if (path === "admin/files/list") return handleAdminFileList(request, env);

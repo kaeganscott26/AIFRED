@@ -15,11 +15,13 @@ The public site keeps the approved AIFRED mascot as the brand logo and uses `Web
 
 The catalog player reads metadata from:
 
-`website/assets/data/beat_catalog.json`
+`apps/website/assets/data/beat_catalog.json`
 
-Audio files are served from:
+Audio streams are served through the backend route:
 
-`website/assets/audio/catalog/`
+`/api/v1/assets/audio/catalog/<file>`
+
+The backend reads from the `AIFRED_WEBSITE_ASSETS` Cloudflare R2 binding first and falls back to local static files during development.
 
 Each catalog item should include a title, genre, BPM, price, and stream URL or asset filename. The public player uses only the approved catalog artwork assets.
 
@@ -108,7 +110,6 @@ Windows model:
 Windows user overrides:
 
 `%AppData%\Aifred\user_settings.json`
-
 
 
 

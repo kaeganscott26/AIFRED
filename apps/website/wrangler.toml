@@ -24,5 +24,9 @@ binding = "AIFRED_DOWNLOADS"
 bucket_name = "aifred-downloads"
 
 [[r2_buckets]]
+binding = "AIFRED_WEBSITE_ASSETS"
+bucket_name = "aifred-website-assets"
+
+[[r2_buckets]]
 binding = "AIFRED_REFERENCE_BUCKET"
 bucket_name = "aifred-reference-pool"

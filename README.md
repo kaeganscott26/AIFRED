@@ -6,36 +6,30 @@ The public-facing product is the AIFRED VST3 and North3rnLight3r beat catalog. T
 
 ## Monorepo Consolidation Status
 
-Phase 1 consolidation imports the authoritative website/backend into `apps/website` and the authoritative Android admin app into `apps/admin-android`.
+AIFRED is now consolidated into one private product monorepo.
 
-The current plugin and local engine runtime paths remain unchanged for this phase:
+Active authorities:
 
-- `plugin-aifred/` remains the active JUCE plugin source.
-- `tools/AifredEngine/` remains the active local engine source.
+- `plugin-aifred/` is the active JUCE VST3 plugin source.
+- `tools/AifredEngine/` is the active local engine source.
+- `apps/website/` is the active Cloudflare Pages website and backend source.
+- `apps/admin-android/` is the active private Android admin app source.
+- `infra/cloudflare/` contains Cloudflare support configuration.
 
-The Cloudflare website/backend and the local AIFRED engine are separate systems. The website/admin backend lives at `https://www.north3rnlight3r.com/api/v1`; the local engine serves plugin AI/chat at `http://127.0.0.1:8787` and talks to Ollama at `http://127.0.0.1:11434` with model `aifred:latest`.
+The old duplicate `website/`, `android_admin/`, and raw `North3rnlight3r_Beatz/` trees were removed from this repo. The historical phase reports remain under `docs/operations/` as migration evidence, but they are superseded by [Final Monorepo Consolidation Report](docs/operations/FINAL_MONOREPO_CONSOLIDATION_REPORT.md).
 
-Older folders and sibling repo copies are preserved until smoke tests and later migration phases pass.
+Backend split:
 
-Phase 2 adds validation tooling and path-authority documentation. No runtime plugin or engine move has happened yet, no deployment path has changed, and old/new website and admin paths intentionally coexist until later smoke tests pass.
+- The website/admin backend lives at `https://www.north3rnlight3r.com/api/v1` and `/ws/chat`.
+- The local engine serves plugin AI/chat at `http://127.0.0.1:8787`.
+- The local engine talks to Ollama at `http://127.0.0.1:11434` with model `aifred:latest`.
+- OpenAI mode uses `https://api.openai.com/v1/responses` when an API key is configured.
 
-Phase 3 adds workflow audit tooling and a manual-only monorepo validation workflow. Live deployment behavior is still unchanged, existing website/admin/plugin/engine runtime paths remain preserved, and asset strategy must be decided before merging to `main`.
+Website assets:
 
-Phase 4 adds deployment dry-run checks and path migration readiness docs. `apps/website` is not the live deployment root yet, `apps/admin-android` is not the release build root yet, the plugin and engine remain unmoved, old `website/` and `android_admin/` remain preserved, and Cloudflare manual verification plus asset strategy are required before merging to `main`.
-
-Phase 5 adds preview migration planning and a manual-only website preview dry-run workflow. The preview workflow does not deploy, production still uses existing behavior, `apps/website` is still not production root, asset strategy remains a merge blocker, and the plugin and engine remain unmoved.
-
-Phase 6 adds preview approval gates, merge-blocker review, a production non-change statement, a preview runbook draft, and an asset acceptance checklist. No production behavior changed, no deployment path changed, and `main` should still not be merged until asset strategy and Cloudflare binding are approved.
-
-Phase 7 adds preview authorization docs, an evidence template, abort criteria, a production promotion blocker, and an approval record template. No deployment occurred, no production behavior changed, and no merge should happen until human preview approval, asset strategy, and Cloudflare binding are complete.
-
-Phase 8 adds local preview preflight harnesses, website/admin parity manifests, and a preview gate report. No deployment occurred, no production behavior changed, `apps/website` remains preview candidate only, `apps/admin-android` remains task-discovery candidate only, and asset strategy plus Cloudflare verification remain blockers.
-
-Phase 9 adds a human preview review packet, blocker closure checklist, evidence readiness checklist, final non-approval statement, and preview readiness closure report. No deployment occurred, no production behavior changed, preview remains not executed, and merge to `main` remains blocked.
-
-Phase 10 adds a preview execution checklist draft, go/no-go criteria, evidence capture table, rollback observation plan, and preview evidence readiness report. No preview was executed, no deployment occurred, no production behavior changed, and merge to `main` remains blocked.
-
-Phase 11 adds a human approval intake form, preview authorization decision record, approval blocker summary, future approval instructions, and decision closure report. The decision remains not approved / pending human review, no preview was executed, no deployment occurred, no production behavior changed, and merge to `main` remains blocked.
+- Catalog audio URLs route through `/api/v1/assets/audio/catalog/<file>`.
+- The Cloudflare Worker reads catalog objects from the `AIFRED_WEBSITE_ASSETS` R2 binding first.
+- Local static files under `apps/website/assets/` remain a development fallback.
 
 ## Production
 
@@ -86,8 +80,8 @@ Current v0.3.6 JUCE metering surface:
 | Path | Role |
 | --- | --- |
 | `plugin-aifred/` | JUCE/C++ VST3 source |
-| `website/` | Cloudflare Pages site, static catalog, browser analyzer, backend Worker routes |
-| `android_admin/` | Private Android admin app |
+| `apps/website/` | Cloudflare Pages site, static catalog, browser analyzer, backend Worker routes |
+| `apps/admin-android/` | Private Android admin app |
 | `tools/AifredEngine/` | Windows local engine source |
 | `tools/AifredWindowsInstaller/` | Windows installer source |
 | `tools/AifredWindowsUninstaller/` | Windows uninstaller source |
@@ -128,13 +122,19 @@ $env:JAVA_HOME='C:\Program Files\Microsoft\jdk-17.0.18.8-hotspot'
 $env:ANDROID_HOME=Join-Path $env:LOCALAPPDATA 'Android\Sdk'
 $env:ANDROID_SDK_ROOT=$env:ANDROID_HOME
 $env:Path="$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:ANDROID_HOME\cmdline-tools\latest\bin;$env:Path"
-cd android_admin
+cd apps/admin-android
 .\gradlew.bat assembleDebug
+```
+
+Final monorepo validation:
+
+```powershell
+.\tools\release\aifred_monorepo_validate.sh
 ```
 
 ## Cloudflare Deployment
 
-Cloudflare Pages serves `website/` with custom domains:
+Cloudflare Pages serves `apps/website/` with custom domains:
 
 - `www.north3rnlight3r.com`
 - `north3rnlight3r.com`
@@ -142,7 +142,7 @@ Cloudflare Pages serves `website/` with custom domains:
 The Pages project can be deployed locally with Wrangler:
 
 ```powershell
-npx wrangler pages deploy website --project-name=north3rnlight3r --branch=main
+npx wrangler pages deploy apps/website --project-name=north3rnlight3r --branch=main
 ```
 
 GitHub Actions can deploy only when repository secrets contain valid Cloudflare deploy credentials. If credentials are rejected, the build still passes and emits a warning because package builds must not be blocked by Cloudflare auth rotation.

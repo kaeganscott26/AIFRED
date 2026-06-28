@@ -7,6 +7,7 @@ $script:BaseUrl = "https://www.north3rnlight3r.com"
 $script:SessionToken = ""
 $script:OfflineMode = $false
 $script:AdminUser = "North3rnLight3r"
+$script:RepoRoot = if ($env:AIFRED_REPO_ROOT) { $env:AIFRED_REPO_ROOT } else { (Resolve-Path (Join-Path $PSScriptRoot "..\..\..\..")).Path }
 
 function Invoke-AifredApi {
     param(
@@ -127,7 +128,7 @@ $buttons = @(
     @("Inquiries", { Invoke-AifredApi -Path "/api/v1/admin/inquiries/list" }),
     @("Catalog", { Invoke-AifredApi -Path "/api/v1/admin/catalog/list" }),
     @("Health", { Invoke-AifredApi -Path "/api/v1/health" }),
-    @("Local Git Status", { git -C "C:\Users\North\Documents\Projects\aifred-site" status --short | Out-String })
+    @("Local Git Status", { git -C $script:RepoRoot status --short | Out-String })
 )
 
 $x = 22
@@ -150,7 +151,7 @@ $cmdLabel.SetBounds(22, 222, 120, 22)
 $form.Controls.Add($cmdLabel)
 
 $cmd = New-Object System.Windows.Forms.TextBox
-$cmd.Text = "git -C C:\Users\North\Documents\Projects\aifred-site status --short"
+$cmd.Text = "git -C `"$script:RepoRoot`" status --short"
 $cmd.SetBounds(140, 220, 640, 26)
 $form.Controls.Add($cmd)
 

@@ -6,9 +6,9 @@ Logged for Phase 1 monorepo consolidation.
 
 | System | Phase 1 canonical location | Source imported or referenced from |
 | --- | --- | --- |
-| Website/backend | `apps/website` | imported from `../aifred-site/website` |
-| Cloudflare/web operations | `infra/cloudflare` | imported from `../aifred-site` config, docs, cloudflare, and ops files |
-| Android admin app | `apps/admin-android` | imported from `../aifred-admin` |
+| Website/backend | `apps/website` | imported from `../AIFRED/website` |
+| Cloudflare/web operations | `infra/cloudflare` | imported from `../AIFRED` config, docs, cloudflare, and ops files |
+| Android admin app | `apps/admin-android` | imported from `../AIFRED` |
 | Plugin runtime | `plugin-aifred` | remains in original path during Phase 1 |
 | Local AI engine runtime | `tools/AifredEngine` | remains in original path during Phase 1 |
 | Legacy plugin reference | `../aifred-plugin` | documented under `docs/archive/legacy-vstgui` |
