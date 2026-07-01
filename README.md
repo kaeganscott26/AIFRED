@@ -41,7 +41,7 @@ Website assets:
 
 | Product | Purpose | Distribution |
 | --- | --- | --- |
-| AIFRED VST3 | Mix analysis, reference alignment, compare metering, and chat-guided fix output | Windows installer plus CI-built Windows, macOS, Linux, and Arch packages |
+| AIFRED VST3 | Mix analysis, reference alignment, compare metering, and chat-guided fix output | Windows installer plus CI-built Windows zip and macOS pkg packages |
 | AIFRED Engine | Local gateway at `127.0.0.1:8787` between the plugin and model providers | Bundled with packages; local AI provider remains Ollama at `http://127.0.0.1:11434` using `aifred:latest` |
 | North3rnLight3r Website | Brand storefront, beat catalog playback, VST sales path, free mix analyzer | Cloudflare Pages custom domain |
 | Android Admin App | Owner-only control panel for chat, catalog uploads, website file control, shell access, and admin operations | Private install only, never public release |
@@ -82,7 +82,7 @@ Current v0.3.6 JUCE metering surface:
 | `plugin-aifred/` | JUCE/C++ VST3 source |
 | `apps/website/` | Cloudflare Pages site, static catalog, browser analyzer, backend Worker routes |
 | `apps/admin-android/` | Private Android admin app |
-| `tools/AifredEngine/` | Windows local engine source |
+| `tools/AifredEngine/` | Cross-platform local engine source |
 | `tools/AifredWindowsInstaller/` | Windows installer source |
 | `tools/AifredWindowsUninstaller/` | Windows uninstaller source |
 | `tools/` | Packaging, installer, and verification utilities |
@@ -96,7 +96,7 @@ The release workflow builds and packages:
 - `AIFRED-VST3-Setup.exe` for Windows
 - `AIFRED-Uninstall.exe` for Windows
 - `AIFRED-VST3-windows.zip`
-- `AIFRED-VST3-macOS.zip`
+- `AIFRED-VST3-macOS.pkg`
 - `AIFRED-VST3-linux.zip`
 - `AIFRED-VST3-arch.zip`
 
@@ -114,6 +114,16 @@ dotnet publish tools\AifredWindowsInstaller\AifredWindowsInstaller.csproj -c Rel
 ```
 
 Run `dist\installer\windows\AIFRED-VST3-Setup.exe` to install. The installer requests administrator elevation, installs `Aifred.vst3` to `C:\Program Files\Common Files\VST3`, installs `AifredEngine.exe` to `C:\Program Files\Aifred\bin`, writes the default local Ollama config for `aifred:latest`, registers the engine gateway at user login, starts it silently, verifies Ollama at `http://127.0.0.1:11434`, then checks the gateway health at `http://127.0.0.1:8787/health`. Opening the VST also attempts to relaunch the installed local engine if the login startup entry did not. OpenAI-compatible endpoint/API key settings remain optional and are only used when supplied through installer args/environment or saved from the plugin UI.
+
+macOS local build:
+
+```sh
+cmake -S . -B build-mac -DCMAKE_BUILD_TYPE=Release
+cmake --build build-mac --config Release --parallel
+tools/macos/package-aifred-macos.sh
+```
+
+Run `dist/macos/AIFRED-VST3-macOS.pkg` to install. The pkg installs `Aifred.vst3` to `/Library/Audio/Plug-Ins/VST3`, installs `AifredEngine` to `/Library/Application Support/Aifred/bin`, writes default local Ollama config for `aifred:latest`, registers `/Library/LaunchAgents/com.aifred.engine.plist`, and starts the gateway at login. If Ollama is installed, the postinstall/setup scripts create the `aifred:latest` alias from `llama3.2:3b`. The installed `/Library/Application Support/Aifred/AIFRED Engine Control.command` can start, restart, stop, or inspect the engine without reopening the DAW; the repo copy lives at `plugin-aifred/AIFRED Engine Control.command`.
 
 Android local build:
 

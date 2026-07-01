@@ -22,6 +22,8 @@ Packaged macOS payload:
 - Engine logs: `/Library/Application Support/Aifred/logs`
 - Optional local model slot: `/Library/Application Support/Aifred/models/aifred-assistant-q4.gguf`
 - LaunchAgent: `/Library/LaunchAgents/com.aifred.engine.plist`
+- Manual control command: `/Library/Application Support/Aifred/AIFRED Engine Control.command`
+- Repair/setup script: `/Library/Application Support/Aifred/setup-aifred-local-ai.sh`
 
 Per-user engine settings are written to:
 
@@ -60,6 +62,51 @@ The engine resolves provider/model/endpoint from:
 
 If the effective provider contains `ollama`, or the endpoint contains `11434`, `/chat` calls Ollama `/api/generate`. Otherwise `/chat` calls the OpenAI-compatible `/chat/completions` route.
 
+## Install and configuration
+
+1. Install prerequisites on the Mac:
+
+```sh
+brew install dotnet ollama
+brew services start ollama
+```
+
+2. Build and package from the repo:
+
+```sh
+cmake -S . -B build-mac -DCMAKE_BUILD_TYPE=Release
+cmake --build build-mac --config Release --parallel
+tools/macos/package-aifred-macos.sh
+```
+
+3. Install the package:
+
+```sh
+sudo installer -pkg dist/macos/AIFRED-VST3-macOS.pkg -target /
+```
+
+4. Confirm or repair local AI:
+
+```sh
+"/Library/Application Support/Aifred/setup-aifred-local-ai.sh"
+curl -sS http://127.0.0.1:8787/health
+```
+
+The package writes `/Library/Application Support/Aifred/config/config.json` with Ollama at `http://127.0.0.1:11434`, model `aifred:latest`, and gateway `http://127.0.0.1:8787`. It also writes the active user's `~/Library/Application Support/Aifred/user_settings.json` with provider override disabled so the default local route is used until the plugin UI saves an OpenAI-compatible route.
+
+## Startup, cancel, and manual restart
+
+The installed LaunchAgent starts `AifredEngine` at login and keeps it alive for the logged-in user. Opening the plugin also attempts to start `ollama serve` and the installed engine if health checks fail.
+
+Use the double-click command at `/Library/Application Support/Aifred/AIFRED Engine Control.command` to:
+
+- start or repair local AI
+- restart the engine
+- stop the engine for the current login session
+- show gateway health
+
+Stopping from the control command unloads the LaunchAgent for the current login session and kills the engine process. It can be started again from the same command or by logging out and back in. To disable the login behavior persistently, remove or move `/Library/LaunchAgents/com.aifred.engine.plist` with administrator privileges.
+
 ## Manual verification commands
 
 ```sh
@@ -88,16 +135,13 @@ pkgutil --payload-files dist/macos/AIFRED-VST3-macOS.pkg
 
 ## Known blockers and risks
 
-- The package has been generated and inspected, but it has not been installed on this Mac yet.
 - The package is not signed or notarized.
 - The postinstall script configures Ollama only if `ollama` already exists on the target Mac; it does not install Ollama.
-- Directly running the published engine from `dist/engine/macos/osx-arm64` without a staged parent `config/config.json` falls back to `/Library/Application Support/Aifred` and fails without elevated permission. The package path avoids this by installing config under `/Library/Application Support/Aifred/config/config.json`.
 - Windows compatibility is preserved by platform-specific plugin networking, but Windows packaging still needs a separate regression pass on Windows.
 
 ## Next steps before beta
 
-1. Install the generated pkg on a disposable macOS test profile or VM.
-2. Confirm LaunchAgent bootstrap starts the engine at login.
-3. Confirm the plugin reaches `/health`, `/chat`, and `/v1/settings` after a package install.
-4. Decide whether the macOS installer should install Ollama, require it as a prerequisite, or bundle an approved local runtime.
-5. Add signing and notarization once install behavior is verified.
+1. Confirm LaunchAgent bootstrap starts the engine after a real reboot.
+2. Confirm the plugin reaches `/health`, `/chat`, and `/v1/settings` after a package install.
+3. Decide whether the macOS installer should install Ollama, require it as a prerequisite, or bundle an approved local runtime.
+4. Add signing and notarization once install behavior is verified.

@@ -4,6 +4,13 @@ Windows is the first distribution target. Run the installer first when available
 
 If you are installing from a release zip, copy the packaged Aifred.vst3 bundle into the system VST3 folder, then rescan plugins in FL Studio.
 
+macOS package install:
+1. Install Ollama first from https://ollama.com/download/mac or with Homebrew: brew install ollama.
+2. Run AIFRED-VST3-macOS.pkg. It installs the VST3 to /Library/Audio/Plug-Ins/VST3/Aifred.vst3 and the engine to /Library/Application Support/Aifred/bin/AifredEngine.
+3. The package registers /Library/LaunchAgents/com.aifred.engine.plist so the engine starts again at login/reboot.
+4. The default local AI route is Ollama at http://127.0.0.1:11434 with model aifred:latest through the AIFRED gateway at http://127.0.0.1:8787.
+5. To restart or stop the engine manually, double-click /Library/Application Support/Aifred/AIFRED Engine Control.command.
+
 Use the consolidated monorepo layout. The website/backend source lives under apps/website, catalog metadata stays under apps/website/assets/data/beat_catalog.json, and backend routes stay under apps/website/functions/api.
 
 Catalog audio is served through /api/v1/assets/audio/catalog/<file> so Cloudflare can read from the AIFRED_WEBSITE_ASSETS R2 bucket. Local static files remain a development fallback only.

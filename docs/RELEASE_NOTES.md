@@ -40,5 +40,4 @@ This release keeps the distributable JUCE VST3 line and corrects the analysis da
 - Windows installer packages the VST3 and local AIFRED engine.
 - The installer configures the local Ollama endpoint and can save an OpenAI-compatible endpoint, API key, and model into `%AppData%\Aifred\user_settings.json` when the user supplies those private credentials.
 - The engine defaults to relative model paths so packages are not tied to a developer machine.
-- GitHub Actions build Windows, macOS, Linux, and Arch zip packages and publish release assets from tags.
-
+- GitHub Actions build the Windows zip/installer and macOS pkg release assets from tags.

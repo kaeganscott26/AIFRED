@@ -13,6 +13,14 @@ Windows:
 - Node.js 22+
 - Wrangler 4+ through `npx wrangler`
 
+macOS:
+
+- Xcode command-line tools
+- CMake
+- .NET SDK 10
+- Ollama
+- `pkgbuild`
+
 ## Local VST Build
 
 ```powershell
@@ -58,6 +66,26 @@ The installer requests administrator elevation and installs:
 
 The installer registers the AIFRED gateway under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, starts it silently, verifies Ollama at `http://127.0.0.1:11434` with `aifred:latest`, and validates gateway health at `GET http://127.0.0.1:8787/health`.
 
+## macOS Installer
+
+```sh
+cmake -S . -B build-mac -DCMAKE_BUILD_TYPE=Release
+cmake --build build-mac --config Release --parallel
+tools/macos/package-aifred-macos.sh
+sudo installer -pkg dist/macos/AIFRED-VST3-macOS.pkg -target /
+```
+
+The package installs:
+
+- `/Library/Audio/Plug-Ins/VST3/Aifred.vst3`
+- `/Library/Application Support/Aifred/bin/AifredEngine`
+- `/Library/Application Support/Aifred/config/config.json`
+- `/Library/Application Support/Aifred/setup-aifred-local-ai.sh`
+- `/Library/Application Support/Aifred/AIFRED Engine Control.command`
+- `/Library/LaunchAgents/com.aifred.engine.plist`
+
+The LaunchAgent starts the engine at login. The control command can start, restart, stop, or inspect the engine manually. The local route remains `Plugin -> AifredEngine at 127.0.0.1:8787 -> Ollama at 127.0.0.1:11434 -> aifred:latest`.
+
 ## AIFRED Engine
 
 Local development:
@@ -100,13 +128,10 @@ The `.pages.dev` URL is only a Cloudflare preview/deployment endpoint.
 
 The woreflow validates:
 
-- Windows, macOS, Linux, and Arch VST paceage builds
+- Windows VST zip/installer and macOS VST pkg package builds
 - Windows AIFRED engine publish and `.exe` installer paceage
 - Android admin compile
 - Website JavaScript syntax
 - Hardcoded path guard
 
 Release tags publish only VST paceages. The Android admin APK is not released.
-
-
-

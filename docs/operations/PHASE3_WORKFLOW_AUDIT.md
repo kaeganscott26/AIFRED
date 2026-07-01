@@ -1,9 +1,9 @@
 # Phase 3 Workflow Audit
 
-Timestamp: 2026-06-28T00:59:43-05:00
+Timestamp: 2026-07-01T00:37:46-05:00
 
-Git branch: `aifred-final-monorepo-consolidation`
-Git commit: `fffad59`
+Git branch: `main`
+Git commit: `4d94dde`
 
 ## Workflows Found
 
@@ -98,8 +98,8 @@ Git commit: `fffad59`
 
 | File | References |
 | --- | --- |
-| `.github/workflows/build.yml` | `wrangler`, `pages deploy`, `cloudflare`, `CLOUDFLARE_API_TOKEN`, `project-name`, `north3rnlight3r`, `github release`, `gh release`, `upload-artifact`, `download-artifact`, `package-aifred`, `AifredWindowsInstaller`, `AifredWindowsUninstaller`, `VST3`, `cmake`, `dotnet publish` |
-| `README.md` | `wrangler`, `pages deploy`, `cloudflare`, `project-name`, `north3rnlight3r`, `github release`, `package-aifred`, `AifredWindowsInstaller`, `AifredWindowsUninstaller`, `VST3`, `.vst3`, `cmake`, `dotnet publish`, `gradlew`, `openai`, `R2` |
+| `.github/workflows/build.yml` | `wrangler`, `pages deploy`, `cloudflare`, `CLOUDFLARE_API_TOKEN`, `project-name`, `north3rnlight3r`, `github release`, `gh release`, `upload-artifact`, `download-artifact`, `package-aifred`, `package-aifred-macos`, `AifredWindowsInstaller`, `AifredWindowsUninstaller`, `VST3`, `cmake`, `dotnet publish` |
+| `README.md` | `wrangler`, `pages deploy`, `cloudflare`, `project-name`, `north3rnlight3r`, `github release`, `package-aifred`, `package-aifred-macos`, `AifredWindowsInstaller`, `AifredWindowsUninstaller`, `VST3`, `.vst3`, `cmake`, `dotnet publish`, `gradlew`, `openai`, `R2` |
 | `apps/admin-android/README.md` | `north3rnlight3r`, `gradlew`, `assembleRelease` |
 | `apps/admin-android/app/build.gradle.kts` | `north3rnlight3r` |
 | `apps/admin-android/app/src/main/java/com/aifred/admin/MainActivity.kt` | `north3rnlight3r`, `VST3`, `openai`, `PAYPAL` |
@@ -124,7 +124,7 @@ Git commit: `fffad59`
 | `apps/website/styles.css` | `north3rnlight3r`, `PAYPAL` |
 | `apps/website/wrangler.toml` | `aifred-site`, `R2`, `AIFRED_REFERENCE_POOL` |
 | `docs/AIFRED_WINDOWS_RELEASE_ARCHITECTURE.md` | `package-aifred`, `AifredWindowsInstaller`, `VST3`, `.vst3`, `cmake`, `openai`, `OPENAI_API_KEY` |
-| `docs/BACKEND-ROUTING-MACOS.md` | `package-aifred`, `package-aifred-macos`, `VST3`, `.vst3`, `dotnet publish`, `openai` |
+| `docs/BACKEND-ROUTING-MACOS.md` | `package-aifred`, `package-aifred-macos`, `setup-aifred-local-ai`, `VST3`, `.vst3`, `cmake`, `dotnet publish`, `openai` |
 | `docs/PLUGIN-STABILIZATION.md` | `aifred-site`, `VST3`, `cmake` |
 | `docs/REFERENCE_PROFILE_SYNC_FOUNDATION.md` | `cloudflare`, `R2`, `AIFRED_REFERENCE_POOL` |
 | `docs/RELEASE_NOTES.md` | `VST3`, `openai`, `PAYPAL`, `R2` |
@@ -173,7 +173,7 @@ Git commit: `fffad59`
 | `docs/operations/SMOKE_TESTS.md` | `wrangler`, `cloudflare`, `north3rnlight3r`, `cmake`, `gradlew`, `assembleRelease`, `openai` |
 | `docs/wiki/Admin-App-Guide.md` | `cloudflare`, `github release`, `gradlew`, `openai`, `OPENAI_API_KEY` |
 | `docs/wiki/Backend-Map.md` | `cloudflare`, `CLOUDFLARE_API_TOKEN`, `AIFRED_GITHUB_REPO`, `openai`, `OPENAI_API_KEY`, `PAYPAL`, `R2`, `AIFRED_REFERENCE_POOL` |
-| `docs/wiki/Developer-Guide.md` | `wrangler`, `pages deploy`, `cloudflare`, `project-name`, `north3rnlight3r`, `AifredWindowsInstaller`, `VST3`, `.vst3`, `cmake`, `dotnet publish`, `gradlew` |
+| `docs/wiki/Developer-Guide.md` | `wrangler`, `pages deploy`, `cloudflare`, `project-name`, `north3rnlight3r`, `package-aifred`, `package-aifred-macos`, `setup-aifred-local-ai`, `AifredWindowsInstaller`, `VST3`, `.vst3`, `cmake`, `dotnet publish`, `gradlew` |
 | `docs/wiki/Function-Map.md` | `cloudflare`, `VST3`, `openai` |
 | `docs/wiki/Home.md` | `cloudflare`, `north3rnlight3r`, `github release`, `VST3` |
 | `docs/wiki/PayPal-Cloudflare-R2-Setup-Guide.md` | `wrangler`, `pages deploy`, `cloudflare`, `CLOUDFLARE_API_TOKEN`, `project-name`, `north3rnlight3r`, `github release`, `AIFRED_RELEASE_VERSION`, `VST3`, `PAYPAL`, `R2` |
@@ -185,28 +185,33 @@ Git commit: `fffad59`
 | `infra/cloudflare/docs/PAYPAL_R2_PIPELINE.md` | `cloudflare`, `north3rnlight3r`, `aifred-site`, `github release`, `AIFRED_RELEASE_VERSION`, `AIFRED_PLUGIN_RELEASE_TAG`, `AIFRED_GITHUB_REPO`, `VST3`, `PAYPAL`, `R2`, `AIFRED_REFERENCE_POOL` |
 | `infra/cloudflare/wrangler.toml` | `aifred-site`, `R2`, `AIFRED_REFERENCE_POOL` |
 | `tools/AifredEngine/Program.cs` | `openai`, `OPENAI_API_KEY` |
-| `tools/AifredEngine/obj/AifredEngine.csproj.nuget.dgspec.json` | `north3rnlight3r` |
-| `tools/AifredEngine/obj/AifredEngine.csproj.nuget.g.props` | `north3rnlight3r`, `msbuild` |
-| `tools/AifredEngine/obj/AifredEngine.csproj.nuget.g.targets` | `msbuild` |
-| `tools/AifredEngine/obj/Debug/net10.0-windows/win-x64/AifredEngine.AssemblyInfo.cs` | `msbuild` |
-| `tools/AifredEngine/obj/Debug/net10.0-windows/win-x64/AifredEngine.GeneratedMSBuildEditorConfig.editorconfig` | `north3rnlight3r` |
-| `tools/AifredEngine/obj/Debug/net10.0-windows/win-x64/AifredEngine.csproj.FileListAbsolute.txt` | `north3rnlight3r`, `msbuild` |
-| `tools/AifredEngine/obj/Debug/net10.0-windows/win-x64/AifredEngine.sourcelink.json` | `north3rnlight3r` |
+| `tools/AifredEngine/obj/AifredEngine.Mac.csproj.nuget.dgspec.json` | `north3rnlight3r` |
+| `tools/AifredEngine/obj/AifredEngine.Mac.csproj.nuget.g.props` | `north3rnlight3r`, `msbuild` |
+| `tools/AifredEngine/obj/AifredEngine.Mac.csproj.nuget.g.targets` | `msbuild` |
+| `tools/AifredEngine/obj/Release/net10.0/osx-arm64/AifredEngine.Mac.AssemblyInfo.cs` | `msbuild` |
+| `tools/AifredEngine/obj/Release/net10.0/osx-arm64/AifredEngine.Mac.GeneratedMSBuildEditorConfig.editorconfig` | `north3rnlight3r` |
+| `tools/AifredEngine/obj/Release/net10.0/osx-arm64/AifredEngine.Mac.csproj.FileListAbsolute.txt` | `north3rnlight3r`, `msbuild` |
+| `tools/AifredEngine/obj/Release/net10.0/osx-arm64/AifredEngine.Mac.sourcelink.json` | `north3rnlight3r` |
+| `tools/AifredEngine/obj/Release/net10.0/osx-arm64/PublishOutputs.364f928eb7.txt` | `north3rnlight3r` |
+| `tools/AifredEngine/obj/Release/net10.0/osx-arm64/PublishOutputs.7b1a99a6c5.txt` | `north3rnlight3r` |
 | `tools/AifredEngine/obj/project.assets.json` | `north3rnlight3r` |
 | `tools/AifredEngine/obj/project.nuget.cache` | `north3rnlight3r` |
 | `tools/AifredWindowsInstaller/AifredWindowsInstaller.csproj` | `AifredWindowsInstaller`, `VST3` |
 | `tools/AifredWindowsInstaller/Program.cs` | `VST3`, `.vst3`, `openai`, `OPENAI_API_KEY` |
 | `tools/AifredWindowsUninstaller/AifredWindowsUninstaller.csproj` | `AifredWindowsUninstaller` |
 | `tools/AifredWindowsUninstaller/Program.cs` | `VST3`, `.vst3` |
+| `tools/aifred_maestro_script_test.py` | `cloudflare`, `cmake` |
 | `tools/check-no-hardcoded-paths.ps1` | `cmake` |
 | `tools/check_integrity.py` | `VST3`, `.vst3` |
 | `tools/macos/package-aifred-macos.sh` | `setup-aifred-local-ai`, `VST3`, `.vst3`, `dotnet publish`, `openai`, `OPENAI_API_KEY` |
+| `tools/macos/postinstall` | `setup-aifred-local-ai`, `openai`, `OPENAI_API_KEY` |
+| `tools/macos/setup-aifred-local-ai.sh` | `openai`, `OPENAI_API_KEY` |
 | `tools/package-aifred.ps1` | `setup-aifred-local-ai`, `VST3`, `.vst3`, `dotnet publish`, `openai`, `OPENAI_API_KEY` |
 | `tools/release/aifred_admin_dryrun_check.py` | `wrangler`, `north3rnlight3r`, `gradlew` |
 | `tools/release/aifred_admin_parity_manifest.py` | `wrangler`, `north3rnlight3r`, `gradlew`, `assembleRelease` |
 | `tools/release/aifred_monorepo_validate.sh` | `wrangler`, `pages deploy`, `cloudflare`, `aifred-site`, `cmake`, `gradlew`, `openai`, `R2` |
 | `tools/release/aifred_preview_gate_report.py` | `wrangler`, `pages deploy`, `cloudflare`, `CLOUDFLARE_API_TOKEN`, `gh release`, `upload-artifact`, `download-artifact`, `assembleRelease`, `openai`, `OPENAI_API_KEY`, `PAYPAL` |
-| `tools/release/aifred_repo_inventory.py` | `cloudflare`, `north3rnlight3r` |
+| `tools/release/aifred_repo_inventory.py` | `wrangler`, `cloudflare`, `north3rnlight3r` |
 | `tools/release/aifred_website_dryrun_check.py` | `wrangler`, `cloudflare`, `north3rnlight3r`, `github release`, `PAYPAL`, `R2` |
 | `tools/release/aifred_website_parity_manifest.py` | `wrangler`, `north3rnlight3r`, `PAYPAL`, `R2` |
 | `tools/release/aifred_workflow_audit.py` | `wrangler`, `pages deploy`, `cloudflare`, `CLOUDFLARE_API_TOKEN`, `project-name`, `north3rnlight3r`, `aifred-site`, `github release`, `gh release`, `upload-artifact`, `download-artifact`, `AIFRED_RELEASE_VERSION`, `AIFRED_PLUGIN_RELEASE_TAG`, `AIFRED_GITHUB_REPO`, `package-aifred`, `package-aifred-macos`, `setup-aifred-local-ai`, `AifredWindowsInstaller`, `AifredWindowsUninstaller`, `VST3`, `.vst3`, `msbuild`, `cmake`, `dotnet publish`, `gradlew`, `assembleRelease`, `openai`, `OPENAI_API_KEY`, `PAYPAL`, `R2`, `AIFRED_REFERENCE_POOL` |
@@ -270,14 +275,15 @@ Git commit: `fffad59`
 | `docs/wiki/User-Guide.md` | `website/`, `apps/website` |
 | `infra/cloudflare/docs/Backend-Map.md` | `website/` |
 | `infra/cloudflare/wrangler.toml` | `apps/website` |
-| `tools/AifredEngine/obj/AifredEngine.csproj.nuget.dgspec.json` | `tools/AifredEngine` |
-| `tools/AifredEngine/obj/Debug/net10.0-windows/win-x64/AifredEngine.GeneratedMSBuildEditorConfig.editorconfig` | `tools/AifredEngine` |
-| `tools/AifredEngine/obj/Debug/net10.0-windows/win-x64/AifredEngine.csproj.FileListAbsolute.txt` | `tools/AifredEngine` |
+| `tools/AifredEngine/obj/AifredEngine.Mac.csproj.nuget.dgspec.json` | `tools/AifredEngine` |
+| `tools/AifredEngine/obj/Release/net10.0/osx-arm64/AifredEngine.Mac.GeneratedMSBuildEditorConfig.editorconfig` | `tools/AifredEngine` |
+| `tools/AifredEngine/obj/Release/net10.0/osx-arm64/AifredEngine.Mac.csproj.FileListAbsolute.txt` | `tools/AifredEngine` |
 | `tools/AifredEngine/obj/project.assets.json` | `tools/AifredEngine` |
 | `tools/AifredEngine/obj/project.nuget.cache` | `tools/AifredEngine` |
+| `tools/aifred_maestro_script_test.py` | `plugin-aifred` |
 | `tools/check-aifred-analysis-regressions.ps1` | `plugin-aifred` |
 | `tools/check-no-hardcoded-paths.ps1` | `apps/website`, `apps/admin-android`, `plugin-aifred` |
-| `tools/macos/package-aifred-macos.sh` | `website/`, `apps/website`, `tools/AifredEngine` |
+| `tools/macos/package-aifred-macos.sh` | `website/`, `apps/website`, `plugin-aifred`, `tools/AifredEngine` |
 | `tools/release/aifred_admin_dryrun_check.py` | `android_admin`, `apps/admin-android` |
 | `tools/release/aifred_admin_parity_manifest.py` | `android_admin`, `apps/admin-android` |
 | `tools/release/aifred_monorepo_validate.sh` | `website/`, `apps/website`, `android_admin`, `apps/admin-android`, `plugin-aifred`, `tools/AifredEngine` |
@@ -301,7 +307,7 @@ Git commit: `fffad59`
 | `apps/admin-android/README.md` | `assembleRelease` |
 | `apps/website/functions/api/v1/[[path]].js` | `pages deploy` |
 | `docs/AIFRED_WINDOWS_RELEASE_ARCHITECTURE.md` | `cmake` |
-| `docs/BACKEND-ROUTING-MACOS.md` | `dotnet publish` |
+| `docs/BACKEND-ROUTING-MACOS.md` | `dotnet publish`, `cmake` |
 | `docs/PLUGIN-STABILIZATION.md` | `cmake` |
 | `docs/operations/PHASE1_CONSOLIDATION_LOG.md` | `cmake` |
 | `docs/operations/PHASE3_WORKFLOW_LOG.md` | `pages deploy` |
@@ -310,10 +316,11 @@ Git commit: `fffad59`
 | `docs/wiki/Developer-Guide.md` | `pages deploy`, `dotnet publish`, `cmake` |
 | `docs/wiki/PayPal-Cloudflare-R2-Setup-Guide.md` | `pages deploy` |
 | `docs/wiki/Troubleshooting.md` | `pages deploy` |
-| `tools/AifredEngine/obj/AifredEngine.csproj.nuget.g.props` | `msbuild` |
-| `tools/AifredEngine/obj/AifredEngine.csproj.nuget.g.targets` | `msbuild` |
-| `tools/AifredEngine/obj/Debug/net10.0-windows/win-x64/AifredEngine.AssemblyInfo.cs` | `msbuild` |
-| `tools/AifredEngine/obj/Debug/net10.0-windows/win-x64/AifredEngine.csproj.FileListAbsolute.txt` | `msbuild` |
+| `tools/AifredEngine/obj/AifredEngine.Mac.csproj.nuget.g.props` | `msbuild` |
+| `tools/AifredEngine/obj/AifredEngine.Mac.csproj.nuget.g.targets` | `msbuild` |
+| `tools/AifredEngine/obj/Release/net10.0/osx-arm64/AifredEngine.Mac.AssemblyInfo.cs` | `msbuild` |
+| `tools/AifredEngine/obj/Release/net10.0/osx-arm64/AifredEngine.Mac.csproj.FileListAbsolute.txt` | `msbuild` |
+| `tools/aifred_maestro_script_test.py` | `cmake` |
 | `tools/check-no-hardcoded-paths.ps1` | `cmake` |
 | `tools/macos/package-aifred-macos.sh` | `dotnet publish` |
 | `tools/package-aifred.ps1` | `dotnet publish` |
@@ -359,6 +366,8 @@ Git commit: `fffad59`
 | `tools/AifredEngine/Program.cs` | `OPENAI_API_KEY` |
 | `tools/AifredWindowsInstaller/Program.cs` | `OPENAI_API_KEY` |
 | `tools/macos/package-aifred-macos.sh` | `OPENAI_API_KEY` |
+| `tools/macos/postinstall` | `OPENAI_API_KEY` |
+| `tools/macos/setup-aifred-local-ai.sh` | `OPENAI_API_KEY` |
 | `tools/package-aifred.ps1` | `OPENAI_API_KEY` |
 | `tools/release/aifred_preview_gate_report.py` | `CLOUDFLARE_API_TOKEN`, `OPENAI_API_KEY`, `PAYPAL`, `PAYPAL_CLIENT_SECRET` |
 | `tools/release/aifred_website_dryrun_check.py` | `PAYPAL` |

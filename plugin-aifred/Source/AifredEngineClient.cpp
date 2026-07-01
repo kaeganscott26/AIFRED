@@ -8,6 +8,7 @@
 
 #include <thread>
 #include <cstring>
+#include <cstdlib>
 #include <vector>
 
 namespace aifred {
@@ -144,9 +145,11 @@ void launchLocalRuntimeIfInstalled() {
   if (last != 0 && now - last < kRuntimeRepairCooldownMs) return;
   lastAttemptMs.store(now);
 
+  std::system("command -v ollama >/dev/null 2>&1 && ollama serve >/dev/null 2>&1 &");
+
   const juce::File engine("/Library/Application Support/Aifred/bin/AifredEngine");
   if (engine.existsAsFile()) {
-    juce::ChildProcess::startDetached(engine.getFullPathName(), {});
+    std::system("'/Library/Application Support/Aifred/bin/AifredEngine' >/dev/null 2>&1 &");
   }
 }
 #endif

@@ -6,8 +6,25 @@ ENGINE="$AIFRED_ROOT/bin/AifredEngine"
 PLIST="/Library/LaunchAgents/com.aifred.engine.plist"
 LOG="$AIFRED_ROOT/logs/postinstall.log"
 
-mkdir -p "$AIFRED_ROOT/logs" "$AIFRED_ROOT/models"
+mkdir -p "$AIFRED_ROOT/logs" "$AIFRED_ROOT/models" "$AIFRED_ROOT/config"
 chmod 755 "$ENGINE" 2>/dev/null || true
+chmod 755 "$AIFRED_ROOT/setup-aifred-local-ai.sh" 2>/dev/null || true
+chmod 755 "$AIFRED_ROOT/AIFRED Engine Control.command" 2>/dev/null || true
+
+cat > "$AIFRED_ROOT/config/config.json" <<'JSON'
+{
+  "mode": "local",
+  "port": 8787,
+  "gateway_url": "http://127.0.0.1:8787",
+  "provider": "ollama",
+  "model_path": "models/aifred-assistant-q4.gguf",
+  "model_name": "aifred:latest",
+  "openai_api_key": "",
+  "ollama_url": "http://127.0.0.1:11434",
+  "custom_endpoint": "http://127.0.0.1:11434",
+  "timeout_ms": 420000
+}
+JSON
 
 log() {
   printf '%s %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$1" >> "$LOG"
@@ -16,6 +33,19 @@ log() {
 console_user="$(stat -f '%Su' /dev/console 2>/dev/null || true)"
 if [ -n "$console_user" ] && [ "$console_user" != "root" ] && [ -f "$PLIST" ]; then
   user_id="$(id -u "$console_user")"
+  user_settings_dir="/Users/$console_user/Library/Application Support/Aifred"
+  mkdir -p "$user_settings_dir"
+  cat > "$user_settings_dir/user_settings.json" <<'JSON'
+{
+  "provider_override_enabled": false,
+  "provider_mode": "ollama",
+  "api_key": "",
+  "ollama_url": "http://127.0.0.1:11434",
+  "custom_endpoint": "http://127.0.0.1:11434",
+  "model_name": "aifred:latest"
+}
+JSON
+  chown -R "$console_user" "$user_settings_dir" 2>/dev/null || true
   launchctl bootout "gui/$user_id" "$PLIST" >/dev/null 2>&1 || true
   launchctl bootstrap "gui/$user_id" "$PLIST" >/dev/null 2>&1 || log "launchctl bootstrap failed"
   launchctl kickstart -k "gui/$user_id/com.aifred.engine" >/dev/null 2>&1 || log "launchctl kickstart failed"

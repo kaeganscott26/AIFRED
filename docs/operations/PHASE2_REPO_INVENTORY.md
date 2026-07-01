@@ -1,29 +1,31 @@
 # Phase 2 Repository Inventory
 
-Timestamp: 2026-06-28T01:00:25-05:00
+Timestamp: 2026-07-01T00:37:47-05:00
 
-Git branch: `aifred-final-monorepo-consolidation`
-Git commit: `fffad59`
+Git branch: `main`
+Git commit: `4d94dde`
 
 ## Top-Level Directory Summary
 
+- `.DS_Store` - file, 8.0 KB
 - `.github/` - 1 dirs, 0 files at top level
 - `.gitignore` - file, 303 B
 - `.obsidian/` - 0 dirs, 5 files at top level
 - `aifred_state.md` - file, 16.1 KB
 - `apps/` - 2 dirs, 0 files at top level
-- `build/` - 1 dirs, 0 files at top level
+- `build-mac/` - 3 dirs, 5 files at top level
 - `CHANGELOG.md` - file, 3.5 KB
 - `CMakeLists.txt` - file, 1.9 KB
 - `CMakePresets.json` - file, 393 B
+- `dist/` - 1 dirs, 0 files at top level
 - `docs/` - 4 dirs, 5 files at top level
 - `infra/` - 1 dirs, 0 files at top level
 - `models/` - 1 dirs, 0 files at top level
 - `ops/` - 1 dirs, 0 files at top level
 - `packages/` - 2 dirs, 0 files at top level
-- `plugin-aifred/` - 2 dirs, 1 files at top level
-- `README.md` - file, 8.0 KB
-- `tools/` - 8 dirs, 6 files at top level
+- `plugin-aifred/` - 2 dirs, 2 files at top level
+- `README.md` - file, 9.0 KB
+- `tools/` - 7 dirs, 7 files at top level
 - `wrangler.jsonc` - file, 300 B
 
 ## File Counts By Major Area
@@ -32,20 +34,24 @@ Git commit: `fffad59`
 | --- | ---: | ---: |
 | `apps/website` | 77 | 263.6 MB |
 | `apps/admin-android` | 17 | 1.7 MB |
-| `plugin-aifred` | 16 | 177.3 KB |
+| `plugin-aifred` | 17 | 181.7 KB |
 | `tools/AifredEngine` | 3 | 29.1 KB |
 | `infra/cloudflare` | 5 | 10.3 KB |
 | `packages` | 2 | 1.0 KB |
-| `docs` | 60 | 119.8 KB |
+| `docs` | 60 | 122.6 KB |
 
 ## Largest 25 Files
 
 | Size | Path |
 | ---: | --- |
+| 24.9 MB | `build-mac/plugin-aifred/Aifred_artefacts/Release/libAifred_SharedCode.a` |
+| 22.1 MB | `build-mac/_deps/juce-build/tools/extras/Build/juceaide/juceaide_artefacts/Custom/juceaide` |
 | 10.1 MB | `apps/website/assets/audio/catalog/Streets of Mongolia [mastered].mp3` |
+| 9.7 MB | `build-mac/_deps/juce-build/tools/extras/Build/juceaide/CMakeFiles/juceaide.dir/__/__/__/modules/juce_gui_basics/juce_gui_basics.mm.o` |
 | 9.0 MB | `apps/website/assets/audio/catalog/SickAF beat prod by North3rnLight3r.mp3` |
 | 8.9 MB | `apps/website/assets/audio/catalog/No Complaintsinst.mp3` |
 | 8.4 MB | `apps/website/assets/audio/catalog/smokin green screwed instrummp3.mp3` |
+| 7.1 MB | `build-mac/plugin-aifred/CMakeFiles/Aifred.dir/__/_deps/juce-src/modules/juce_gui_basics/juce_gui_basics.mm.o` |
 | 6.9 MB | `apps/website/assets/audio/catalog/Celestial Prequal.mp3` |
 | 6.8 MB | `apps/website/assets/audio/catalog/Turn The Page cover.mp3` |
 | 6.8 MB | `apps/website/assets/audio/catalog/june27remixwav.mp3` |
@@ -57,24 +63,22 @@ Git commit: `fffad59`
 | 5.8 MB | `apps/website/assets/audio/catalog/astromaster.mp3` |
 | 5.8 MB | `apps/website/assets/audio/catalog/IzotopeMix.mp3` |
 | 5.8 MB | `apps/website/assets/audio/catalog/timeforthatmp3.mp3` |
+| 5.5 MB | `build-mac/plugin-aifred/Aifred_artefacts/Release/VST3/Aifred.vst3/Contents/MacOS/Aifred` |
 | 5.5 MB | `apps/website/assets/audio/catalog/yothisbeatiscrazy.mp3` |
 | 5.3 MB | `apps/website/assets/audio/catalog/No Complaints.mp3` |
 | 5.2 MB | `apps/website/assets/audio/catalog/Knockin Knoggins Rmix.mp3` |
 | 5.2 MB | `apps/website/assets/audio/catalog/3amDrillinst.mp3` |
 | 5.2 MB | `apps/website/assets/audio/catalog/3amDrill.mp3` |
-| 5.1 MB | `apps/website/assets/audio/catalog/Bazar.mp3` |
-| 5.0 MB | `apps/website/assets/audio/catalog/Sierra Leone Remix prod. North3rnLight3r.mp3` |
-| 5.0 MB | `apps/website/assets/audio/catalog/Televeve Remix.mp3` |
-| 4.9 MB | `apps/website/assets/audio/catalog/spacemaster.mp3` |
-| 4.8 MB | `apps/website/assets/audio/catalog/LIfe is Reluctant - North3rn Light3r version.mp3` |
 
 ## Media File Summary
 
 | Extension | Files | Size |
 | --- | ---: | ---: |
-| `.jpg` | 4 | 301.0 KB |
-| `.mp3` | 54 | 263.1 MB |
-| `.png` | 1 | 1.5 MB |
+| `.jpg` | 7 | 728.5 KB |
+| `.mp3` | 69 | 263.8 MB |
+| `.ogg` | 57 | 667.1 KB |
+| `.png` | 161 | 5.5 MB |
+| `.wav` | 12 | 2.4 MB |
 
 ## Duplicated Authority Warning
 
@@ -86,11 +90,11 @@ Git commit: `fffad59`
 
 | Reference | Count |
 | --- | ---: |
-| `north3rnlight3r.com` | 48 |
+| `north3rnlight3r.com` | 54 |
 | `/api/v1` | 368 |
-| `127.0.0.1:8787` | 49 |
-| `127.0.0.1:11434` | 44 |
-| `aifred:latest` | 67 |
+| `127.0.0.1:8787` | 55 |
+| `127.0.0.1:11434` | 52 |
+| `aifred:latest` | 74 |
 
 ## Notes
 

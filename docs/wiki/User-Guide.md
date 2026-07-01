@@ -111,5 +111,26 @@ Windows user overrides:
 
 `%AppData%\Aifred\user_settings.json`
 
+macOS system-wide VST3:
+
+`/Library/Audio/Plug-Ins/VST3/Aifred.vst3`
+
+macOS engine:
+
+`/Library/Application Support/Aifred/bin/AifredEngine`
+
+macOS startup:
+
+`/Library/LaunchAgents/com.aifred.engine.plist`
+
+macOS user overrides:
+
+`~/Library/Application Support/Aifred/user_settings.json`
+
+macOS manual control:
+
+`/Library/Application Support/Aifred/AIFRED Engine Control.command`
+
+Double-click the control command to start or repair local AI, restart the engine, stop it for the current login session, or show gateway health. The engine starts automatically at login after the package install.
 
 
