@@ -792,8 +792,7 @@ fun AIFREDAdminApp() {
         mutableStateOf(
             listOf(
                 "aifred:latest",
-                "gpt-5.4-mini",
-                "gpt-5.5"
+                "gpt-5.6-luna"
             )
         )
     }
@@ -2772,7 +2771,7 @@ class ApiClient(private val baseUrl: String, private val token: String) {
         }
         return try {
             val body = JSONObject()
-                .put("model", model.ifBlank { "gpt-5.4-mini" })
+                .put("model", model.ifBlank { "gpt-5.6-luna" })
                 .put(
                     "input",
                     JSONArray()
@@ -2866,11 +2865,11 @@ class ApiClient(private val baseUrl: String, private val token: String) {
                                 if (id.isNotBlank() && id.startsWith("gpt")) add(id)
                             }
                         }
-                    }.ifEmpty { listOf("gpt-5.4-mini", "gpt-5.5") }
+                    }.ifEmpty { listOf("gpt-5.6-luna") }
                     ModelCatalog(models, models.first())
                 }
             } catch (_error: Exception) {
-                ModelCatalog(listOf("gpt-5.4-mini", "gpt-5.5"), "gpt-5.4-mini")
+                ModelCatalog(listOf("gpt-5.6-luna"), "gpt-5.6-luna")
             }
         }
 
@@ -2893,11 +2892,11 @@ class ApiClient(private val baseUrl: String, private val token: String) {
                         activeModel = payload.optString("active_model", models.first())
                     )
                 } else {
-                    ModelCatalog(listOf("aifred:latest", "gpt-5.4-mini", "gpt-5.5"), "aifred:latest")
+                    ModelCatalog(listOf("aifred:latest", "gpt-5.6-luna"), "aifred:latest")
                 }
             }
         } catch (_error: Exception) {
-            ModelCatalog(listOf("aifred:latest", "gpt-5.4-mini", "gpt-5.5"), "aifred:latest")
+            ModelCatalog(listOf("aifred:latest", "gpt-5.6-luna"), "aifred:latest")
         }
     }
 

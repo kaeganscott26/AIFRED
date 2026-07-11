@@ -154,6 +154,7 @@ sealed class AifredRuntime
         var ollamaModelAvailable = usesOllama && ollamaReachable && await OllamaModelExistsAsync(endpoint, modelName);
         var fileModelAvailable = File.Exists(modelPath);
         var openAiConfigured = !string.IsNullOrWhiteSpace(EffectiveApiKey());
+        var openAiReady = provider.Contains("openai", StringComparison.OrdinalIgnoreCase) && openAiConfigured && !usesOllama;
         var localAiReady = usesOllama && ollamaReachable && ollamaModelAvailable;
         string? lastError = null;
         if (usesOllama)
@@ -171,13 +172,13 @@ sealed class AifredRuntime
             ["engine_running"] = true,
             ["gateway_url"] = $"http://127.0.0.1:{GetInt(config, "port", DefaultPort)}",
             ["engine_version"] = EngineVersion,
-            ["model_loaded"] = fileModelAvailable || ollamaModelAvailable,
+            ["model_loaded"] = fileModelAvailable || ollamaModelAvailable || openAiReady,
             ["ollama_model_available"] = ollamaModelAvailable,
             ["provider"] = provider,
             ["provider_mode"] = provider,
             ["ollama_reachable"] = ollamaReachable,
             ["ollama_url"] = endpoint,
-            ["model_present"] = ollamaModelAvailable,
+            ["model_present"] = ollamaModelAvailable || openAiReady,
             ["model_name"] = modelName,
             ["openai_configured"] = openAiConfigured,
             ["local_ai_ready"] = localAiReady,
@@ -547,6 +548,12 @@ sealed class AifredRuntime
         {
             return "https://api.openai.com/v1";
         }
+        if (provider.Contains("openai", StringComparison.OrdinalIgnoreCase)
+            && (endpoint.Contains("127.0.0.1:11434", StringComparison.OrdinalIgnoreCase)
+                || endpoint.Contains("localhost:11434", StringComparison.OrdinalIgnoreCase)))
+        {
+            return "https://api.openai.com/v1";
+        }
         return string.IsNullOrWhiteSpace(endpoint) ? "http://127.0.0.1:11434" : endpoint;
     }
 
@@ -555,9 +562,17 @@ sealed class AifredRuntime
         var overrideEnabled = GetBool(userSettings, "provider_override_enabled", false);
         var provider = EffectiveProvider();
         var model = overrideEnabled ? GetString(userSettings, "model_name", "") : GetString(config, "model_name", "");
-        if (string.IsNullOrWhiteSpace(model) && provider.Contains("openai", StringComparison.OrdinalIgnoreCase)) return "gpt-5.4-mini";
+        if (IsOpenAiProvider(provider) && (string.IsNullOrWhiteSpace(model) || IsLocalOllamaModel(model))) return "gpt-5.6-luna";
         return string.IsNullOrWhiteSpace(model) ? "aifred:latest" : model;
     }
+
+    static bool IsOpenAiProvider(string provider) =>
+        provider.Contains("openai", StringComparison.OrdinalIgnoreCase)
+        || provider.Contains("compatible", StringComparison.OrdinalIgnoreCase);
+
+    static bool IsLocalOllamaModel(string model) =>
+        model.Equals("aifred:latest", StringComparison.OrdinalIgnoreCase)
+        || model.Equals("aifred", StringComparison.OrdinalIgnoreCase);
 
     string EffectiveApiKey()
     {
@@ -567,7 +582,22 @@ sealed class AifredRuntime
 
     void Log(string line)
     {
-        File.AppendAllText(logPath, $"[{DateTimeOffset.Now:O}] {line}{Environment.NewLine}");
+        var entry = $"[{DateTimeOffset.Now:O}] {line}{Environment.NewLine}";
+        try
+        {
+            File.AppendAllText(logPath, entry);
+            return;
+        }
+        catch (UnauthorizedAccessException) {}
+        catch (IOException) {}
+
+        try
+        {
+            var fallbackLogPath = Path.Combine(appDataRoot, "logs", "engine.log");
+            Directory.CreateDirectory(Path.GetDirectoryName(fallbackLogPath)!);
+            File.AppendAllText(fallbackLogPath, entry);
+        }
+        catch {}
     }
 
     static JsonObject DefaultConfig(string root) => new()

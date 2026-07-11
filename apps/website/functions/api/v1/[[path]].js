@@ -380,7 +380,7 @@ function contentPayload() {
 async function askOpenAI(env, message) {
   const apiKey = env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
-  const model = env.OPENAI_MODEL || "gpt-5.4-mini";
+  const model = env.OPENAI_MODEL || "gpt-5.6-luna";
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
@@ -700,7 +700,7 @@ function chatSettingsPayload(request, env) {
   const url = new URL(request.url);
   const wsProtocol = url.protocol === "https:" ? "wss:" : "ws:";
   const ollamaModel = env.OLLAMA_MODEL || "aifred:latest";
-  const openAiModel = env.OPENAI_MODEL || "gpt-5.4-mini";
+  const openAiModel = env.OPENAI_MODEL || "gpt-5.6-luna";
   return {
     ok: true,
     websocket_url: `${wsProtocol}//${url.host}/ws/chat`,
@@ -1587,7 +1587,7 @@ async function handleCommand(request, env) {
   else if (normalized === "catalog:list") stdout = `tracks=${(await loadCatalog(request)).length}`;
   else if (normalized === "models:list") stdout = JSON.stringify({
     openai: Boolean(env.OPENAI_API_KEY),
-    openai_model: env.OPENAI_MODEL || "gpt-5.4-mini",
+    openai_model: env.OPENAI_MODEL || "gpt-5.6-luna",
     ollama: Boolean(env.OLLAMA_BASE_URL),
     ollama_model: env.OLLAMA_MODEL || "aifred:latest"
   }, null, 2);
@@ -1734,7 +1734,7 @@ export async function onRequest({ request, env, params }) {
   if (path === "admin/sales/record" && request.method === "POST") return handleManualSaleRecord(request, env);
   if (path === "models/list") {
     const ollamaModel = env.OLLAMA_MODEL || "aifred:latest";
-    const openAiModel = env.OPENAI_MODEL || "gpt-5.4-mini";
+    const openAiModel = env.OPENAI_MODEL || "gpt-5.6-luna";
     return json({
       ok: true,
       models: [ollamaModel, openAiModel].filter(Boolean),

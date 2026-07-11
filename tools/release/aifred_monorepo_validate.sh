@@ -165,7 +165,7 @@ done
 forbid_reference "AIFRED_API_TOKEN=sk-" apps/admin-android
 require_reference "apps/website" apps/admin-android/app/src/main/java/com/aifred/admin/MainActivity.kt
 require_reference "aifred:latest" apps/admin-android tools/AifredEngine plugin-aifred README.md
-require_reference "gpt-5.4-mini" apps/admin-android apps/website tools/AifredEngine README.md
+require_reference "gpt-5.6-luna" apps/admin-android apps/website tools/AifredEngine README.md
 
 if [ "$run_gradle" -eq 1 ]; then
   section "Android Admin Gradle Task Discovery"

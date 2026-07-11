@@ -193,11 +193,16 @@ static InstallerAiConfig? ResolveAiConfig(string[] args)
     else
     {
         endpoint = string.IsNullOrWhiteSpace(endpoint) ? "https://api.openai.com/v1" : endpoint;
-        model = string.IsNullOrWhiteSpace(model) ? "gpt-5.4-mini" : model;
+        model = IsLocalOllamaModel(model) ? "gpt-5.6-luna" : model;
     }
 
     return new InstallerAiConfig(provider, endpoint, apiKey, model);
 }
+
+static bool IsLocalOllamaModel(string model) =>
+    string.IsNullOrWhiteSpace(model)
+    || model.Equals("aifred:latest", StringComparison.OrdinalIgnoreCase)
+    || model.Equals("aifred", StringComparison.OrdinalIgnoreCase);
 
 static string NormalizeProvider(string providerRaw, bool hasOpenAiSignals)
 {
@@ -420,7 +425,7 @@ static InstallerAiConfig? ShowSetupDialog()
         else if (providerCombo.SelectedIndex == 1)
         {
             endpointText.Text = "https://api.openai.com/v1";
-            modelText.Text = "gpt-5.4-mini";
+            modelText.Text = "gpt-5.6-luna";
             keyText.Enabled = true;
         }
         else

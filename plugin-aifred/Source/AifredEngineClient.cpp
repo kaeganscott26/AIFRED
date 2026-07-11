@@ -25,6 +25,16 @@ juce::String jsonEscape(juce::String text) {
   return text;
 }
 
+juce::String normalizeModelForProvider(const juce::String& provider, juce::String model) {
+  model = model.trim();
+  const auto isOpenAiRoute = provider.containsIgnoreCase("openai") || provider.containsIgnoreCase("compatible");
+  if (isOpenAiRoute && (model.isEmpty() || model.equalsIgnoreCase("aifred:latest") || model.equalsIgnoreCase("aifred"))) {
+    return "gpt-5.6-luna";
+  }
+  if (model.isEmpty()) return "aifred:latest";
+  return model;
+}
+
 juce::String extractResponse(juce::String json) {
   auto parsed = juce::JSON::parse(json);
   if (auto* object = parsed.getDynamicObject()) {
@@ -81,6 +91,7 @@ juce::String healthStatusFromJson(const juce::String& json, bool& localAiReady) 
 
     if (localAiReady) return "Local AI ready.";
     if (!engineRunning) return "AifredEngine not running.";
+    if (provider.containsIgnoreCase("openai") && openAiConfigured) return "OpenAI route ready.";
     if (provider.containsIgnoreCase("ollama")) {
       if (!ollamaReachable) return "Ollama not running or not reachable.";
       if (!modelPresent) return "AIFRED model missing: " + modelName + ".";
@@ -372,6 +383,7 @@ bool AifredEngineClient::askAsync(juce::String prompt, juce::String contextJson)
 }
 
 void AifredEngineClient::saveSettingsAsync(juce::String provider, juce::String endpoint, juce::String apiKey, juce::String model) {
+  model = normalizeModelForProvider(provider, model);
   const auto ollamaUrl = provider.containsIgnoreCase("ollama") ? endpoint : juce::String("http://127.0.0.1:11434");
   const auto body = "{\"provider_override_enabled\":true,\"provider_mode\":\"" + jsonEscape(provider)
     + "\",\"api_key\":\"" + jsonEscape(apiKey)

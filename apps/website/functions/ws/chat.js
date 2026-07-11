@@ -45,7 +45,7 @@ export async function onRequest({ request, env }) {
 
 async function askModel(env, message) {
   if (env.OPENAI_API_KEY) {
-    const model = env.OPENAI_MODEL || "gpt-5.4-mini";
+    const model = env.OPENAI_MODEL || "gpt-5.6-luna";
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {

@@ -23,7 +23,7 @@ Backend split:
 - The website/admin backend lives at `https://www.north3rnlight3r.com/api/v1` and `/ws/chat`.
 - The local engine serves plugin AI/chat at `http://127.0.0.1:8787`.
 - The local engine talks to Ollama at `http://127.0.0.1:11434` with model `aifred:latest`.
-- OpenAI mode uses `https://api.openai.com/v1/responses` when an API key is configured.
+- OpenAI mode uses `https://api.openai.com/v1/responses` with `gpt-5.6-luna` when an API key is configured.
 
 Website assets:
 
