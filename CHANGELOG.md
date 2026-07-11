@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased - 2026-07-11 repository cleanup
+
+- Reconciled current docs with the consolidated monorepo authorities: `plugin-aifred/`, `tools/AifredEngine/`, `apps/website/`, `apps/admin-android/`, and `infra/cloudflare/`.
+- Fixed the root Wrangler asset path from deleted `website/` to `apps/website`.
+- Fixed `.gitignore` Android paths to use `apps/admin-android/` and added Kotlin cache exclusion.
+- Removed the unreachable Linux dependency-install step from the current Windows/macOS GitHub Actions matrix.
+- Added final monorepo validation to the main website-check job.
+- Updated active docs to the current Windows installer/uninstaller/zip and macOS pkg release targets.
+- Removed current-state documentation claims that Linux and Arch are active CI release targets while preserving historical references and generic UNIX packaging pending verification.
+- Replaced stale `aifred-site` and top-level `website/` Cloudflare documentation with the canonical `kaeganscott26/AIFRED` and `apps/website/` paths.
+- Updated current release metadata docs to `v0.3.6-installer-ai-alias`.
+- Updated current AI documentation to local `aifred:latest` and OpenAI `gpt-5.6-luna`.
+- Updated current website/payment docs to the live repo behavior: $5 one-time beta purchase, PayPal create/capture flow, and tokenized `AIFRED_DOWNLOADS` delivery.
+- Rewrote corrupted/outdated wiki pages and website-facing release documents.
+- Updated JUCE from `8.0.10` to `8.0.14`.
+- Preserved verification-first candidates: legacy `/api/*` shim, `/analyze`, `/v1/restart`, generic UNIX CPack configuration, package placeholders, local MP3 fallback, and sibling repositories.
+
 ## v0.3.6-installer-ai-alias
 
 - Fixed the Windows installer so a clean local Ollama setup creates the `aifred:latest` model alias from `llama3.2:3b` instead of only pulling the base model.
@@ -37,7 +54,7 @@
 - Reworked the website reference gate to classify material as Strong Reference, Usable Reference, Style-Specific Reference, Technically Hot Reference, Poor Reference, or Reject.
 - Removed duplicate `apps/website` shadow source and removed archived conversation/export files that are not required for the ecosystem runtime.
 
-Release verification:
+Release verification at the time:
 
-- GitHub Actions builds and publishes Windows, macOS, Linux, and Arch release packages from `v0.3.3-ollama-chat`.
-- The Windows installer configures the local Ollama route. OpenAI-compatible API settings remain user-supplied because a distributable installer cannot know a customer's private API key.
+- GitHub Actions built and published Windows, macOS, Linux, and Arch release packages from `v0.3.3-ollama-chat`.
+- The Windows installer configured the local Ollama route. OpenAI-compatible API settings remained user-supplied because a distributable installer cannot know a customer's private API key.

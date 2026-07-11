@@ -1,43 +1,98 @@
-# AIFRED v0.3.6 Canonical Snapshot Release
+# AIFRED v0.3.6 Release Notes
 
-This release keeps the distributable JUCE VST3 line and corrects the analysis data flow so the UI and Ask AI chat consume the same interpreted AIFRED analysis snapshot.
+AIFRED v0.3.6 is the current consolidated JUCE VST3 line. It aligns the plugin UI and chat context around the same interpreted analysis snapshot, improves local engine startup behavior, adds current Windows/macOS packaging, and supports OpenAI routing through `gpt-5.6-luna` when configured.
 
 ## Plugin
 
 - JUCE VST3 build target versioned as `0.3.6`.
-- Windows setup now creates the local `aifred:latest` Ollama model alias from `llama3.2:3b` on clean machines.
-- Tone, Width, Punch, Loudness bars, Halo quadrants, Compare view, Mix Signature, and chat context now read the canonical interpreted `HaloState` analysis snapshot.
-- Score formulas now use distance-from-reference/target scoring instead of "more is better" magnitude scoring.
-- No-signal, invalid, stale, or no-reference states display `Waiting`, `--`, or `No Ref` instead of perfect scores.
-- Current values, loudness windows, and 5-second history values are labeled separately in the chat context.
-- Chat context includes displayed percentages, raw current metrics, reference targets, validity flags, stale/fallback flags, timestamps, and a human-readable metric summary.
-- Chat text cleaning decodes escaped unicode apostrophes/quotes and blocks JSON/code remnants from visible output.
-- Added analysis regression checks for false 100% Width/Punch/Loudness-style states and chat sanitizer leaks.
-- Chat output is now a scrollable read-only text window.
-- AI responses are cleaned before display so JSON/code-fence remnants are not shown as the chat answer.
-- Theme/layout choices were removed from the options surface; the plugin uses the Chat Focus layout.
-- Reference mixer exposes five independent file buttons, one per reference lane.
-- Windows release assets include `AIFRED-Uninstall.exe`.
-- Resizable Halo interface with quadrant scale ticks and readable labels.
-- Switchable Halo center display for multiband, waveform, and combined spectrometer views.
-- Session candlestick meter remembers the latest 10 plugin-open/plugin-close sessions.
-- Minute history meter shows one candle per minute for the latest 10 minutes of the current session.
-- Reference mode shows a default reference-pool ring plus five per-reference rings and five volume lanes.
-- Compare mode keeps separate Mix A and Mix B analysis routes for FL Studio sidechain comparison.
-- AIFRED chat only responds when the user asks. The model receives current DSP metrics and reference-pool metadata; non-mix-aware canned phrases were removed.
+- JUCE dependency updated to `8.0.14`.
+- Tone, Width, Punch, Loudness bars, Halo quadrants, Compare view, Mix Signature, and chat context read the canonical interpreted `HaloState` analysis snapshot.
+- Score formulas use distance-from-reference/target scoring instead of simple magnitude scoring.
+- No-signal, invalid, stale, or no-reference states display waiting/unavailable state instead of false perfect scores.
+- Current values, loudness windows, and 5-second history values are labeled separately in chat context.
+- Chat context includes displayed percentages, raw metrics, reference targets, validity flags, stale/fallback flags, timestamps, and human-readable summaries.
+- Chat text cleaning decodes escaped punctuation and removes JSON/code-fence remnants from visible answers.
+- Analysis regression checks protect against false 100% states and sanitizer leaks.
+- Chat output uses a scrollable read-only text window.
+- The plugin uses the Chat Focus layout.
+- Reference mode exposes five independent file buttons and five reference volume lanes.
+- Halo UI includes readable scale ticks and switchable multiband/waveform/combined center displays.
+- Session and minute-history candlesticks expose level behavior over time.
+- Compare mode keeps separate Mix A and Mix B analysis routes.
+- AIFRED chat responds on request and receives current DSP/reference context rather than canned fix text.
+
+## AI Routing
+
+Default local route:
+
+```text
+AIFRED VST3
+  -> http://127.0.0.1:8787
+  -> http://127.0.0.1:11434
+  -> aifred:latest
+```
+
+OpenAI route when configured:
+
+```text
+https://api.openai.com/v1/responses
+model: gpt-5.6-luna
+```
+
+The plugin and installer normalize an empty/local-only model choice to `gpt-5.6-luna` when an OpenAI-compatible provider is selected.
+
+## Local Engine
+
+- Windows and macOS use the shared `tools/AifredEngine/Program.cs` runtime.
+- Health reporting distinguishes local Ollama readiness from OpenAI route readiness.
+- OpenAI provider settings correct stale local Ollama endpoint/model values when necessary.
+- Engine logging falls back to the user application-data area when the install-root log path is not writable.
+- Plugin health checks can attempt to relaunch the installed local runtime when the gateway is unavailable.
+
+## Windows Packaging
+
+Current Windows artifacts:
+
+- `AIFRED-VST3-Setup.exe`
+- `AIFRED-Uninstall.exe`
+- `AIFRED-VST3-windows.zip`
+
+The installer packages the VST3 and local engine, writes default local Ollama configuration, registers engine startup, and validates local readiness.
+
+## macOS Packaging
+
+Current macOS artifact:
+
+- `AIFRED-VST3-macOS.pkg`
+
+The package installs the VST3, cross-platform engine, default local configuration, LaunchAgent, setup/repair script, and `AIFRED Engine Control.command`.
+
+The macOS package is not yet signed or notarized.
 
 ## Website And Delivery
 
-- Website config now uses the free beta release path for AIFRED downloads.
-- PayPal/R2 delivery code remains available for later paid releases, but the free beta should link to public release artifacts instead of a paywall.
-- Download defaults target `kaeganscott26/AIFRED` tag `v0.3.6-installer-ai-alias`.
-- Website activity now records to the admin log feed, including buy clicks, order lifecycle events, catalog plays, inquiries, downloads, and admin uploads.
-- Catalog uploads now auto-sync the website audio file and the beat catalog JSON so the admin app and site stay in step.
-- Notification email support remains environment-variable driven.
+The public website currently presents AIFRED as a **$5 one-time beta purchase** with no subscription or recurring charge.
 
-## Packaging
+Current release metadata examples use:
 
-- Windows installer packages the VST3 and local AIFRED engine.
-- The installer configures the local Ollama endpoint and can save an OpenAI-compatible endpoint, API key, and model into `%AppData%\Aifred\user_settings.json` when the user supplies those private credentials.
-- The engine defaults to relative model paths so packages are not tied to a developer machine.
-- GitHub Actions build the Windows zip/installer and macOS pkg release assets from tags.
+```text
+AIFRED_PLUGIN_REPO=kaeganscott26/AIFRED
+AIFRED_PLUGIN_RELEASE_TAG=v0.3.6-installer-ai-alias
+AIFRED_RELEASE_VERSION=v0.3.6-installer-ai-alias
+```
+
+The current payment/download flow uses PayPal create/capture routes and tokenized delivery through `AIFRED_DOWNLOADS` R2 when configured.
+
+Catalog audio uses `AIFRED_WEBSITE_ASSETS` R2 first and local files as a development fallback.
+
+## Current CI Release Targets
+
+GitHub Actions currently builds:
+
+- Windows VST3 zip/installer/uninstaller.
+- macOS VST3 pkg.
+- Website JavaScript and repository validation checks.
+
+Linux and Arch are not current GitHub Actions release targets. Historical references and generic UNIX packaging code remain pending separate verification.
+
+The owner-only Android admin app is not a public release artifact.

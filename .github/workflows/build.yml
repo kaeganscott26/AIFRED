@@ -28,12 +28,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Linux deps
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libasound2-dev libjack-jackd2-dev ladspa-sdk libcurl4-openssl-dev libfreetype6-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev libwebkit2gtk-4.1-dev
-
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
@@ -106,6 +100,9 @@ jobs:
       - name: Analysis snapshot regression checks
         shell: pwsh
         run: ./tools/check-aifred-analysis-regressions.ps1
+
+      - name: Monorepo validation
+        run: bash tools/release/aifred_monorepo_validate.sh
 
   release:
     name: Publish GitHub release

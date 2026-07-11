@@ -1,533 +1,344 @@
-# AIFRED PayPal, Cloudflare R2, and GitHub Secret Setup Guide
+# AIFRED PayPal, Cloudflare R2, And GitHub Setup Guide
 
-This guide explains how to fix the Cloudflare deploy secret, move paid installer downloads out of the private GitHub repo, store the installers in Cloudflare R2, and connect PayPal so buyers receive a download only after payment is captured.
+This guide reflects the current consolidated `kaeganscott26/AIFRED` monorepo and the website/backend under `apps/website/`.
 
-The goal is simple:
+It documents the configuration the repository expects. It does not claim that every production Cloudflare binding or private value is already configured; those must be verified in the Cloudflare dashboard and live environment.
 
-- GitHub stays private so the website source, backend code, and admin app source are not public.
-- GitHub Actions can still deploy the website to Cloudflare Pages.
-- Paid installers live in Cloudflare R2, not in a public GitHub release.
-- PayPal handles payment approval and capture.
-- Cloudflare only gives a buyer a temporary download after PayPal confirms payment.
-
-Source references:
-
-- Cloudflare Pages API token requirements: https://developers.cloudflare.com/pages/configuration/api/
-- Cloudflare Workers GitHub Actions authentication: https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/
-- Cloudflare R2 presigned URLs: https://developers.cloudflare.com/r2/api/s3/presigned-urls/
-- PayPal Orders API capture endpoint: https://developer.paypal.com/docs/api/orders/sdk/v2/
-- PayPal Checkout webhook events: https://developer.paypal.com/docs/checkout/apm/reference/subscribe-to-webhooks/
-
-## Part 1 - Replace the broken Cloudflare GitHub secret
-
-Your GitHub Actions workflow already uses these secret names:
-
-- `CLOUDFLARE_ACCOUNT_ID`
-- `CLOUDFLARE_API_TOKEN`
-
-The account ID secret exists. The token secret exists, but Cloudflare rejected it in CI. That means you need a fresh API token with Cloudflare Pages deploy permission.
-
-### Step 1 - Open Cloudflare API token page
-
-1. Go to https://dash.cloudflare.com/profile/api-tokens
-2. Sign in to the Cloudflare account that owns `north3rnlight3r.com`.
-3. Click `Create Token`.
-4. Do not use a random old token from the list.
-5. Do not use a Tunnel token.
-6. Do not use a Workers AI token.
-7. Create a new token specifically for GitHub Actions website deployment.
-
-### Step 2 - Create the correct Cloudflare token
-
-Use a custom token.
-
-1. Click `Create Custom Token` or `Get started` under custom token.
-2. Token name:
+## Current Architecture
 
 ```text
-AIFRED GitHub Pages Deploy
+Buyer browser
+  -> https://www.north3rnlight3r.com
+  -> Cloudflare Pages Worker from apps/website/_worker.js
+  -> /api/v1/paypal/create-order
+  -> PayPal approval
+  -> /api/v1/paypal/capture-order
+  -> short-lived download token
+  -> /api/v1/sales/download
+  -> AIFRED_DOWNLOADS R2 object or configured fallback
 ```
 
-3. Add this permission:
+The private source repository remains:
 
 ```text
-Account -> Cloudflare Pages -> Edit
+kaeganscott26/AIFRED
 ```
 
-4. Set account resources:
+The public website source is:
 
 ```text
-Include -> Your Cloudflare account
+apps/website/
 ```
 
-5. Zone resources are not required for a Pages direct upload deploy.
-6. Client IP filtering can stay blank unless you know you need it.
-7. TTL can be blank, or set an expiration date if you want forced rotation.
-8. Click `Continue to summary`.
-9. Confirm the token summary includes `Cloudflare Pages: Edit`.
-10. Click `Create Token`.
-11. Copy the token immediately.
+## Current Product And Release Metadata
 
-Cloudflare only shows the token once. If you close the page before copying it, delete the token and create another one.
-
-### Step 3 - Test the token locally before putting it in GitHub
-
-Open PowerShell in the repo:
-
-```powershell
-cd C:\Users\Scott\Projects\AIFRED
-$env:CLOUDFLARE_API_TOKEN="PASTE_NEW_TOKEN_HERE"
-npx wrangler pages project list
-```
-
-Expected result:
-
-- Wrangler should list Cloudflare Pages projects.
-- You should see `north3rnlight3r`.
-- If you get authentication error `9106`, the token is wrong.
-- If you get permission denied, the token is missing `Account -> Cloudflare Pages -> Edit`.
-
-Then test the actual deploy command:
-
-```powershell
-npx wrangler pages deploy apps/website --project-name=north3rnlight3r --branch=main --commit-dirty=true
-```
-
-Expected result:
-
-- Wrangler creates a Pages deployment.
-- The output may mention a `.pages.dev` URL.
-- That is normal. The production domain still stays `www.north3rnlight3r.com`.
-
-### Step 4 - Replace the GitHub secret
-
-Use GitHub CLI from PowerShell:
-
-```powershell
-cd C:\Users\Scott\Projects\AIFRED
-gh secret set CLOUDFLARE_API_TOKEN --repo kaeganscott26/AIFRED
-```
-
-Paste the new Cloudflare token when the command waits for input.
-
-Then verify the secret name exists:
-
-```powershell
-gh secret list --repo kaeganscott26/AIFRED
-```
-
-Expected result:
+The public website currently presents:
 
 ```text
-CLOUDFLARE_ACCOUNT_ID
-CLOUDFLARE_API_TOKEN
+$5 one-time beta purchase
+Free updates for life
+No subscription
+No recurring charge
 ```
 
-GitHub will not show the value. That is correct. It only shows the secret name.
-
-### Step 5 - Trigger a new GitHub Actions run
-
-After replacing the secret, push any small commit or manually rerun the workflow:
-
-```powershell
-gh workflow run build.yml --repo kaeganscott26/AIFRED
-```
-
-Watch the run:
-
-```powershell
-gh run watch --repo kaeganscott26/AIFRED
-```
-
-The Cloudflare deploy job should stop warning about rejected credentials. It should deploy the website from CI.
-
-## Part 2 - Create the Cloudflare R2 bucket for paid installers
-
-R2 is where the paid installer files should live. This keeps the source repo private and avoids forcing customers through GitHub release permissions.
-
-### Step 1 - Create a private R2 bucket
-
-In Cloudflare:
-
-1. Open the Cloudflare dashboard.
-2. Go to `R2 Object Storage`.
-3. Click `Create bucket`.
-4. Bucket name:
+Current repository examples use:
 
 ```text
-aifred-downloads
+AIFRED_PLUGIN_REPO=kaeganscott26/AIFRED
+AIFRED_PLUGIN_RELEASE_TAG=v0.3.6-installer-ai-alias
+AIFRED_RELEASE_VERSION=v0.3.6-installer-ai-alias
 ```
 
-5. Keep the bucket private.
-6. Do not enable public access for the whole bucket.
-
-The bucket should hold release files like:
+Current release artifacts:
 
 ```text
-releases/v0.3.4-chat-scroll-actions/AIFRED-VST3-Setup.exe
-releases/v0.3.4-chat-scroll-actions/AIFRED-Uninstall.exe
-releases/v0.3.4-chat-scroll-actions/AIFRED-VST3-windows.zip
-releases/v0.3.4-chat-scroll-actions/AIFRED-VST3-macos.zip
-releases/v0.3.4-chat-scroll-actions/AIFRED-VST3-arch.zip
+AIFRED-VST3-Setup.exe
+AIFRED-Uninstall.exe
+AIFRED-VST3-windows.zip
+AIFRED-VST3-macOS.pkg
 ```
 
-### Step 2 - Upload files to R2
+Linux and Arch packages are not current GitHub Actions release targets.
 
-Use Wrangler:
+## Cloudflare Config Roles
 
-```powershell
-cd C:\Users\North\Documents\Projects\AIFRED
-npx wrangler r2 object put aifred-downloads/releases/v0.3.4-chat-scroll-actions/AIFRED-VST3-Setup.exe --file dist\installer\windows\AIFRED-VST3-Setup.exe --remote
-npx wrangler r2 object put aifred-downloads/releases/v0.3.4-chat-scroll-actions/AIFRED-Uninstall.exe --file dist\uninstaller\windows\AIFRED-Uninstall.exe --remote
-```
+| File | Role |
+| --- | --- |
+| `apps/website/wrangler.toml` | Primary website Pages config and bindings |
+| `infra/cloudflare/wrangler.toml` | Operations/support mirror |
+| `wrangler.jsonc` | Root convenience config pointed at `apps/website` |
 
-Upload the other installers after they are available locally:
-
-```powershell
-npx wrangler r2 object put aifred-downloads/releases/v0.3.4-chat-scroll-actions/AIFRED-VST3-windows.zip --file dist\AIFRED-VST3-windows.zip --remote
-npx wrangler r2 object put aifred-downloads/releases/v0.3.4-chat-scroll-actions/AIFRED-VST3-macos.zip --file dist\AIFRED-VST3-macos.zip --remote
-npx wrangler r2 object put aifred-downloads/releases/v0.3.4-chat-scroll-actions/AIFRED-VST3-arch.zip --file dist\AIFRED-VST3-arch.zip --remote
-```
-
-Confirm the bucket contents:
-
-```powershell
-npx wrangler r2 object get aifred-downloads/releases/v0.3.4-chat-scroll-actions/AIFRED-VST3-Setup.exe --file $env:TEMP\aifred-setup-check.exe --remote
-```
-
-### Step 3 - Bind R2 to the website backend
-
-The website backend should not expose R2 credentials in browser JavaScript. It should access R2 from Cloudflare server-side code.
-
-Add an R2 binding to the Cloudflare Pages project:
-
-```powershell
-npx wrangler pages project list
-```
-
-Then configure the Pages project in the Cloudflare dashboard:
-
-1. Go to `Workers & Pages`.
-2. Open `north3rnlight3r`.
-3. Go to `Settings`.
-4. Go to `Functions`.
-5. Add an R2 bucket binding.
-6. Variable name:
+Current configured bindings include:
 
 ```text
+MAILER
+AIFRED_REFERENCE_POOL
+AIFRED_SALES_LOG
 AIFRED_DOWNLOADS
+AIFRED_WEBSITE_ASSETS
+AIFRED_REFERENCE_BUCKET
 ```
 
-7. Bucket:
+## Part 1 — Cloudflare Pages Deployment
+
+The production Pages project name used by the current workflow is:
 
 ```text
-aifred-downloads
+north3rnlight3r
 ```
 
-The backend can then call `env.AIFRED_DOWNLOADS.get(objectKey)` to fetch private installer files.
-
-## Part 3 - Create PayPal app credentials
-
-PayPal needs a REST app so the backend can create and capture checkout orders.
-
-### Step 1 - Open PayPal Developer Dashboard
-
-1. Go to https://developer.paypal.com/dashboard/
-2. Sign in with the PayPal account that will receive AIFRED payments.
-3. Go to `Apps & Credentials`.
-4. Choose `Live` when you are ready to take real money.
-5. Use `Sandbox` first if you want to test without charging real money.
-
-### Step 2 - Create the PayPal app
-
-1. Click `Create App`.
-2. App name:
+Production domains:
 
 ```text
-AIFRED Website Checkout
+https://www.north3rnlight3r.com
+https://north3rnlight3r.com
 ```
 
-3. Merchant account:
+Local deployment command:
 
-```text
-Your PayPal business account
+```powershell
+npx wrangler pages deploy apps/website --project-name=north3rnlight3r --branch=main
 ```
 
-4. Click `Create App`.
+The main GitHub Actions workflow can deploy from `main` when the repository's Cloudflare deployment configuration is present and accepted.
 
-PayPal will show:
-
-- Client ID
-- Secret
-
-The Client ID can be used by the browser. The Secret must only live in Cloudflare environment variables.
-
-### Step 3 - Add PayPal secrets to Cloudflare Pages
-
-In Cloudflare dashboard:
-
-1. Go to `Workers & Pages`.
-2. Open `north3rnlight3r`.
-3. Go to `Settings`.
-4. Go to `Environment variables`.
-5. Add these production variables:
-
-```text
-PAYPAL_CLIENT_ID=your live PayPal client ID
-PAYPAL_CLIENT_SECRET=your live PayPal secret
-PAYPAL_ENV=live
-AIFRED_PRODUCT_PRICE=49.00
-AIFRED_PRODUCT_CURRENCY=USD
-AIFRED_RELEASE_VERSION=v0.3.4-chat-scroll-actions
-```
-
-For sandbox testing, use:
-
-```text
-PAYPAL_ENV=sandbox
-```
-
-and use sandbox credentials instead of live credentials.
-
-## Part 4 - Payment and download flow
-
-The secure flow should work like this:
-
-1. Buyer clicks `Buy AIFRED`.
-2. Website calls your backend endpoint:
-
-```text
-POST /api/v1/paypal/create-order
-```
-
-3. Backend calls PayPal and creates an order for the product price.
-4. Browser opens PayPal approval.
-5. Buyer approves payment.
-6. Website calls your backend endpoint:
-
-```text
-POST /api/v1/paypal/capture-order
-```
-
-7. Backend captures the PayPal order.
-8. Backend verifies the capture status is completed.
-9. Backend creates a short-lived download token.
-10. Website redirects buyer to:
-
-```text
-/api/v1/download?token=SHORT_LIVED_TOKEN&platform=windows
-```
-
-11. Backend validates the token.
-12. Backend reads the installer from private R2.
-13. Backend streams the installer to the buyer.
-
-The buyer never receives:
-
-- GitHub source access
-- R2 account credentials
-- R2 write credentials
-- Admin app APK
-- Admin app source
-- Permanent unrestricted file links
-
-## Part 5 - Recommended token storage
-
-Use Cloudflare KV or D1 for paid download tokens.
-
-KV is simpler:
-
-```text
-download-token -> order ID, buyer email, expiry, allowed files
-```
-
-D1 is stronger for order records:
-
-```sql
-CREATE TABLE orders (
-  id TEXT PRIMARY KEY,
-  paypal_order_id TEXT NOT NULL,
-  paypal_capture_id TEXT,
-  buyer_email TEXT,
-  status TEXT NOT NULL,
-  created_at TEXT NOT NULL,
-  captured_at TEXT,
-  expires_at TEXT
-);
-
-CREATE TABLE download_tokens (
-  token TEXT PRIMARY KEY,
-  order_id TEXT NOT NULL,
-  allowed_platforms TEXT NOT NULL,
-  expires_at TEXT NOT NULL,
-  used_count INTEGER NOT NULL DEFAULT 0
-);
-```
-
-For AIFRED, use D1 if you want clean admin records. Use KV if you only need quick one-time download links.
-
-## Part 6 - Worker endpoint design
-
-Use these endpoints:
-
-```text
-POST /api/v1/paypal/create-order
-POST /api/v1/paypal/capture-order
-GET  /api/v1/download
-POST /api/v1/paypal/webhook
-```
-
-`create-order` should:
-
-- Read product price from `AIFRED_PRODUCT_PRICE`.
-- Read currency from `AIFRED_PRODUCT_CURRENCY`.
-- Create the PayPal order server-side.
-- Return the PayPal order ID to the browser.
-
-`capture-order` should:
-
-- Accept the PayPal order ID.
-- Call PayPal capture.
-- Confirm the capture status is complete.
-- Store the order.
-- Create a download token.
-- Return the download URL.
-
-`download` should:
-
-- Require a token.
-- Reject expired tokens.
-- Reject unknown tokens.
-- Reject platform values not allowed for that order.
-- Read the installer from R2.
-- Stream the installer with `Content-Disposition: attachment`.
-
-`webhook` should:
-
-- Receive PayPal events.
-- Store completed captures.
-- Help recover purchases if the buyer closes the browser after paying.
-
-## Part 7 - Website button behavior
-
-The public website button should not link directly to GitHub.
-
-Replace direct GitHub download links with purchase actions:
-
-```text
-Buy AIFRED for Windows
-Buy AIFRED for macOS
-Buy AIFRED for Arch Linux
-```
-
-Each button should:
-
-- Start PayPal checkout.
-- Capture the order through the backend.
-- Download the matching installer from R2.
-
-For free demos, use separate public files:
-
-```text
-demo/AIFRED-demo-readme.pdf
-demo/AIFRED-demo-pack.zip
-```
-
-Do not mix free files and paid installer files under the same public path.
-
-## Part 8 - PayPal webhooks
-
-Webhooks are not optional for a clean paid product. Browser redirects can fail. Webhooks let the backend know the payment happened even if the buyer closes the tab.
-
-Create a PayPal webhook:
-
-1. Go to PayPal Developer Dashboard.
-2. Open the AIFRED app.
-3. Go to `Webhooks`.
-4. Add webhook URL:
-
-```text
-https://www.north3rnlight3r.com/api/v1/paypal/webhook
-```
-
-5. Subscribe to checkout/order events.
-6. At minimum, handle the approved and completed/captured payment path.
-
-Store the PayPal webhook ID as a Cloudflare environment variable:
-
-```text
-PAYPAL_WEBHOOK_ID=your webhook ID
-```
-
-Production code should verify PayPal webhook signatures before trusting webhook events.
-
-## Part 9 - Final test checklist
-
-Test in this exact order:
-
-1. Confirm the site is live:
+After deployment, verify:
 
 ```powershell
 Invoke-WebRequest -UseBasicParsing https://www.north3rnlight3r.com/api/v1/health
 ```
 
-2. Confirm GitHub Actions deploys without Cloudflare credential warnings.
-3. Confirm R2 bucket contains all installer files.
-4. Confirm PayPal sandbox app can create an order.
-5. Confirm PayPal sandbox capture creates a download token.
-6. Confirm the download endpoint streams the Windows installer.
-7. Confirm expired tokens stop working.
-8. Confirm direct R2 URLs do not expose paid installers publicly.
-9. Switch PayPal from sandbox to live.
-10. Make one real low-price test purchase.
-11. Restore the real product price.
+If the API returns HTML instead of JSON, verify that `apps/website/_worker.js` was included in the deployment.
 
-## Part 10 - What not to do
+## Part 2 — R2 Buckets
 
-Do not put PayPal secrets in website JavaScript.
+### Installer downloads
 
-Do not put R2 API keys in website JavaScript.
-
-Do not make the whole R2 bucket public.
-
-Do not use GitHub release assets as public paid downloads while the repo is private.
-
-Do not distribute the Android admin APK through GitHub releases.
-
-Do not store buyer download access only in browser local storage.
-
-Do not trust a browser message saying payment succeeded. Always confirm through PayPal capture or verified webhook.
-
-## Part 11 - Clean production architecture
-
-Use this final architecture:
+Binding:
 
 ```text
-Buyer browser
-  -> www.north3rnlight3r.com
-  -> PayPal approval popup
-  -> Cloudflare Pages Function captures order
-  -> Cloudflare D1 or KV stores purchase
-  -> Cloudflare R2 stores private installers
-  -> Cloudflare download endpoint streams installer
+AIFRED_DOWNLOADS
 ```
 
-The admin app remains private:
+Bucket:
 
 ```text
-Owner phone
-  -> AIFRED Admin app
-  -> authenticated admin API
-  -> website/backend maintenance
-  -> local shell/file tools on the phone
+aifred-downloads
 ```
 
-The public repo exposure stays controlled:
+Recommended current object layout:
 
 ```text
-GitHub private repo
-  -> source code private
-  -> CI builds private
-  -> public-facing website deploys through Cloudflare
-  -> paid downloads served from R2 after PayPal capture
+releases/v0.3.6-installer-ai-alias/AIFRED-VST3-Setup.exe
+releases/v0.3.6-installer-ai-alias/AIFRED-Uninstall.exe
+releases/v0.3.6-installer-ai-alias/AIFRED-VST3-windows.zip
+releases/v0.3.6-installer-ai-alias/AIFRED-VST3-macOS.pkg
 ```
+
+Do not upload Linux or Arch objects as if they are current release outputs unless those packages are restored to CI and verified.
+
+### Website/catalog assets
+
+Binding:
+
+```text
+AIFRED_WEBSITE_ASSETS
+```
+
+Bucket:
+
+```text
+aifred-website-assets
+```
+
+Catalog objects use keys under:
+
+```text
+assets/audio/catalog/<file>
+```
+
+The website backend serves them through:
+
+```text
+/api/v1/assets/audio/catalog/<file>
+```
+
+Local static audio remains a development fallback until R2 parity is explicitly verified.
+
+### Reference storage
+
+Metadata binding:
+
+```text
+AIFRED_REFERENCE_POOL
+```
+
+R2 binding:
+
+```text
+AIFRED_REFERENCE_BUCKET
+```
+
+Bucket:
+
+```text
+aifred-reference-pool
+```
+
+### Sales/activity storage
+
+Binding:
+
+```text
+AIFRED_SALES_LOG
+```
+
+## Part 3 — Current Website Environment Example
+
+The repository example file is:
+
+```text
+apps/website/.dev.vars.example
+```
+
+It currently documents configuration names for:
+
+```text
+AIFRED_CHAT_PROVIDER
+OPENAI_API_KEY
+OPENAI_MODEL
+OLLAMA_BASE_URL
+OLLAMA_MODEL
+AIFRED_CONTACT_EMAIL
+AIFRED_PAYPAL_BUSINESS
+AIFRED_PAYPAL_AMOUNT
+AIFRED_PAYPAL_CURRENCY
+PAYPAL_ENVIRONMENT
+PAYPAL_CLIENT_ID
+PAYPAL_CLIENT_SECRET
+AIFRED_EMAIL_FROM
+AIFRED_GITHUB_REPO
+AIFRED_PLUGIN_REPO
+AIFRED_PLUGIN_RELEASE_TAG
+AIFRED_RELEASE_VERSION
+AIFRED_WEBSITE_ASSETS_BUCKET
+MAILER_SHARED_TOKEN
+```
+
+Do not place live private values into committed files.
+
+Current non-secret defaults include:
+
+```text
+OPENAI_MODEL=gpt-5.6-luna
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_MODEL=aifred:latest
+AIFRED_GITHUB_REPO=kaeganscott26/AIFRED
+AIFRED_PLUGIN_REPO=kaeganscott26/AIFRED
+AIFRED_PLUGIN_RELEASE_TAG=v0.3.6-installer-ai-alias
+AIFRED_RELEASE_VERSION=v0.3.6-installer-ai-alias
+```
+
+## Part 4 — PayPal Flow
+
+Current frontend/backend flow:
+
+1. Buyer selects AIFRED on the website.
+2. Website calls:
+
+```text
+POST /api/v1/paypal/create-order
+```
+
+3. Backend creates a PayPal order using server-side configuration.
+4. Buyer approves payment.
+5. Website calls:
+
+```text
+POST /api/v1/paypal/capture-order
+```
+
+6. Backend verifies the capture result.
+7. Backend records activity/sale metadata when configured.
+8. Backend issues tokenized download access.
+9. Buyer downloads through:
+
+```text
+GET /api/v1/sales/download
+```
+
+The browser should never receive infrastructure credentials or direct write access to private storage.
+
+## Part 5 — Upload Current Release Objects
+
+Example Windows uploads:
+
+```powershell
+npx wrangler r2 object put aifred-downloads/releases/v0.3.6-installer-ai-alias/AIFRED-VST3-Setup.exe --file dist\installer\windows\AIFRED-VST3-Setup.exe --remote
+npx wrangler r2 object put aifred-downloads/releases/v0.3.6-installer-ai-alias/AIFRED-Uninstall.exe --file dist\uninstaller\windows\AIFRED-Uninstall.exe --remote
+npx wrangler r2 object put aifred-downloads/releases/v0.3.6-installer-ai-alias/AIFRED-VST3-windows.zip --file dist\AIFRED-VST3-windows.zip --remote
+```
+
+Example macOS upload:
+
+```sh
+npx wrangler r2 object put aifred-downloads/releases/v0.3.6-installer-ai-alias/AIFRED-VST3-macOS.pkg --file dist/macos/AIFRED-VST3-macOS.pkg --remote
+```
+
+Confirm exact local output paths after a successful build before uploading.
+
+## Part 6 — Admin Visibility
+
+Current admin-facing routes include:
+
+```text
+GET /api/v1/admin/sales/list
+GET /api/v1/admin/logs/list
+GET /api/v1/admin/inquiries/list
+GET /api/v1/admin/dashboard/state
+```
+
+The Android admin app can also manage catalog, reference, and website asset uploads through authenticated admin routes.
+
+## Part 7 — Model Routing
+
+Website/admin backend defaults:
+
+```text
+OpenAI endpoint: https://api.openai.com/v1/responses
+OpenAI model: gpt-5.6-luna
+Local Ollama endpoint: http://127.0.0.1:11434
+Local Ollama model: aifred:latest
+```
+
+The Cloudflare website/backend and the local VST engine are separate systems. Do not merge their runtime responsibilities.
+
+## Part 8 — Final Verification Checklist
+
+Verify in this order:
+
+1. `apps/website/wrangler.toml` reflects the intended bindings.
+2. Cloudflare Pages project `north3rnlight3r` has the expected bindings/environment configuration.
+3. `https://www.north3rnlight3r.com/api/v1/health` returns JSON.
+4. `AIFRED_WEBSITE_ASSETS` can serve catalog objects.
+5. The website catalog works with R2-backed audio.
+6. Local static fallback is still available during the R2 verification phase.
+7. `AIFRED_DOWNLOADS` contains the intended current release objects.
+8. PayPal sandbox can create an order.
+9. PayPal sandbox can capture an approved order.
+10. Successful capture produces tokenized download access.
+11. Invalid or expired download tokens are rejected.
+12. Windows installer download works.
+13. macOS pkg download works when that object is present.
+14. Admin sale/activity visibility works when configured.
+15. Only after R2 parity is proven should local catalog audio be considered for removal from Git.
+
+## What Not To Do
+
+- Do not restore the deleted top-level `website/` tree.
+- Do not configure the backend to write to the old `kaeganscott26/aifred-site` repository.
+- Do not publish the Android admin APK as a public release artifact.
+- Do not advertise Linux or Arch release packages as current outputs.
+- Do not remove the local MP3 fallback until R2 parity is verified.
+- Do not delete the legacy `/api/*` compatibility shim until production usage is verified.
+- Do not store live private values in committed source files.

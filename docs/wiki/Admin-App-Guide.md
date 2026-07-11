@@ -1,10 +1,23 @@
 # Admin App Guide
 
-The Android admin app is private owner-only software. It is not shipped with the public AIFRED Windows installer.
+The Android admin app is private, owner-only operational software under `apps/admin-android/`. It is not part of the public AIFRED release and is not attached to public GitHub releases.
 
-## Install
+## Current App State
 
-Build the APK locally:
+- Application ID: `com.aifred.admin`
+- App version: `2.4.2`
+- Version code: `241`
+- `compileSdk = 35`
+- `targetSdk = 35`
+- Minimum SDK: 29
+- Java/Kotlin JVM target: 17
+- UI: Jetpack Compose
+- Networking: OkHttp
+- Async work: Kotlin coroutines
+
+## Build And Install
+
+Build the debug APK locally:
 
 ```powershell
 cd apps/admin-android
@@ -15,46 +28,40 @@ Install over ADB:
 
 ```powershell
 $adb=Join-Path $env:LOCALAPPDATA 'Android\Sdk\platform-tools\adb.exe'
-& $adb install -r apps\admin-android\app\build\outputs\apk\debug\app-debug.apk
+& $adb install -r app\build\outputs\apk\debug\app-debug.apk
 ```
 
-After the repository split, the private `AIFRED` repo should publish a private GitHub release artifact for owner download. Installing an APK directly from GitHub on Android still requires Android's normal "install unknown apps" permission unless the app is distributed through Google Play Internal Testing or another managed app store. There is no honest way to install a private APK from GitHub without Android treating it as a sideload.
-
-Required private admin release behavior:
-
-- CI builds `app-debug.apk` or a signed owner APK.
-- The artifact is attached only to a private `AIFRED` release.
-- The public plugin release never includes the admin APK.
-- The app clearly reports whether analytics, sales storage, deploy control, and upload control are configured.
+The app is intended for private local installation on the owner's device. The current public release workflow does not publish an admin APK.
 
 ## Login
 
-The app supports offline admin login. If the website is unavailable, valid local owner credentials still unlock the admin runtime.
+The app supports offline-aware owner login. Valid local owner credentials can unlock the app even when the website backend is unavailable.
 
-Do not store or publish the password in docs, screenshots, release notes, or issue comments.
+Do not publish credentials in documentation, screenshots, release notes, or issue comments.
 
-## Main Tabs
+## Main Areas
 
-Chat:
+### Chat
 
 - Connects to the website chat API through WebSocket or HTTP.
 - Uses `/ws/chat` and `/api/v1/chat/ask`.
-- Can select backend models returned by `/api/v1/models/list`.
-- OpenAI and Ollama routing are controlled by the website backend environment.
+- Reads model choices from `/api/v1/models/list`.
+- Current model catalog can include `aifred:latest` and `gpt-5.6-luna` depending on backend/provider configuration.
 
-Upload:
+### Upload
 
-- Upload catalog audio to the website repo.
+- Upload catalog audio and metadata.
 - Upload licensed reference tracks.
 - Upload website assets.
-- File uploads require `GITHUB_TOKEN` in Cloudflare Pages so the backend can commit to the private repo.
-- Catalog uploads now default the title from the selected file name when the field is left blank, then sync the audio file and catalog JSON together.
-- The app polls the live activity log feed and notifies on buys, sales, catalog uploads, inquiries, downloads, and other important site events.
+- Keep catalog metadata and uploaded audio aligned.
+- Surface activity from buys, sales, uploads, inquiries, downloads, and other backend events.
 
-Command:
+Catalog audio is served from the `AIFRED_WEBSITE_ASSETS` R2 binding first when configured. The repository catalog JSON remains under `apps/website/assets/data/beat_catalog.json`.
+
+### Command
 
 - Runs registered backend commands through `/api/v1/command/run`.
-- Runs local Android sandbox shell commands when logged in with local admin credentials.
+- Runs local Android sandbox shell commands when local admin access is active.
 - Shows output in the app terminal panel.
 
 ## Registered Backend Commands
@@ -63,13 +70,13 @@ Command:
 | --- | --- |
 | `health` | Check live backend health |
 | `catalog:list` | Count catalog tracks |
-| `models:list` | Show OpenAI/Ollama model routes |
-| `reference:stats` | Show reference pool persistence status |
+| `models:list` | Show configured model routes |
+| `reference:stats` | Show reference-pool persistence status |
 | `deploy:status` | Confirm production domain status |
-| `deploy:site` | Dispatch GitHub Actions deployment when configured |
-| `sales:list` | Show sale and activity storage status |
+| `deploy:site` | Dispatch deployment when configured |
+| `sales:list` | Show sale/activity storage status |
 
-## Local Android Shell Examples
+## Local Android Shell
 
 These commands run inside the Android app sandbox unless the device grants broader access:
 
@@ -81,7 +88,7 @@ getprop ro.build.version.release
 df -h
 ```
 
-The app cannot bypass Android sandboxing or grant root. For full-device shell operations, use ADB from the workstation.
+The app cannot bypass Android sandboxing or grant root. Use ADB from the workstation for broader device shell access.
 
 ## Website File Access
 
@@ -93,32 +100,25 @@ The app can call:
 - `POST /api/v1/admin/files/delete`
 - `POST /api/v1/admin/files/upload`
 
-Delete is restricted to `apps/website/` paths. The backend rejects unsafe paths containing traversal or `.git/`.
+Delete operations are restricted to approved `apps/website/` paths. Unsafe traversal and `.git/` paths are rejected by the backend.
 
-## Ollama And OpenAI
+## Model Routing
 
-The app uses the website backend model router by default:
+The normal app path uses the website backend model router:
 
-- OpenAI requires `OPENAI_API_KEY`.
-- Ollama requires `OLLAMA_BASE_URL`.
-- The app can select models returned by `/api/v1/models/list`.
+- Local model: `aifred:latest`
+- OpenAI default: `gpt-5.6-luna`
+- OpenAI endpoint: `https://api.openai.com/v1/responses`
+- Ollama endpoint: `http://127.0.0.1:11434` when run locally on the host machine
 
-The app can also be built for direct provider access:
+When accessing Ollama from a phone, use the workstation's reachable LAN address rather than `localhost`, because `localhost` on Android means the phone itself.
 
-OpenAI direct:
+## Build Configuration
 
-```powershell
-cd apps/admin-android
-.\gradlew.bat assembleDebug -PAIFRED_BASE_URL=https://api.openai.com/v1 -PAIFRED_API_TOKEN=sk-your-key
-```
+Local app settings can be supplied through Gradle project properties or `local.properties`. The repository `.gitignore` excludes the canonical Android build/cache paths and `apps/admin-android/local.properties`.
 
-Ollama direct:
+Do not commit private local configuration.
 
-```powershell
-cd apps/admin-android
-.\gradlew.bat assembleDebug -PAIFRED_BASE_URL=http://192.168.x.x:11434
-```
+## Release Hardening Note
 
-For local Ollama from a phone, the phone must be able to reach the host running Ollama. Use the workstation LAN IP, not `localhost`, because `localhost` on Android means the phone itself.
-
-Direct provider mode uses HTTP chat in the app. WebSocket streaming is reserved for the AIFRED website backend.
+The current `release` build type uses the debug signing configuration and has minification disabled. That is acceptable for the current private owner-only workflow, but a future production-distribution decision should use a dedicated signing configuration and explicit release hardening.

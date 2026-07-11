@@ -1,7 +1,32 @@
 AIFRED System Requirements
 
-Windows runtime: 64-bit Windows 10 or newer, a VST3 host such as FL Studio, and enough local disk space for the plugin plus optional Ollama setup.
+Windows
+-------
+- 64-bit Windows 10 or newer.
+- VST3 host such as FL Studio.
+- Enough local disk space for the plugin, AIFRED Engine, and optional Ollama models.
+- Ollama for the default local-AI route.
 
-Optional local AI: Ollama for the default out-of-box local setup path.
+macOS
+-----
+- Apple Silicon macOS target for the current packaged engine build.
+- VST3 host.
+- Ollama installed before using the default local-AI route.
+- The current pkg is not yet signed or notarized.
 
-Website backend: Cloudflare Pages Functions for website API routes. OpenAI is configured through environment variables when cloud mode is used.
+Local AI
+--------
+- AIFRED Engine gateway: http://127.0.0.1:8787
+- Ollama endpoint: http://127.0.0.1:11434
+- Default local model: aifred:latest
+
+OpenAI
+------
+Optional OpenAI routing uses:
+- Endpoint: https://api.openai.com/v1/responses
+- Default model: gpt-5.6-luna
+- User-supplied API key
+
+Website Backend
+---------------
+The public website/backend runs on Cloudflare Pages/Workers infrastructure and uses configured KV/R2/service bindings where available.

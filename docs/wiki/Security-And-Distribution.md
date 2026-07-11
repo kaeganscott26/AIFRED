@@ -2,64 +2,87 @@
 
 ## Repository Visibility
 
-The repository must remain private. It contains:
+The AIFRED monorepo should remain private because it contains source code, owner-only admin tooling, backend route maps, operational documentation, and deployment controls.
 
-- Website source code
-- Admin app source code
-- Backend route maps
-- Internal operational docs
-- Admin authentication flow
-- Deployment controls
-
-The website itself is public. The repository is not.
+The public website is public. The repository is not.
 
 ## Android Admin App
 
-The Android admin app is owner-only. It must not be attached to public GitHub releases and must not be distributed through public app stores.
+The Android admin app is owner-only.
 
-Allowed:
+Current allowed workflow:
 
-- Local debug install to the owner's phone
-- Private source in the private repository
-- CI compile validation without public artifact upload
+- Private source under `apps/admin-android/`.
+- Local debug build and sideload to the owner's device.
+- Private validation of the app source and Gradle project.
 
-Not allowed:
+Do not:
 
-- Public APK release asset
-- Public artifact download
-- Public screenshots containing credentials
-- Public docs containing the admin password
+- Attach the APK to public GitHub releases.
+- Publish a public artifact download.
+- Publish screenshots containing private configuration.
+- Publish owner credentials.
 
-## Secrets
+The current app `release` build type still uses debug signing and has minification disabled, so it should not be treated as a hardened public production build.
 
-Never commit:
+## Private Configuration
 
-- Cloudflare keys or tokens
-- GitHub tokens
-- OpenAI API keys
-- Admin passwords
-- Ollama LAN credentials or private tunnels
+Do not commit private runtime values such as provider keys, deployment credentials, payment secrets, owner passwords, or private tokens.
 
-Use Cloudflare Pages environment variables and GitHub repository secrets.
+Use deployment environment configuration and repository secret storage for private values.
 
-## Paid Delivery
+The repository should contain examples and variable names only, never live secret values.
 
-The free beta should not use a PayPal paywall. PayPal/R2 delivery is retained as a future paid-release path. When enabled for a paid release, completed PayPal IPN or capture events are recorded by the Cloudflare backend, then the backend issues a short-lived tokenized download link for the configured AIFRED release asset.
+## Paid Beta Delivery
 
-Required production settings:
+The current public website presents AIFRED as a **$5 one-time beta purchase** with no subscription or recurring charge.
 
-- PayPal receiver email must match the account used for AIFRED sales.
-- `DOWNLOAD_REPO`, `DOWNLOAD_TAG`, and `DOWNLOAD_ASSET` must point to the current distributable package.
-- `GITHUB_TOKEN` must be available to the Worker when private release assets are used.
-- `NOTIFY_TO_EMAIL`, `NOTIFY_FROM_EMAIL`, and the email provider token must be set if payment/download notifications are expected.
+Current payment/download flow:
 
-Do not bypass the token route with a public direct installer URL unless the release is intentionally free.
+```text
+Buyer
+  -> POST /api/v1/paypal/create-order
+  -> PayPal approval
+  -> POST /api/v1/paypal/capture-order
+  -> short-lived download token
+  -> GET /api/v1/sales/download
+  -> AIFRED_DOWNLOADS R2 object or configured fallback
+```
+
+Current release metadata examples point to:
+
+```text
+AIFRED_PLUGIN_REPO=kaeganscott26/AIFRED
+AIFRED_PLUGIN_RELEASE_TAG=v0.3.6-installer-ai-alias
+AIFRED_RELEASE_VERSION=v0.3.6-installer-ai-alias
+```
+
+Current Windows/macOS release artifacts are:
+
+- `AIFRED-VST3-Setup.exe`
+- `AIFRED-Uninstall.exe`
+- `AIFRED-VST3-windows.zip`
+- `AIFRED-VST3-macOS.pkg`
+
+Do not advertise Linux or Arch packages as current release outputs unless those targets are restored to CI and verified.
+
+## Cloudflare Storage
+
+Current storage bindings include:
+
+- `AIFRED_DOWNLOADS` — paid installer/download storage.
+- `AIFRED_WEBSITE_ASSETS` — catalog audio and website assets.
+- `AIFRED_REFERENCE_BUCKET` — reference audio storage.
+- `AIFRED_REFERENCE_POOL` — reference metadata persistence.
+- `AIFRED_SALES_LOG` — sale/activity persistence.
+
+Keep private buckets private unless a specific asset is intentionally designed for public access.
 
 ## Admin API Controls
 
-Admin endpoints require a signed admin session. File operations reject unsafe paths. Delete is restricted to `apps/website/`.
+Admin endpoints require authenticated admin access. File operations reject unsafe paths, and delete operations are restricted to approved `apps/website/` paths.
 
-High-risk routes:
+High-risk routes include:
 
 - `/api/v1/admin/files/write`
 - `/api/v1/admin/files/delete`
@@ -70,3 +93,39 @@ High-risk routes:
 
 Only the owner should have access to the Android app and admin credentials.
 
+## Local AI And OpenAI
+
+The default local path is:
+
+```text
+AIFRED VST3
+  -> http://127.0.0.1:8787
+  -> http://127.0.0.1:11434
+  -> aifred:latest
+```
+
+The OpenAI-compatible path uses:
+
+```text
+https://api.openai.com/v1/responses
+model: gpt-5.6-luna
+```
+
+when an API key is configured.
+
+Never embed a private provider key into public website JavaScript, committed plugin binaries, screenshots, docs, or repository text.
+
+## Release Boundaries
+
+Current public release targets:
+
+- Windows VST3 zip/installer/uninstaller.
+- macOS VST3 pkg.
+
+Not current public release targets:
+
+- Android admin APK.
+- Linux package.
+- Arch package.
+
+Generic UNIX packaging code and old references may remain in historical files until separately verified. Historical changelog entries should remain truthful records of past states rather than being rewritten as if those releases never existed.

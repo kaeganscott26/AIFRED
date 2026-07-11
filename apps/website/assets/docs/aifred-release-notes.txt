@@ -1,14 +1,24 @@
-AIFRED v0.3.3 Ollama Chat Release Notes
+AIFRED v0.3.6 Release Notes
 
-Current build target:
-- JUCE VST3 plugin with resizable Halo interface.
-- Halo quadrant scale ticks, reference rings, and switchable center display.
-- Ten persisted session candlesticks plus 10 one-minute history candlesticks.
-- Reference mode with five reference volume lanes.
-- Compare mode with separate Mix A and Mix B analysis routes.
-- $5 PayPal purchase path with tokenized backend download delivery.
-- Local Ollama chat using current DSP context and reference-pool metadata.
-- Optional OpenAI-compatible endpoint setup when the user supplies private credentials.
-- Website activity records now persist to the admin log feed and notify the Android app for buy clicks, order events, catalog plays, inquiries, downloads, and admin uploads.
-- Catalog audio uploads auto-sync the repo catalog JSON plus the audio file so the website and admin app stay aligned.
-- VST chat now shows real DSP values in the chat panel and uses a larger scrollable response area.
+Current build:
+- JUCE VST3 plugin version 0.3.6.
+- Real-time Halo analysis for tone, width, loudness, punch, correlation, dynamics, and reference alignment.
+- Canonical interpreted analysis snapshot shared by the UI and Ask AI context.
+- Analyze, Reference, and Compare modes.
+- Session and minute-history candlestick metering.
+- Five personal reference lanes plus reference-pool overlays.
+- Separate Mix A and Mix B comparison routes.
+- Scrollable request-driven chat with real DSP/reference context.
+- Default local AI route through AIFRED Engine -> Ollama -> aifred:latest.
+- Optional OpenAI route through https://api.openai.com/v1/responses using gpt-5.6-luna when configured.
+- Windows installer, Windows uninstaller, Windows VST3 zip, and macOS pkg release targets.
+- Public website currently presents AIFRED as a $5 one-time beta purchase with no subscription or recurring charge.
+- Tokenized download delivery can use the AIFRED_DOWNLOADS Cloudflare R2 binding.
+- Catalog audio uses AIFRED_WEBSITE_ASSETS R2 first with local development fallback.
+- Android admin app remains owner-only and is not a public release artifact.
+
+Current release metadata example:
+- Repository: kaeganscott26/AIFRED
+- Tag: v0.3.6-installer-ai-alias
+
+Linux and Arch are not current GitHub Actions release targets.

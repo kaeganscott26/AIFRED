@@ -7,130 +7,178 @@ The public site lives at:
 - https://www.north3rnlight3r.com
 - https://north3rnlight3r.com
 
-The website offers the AIFRED VST3 free beta and the North3rnLight3r beat catalog. Visitors can preview catalog audio, download beta release packages when published, submit reference candidates for free limited analysis, and run the free mix analyzer.
+The site contains the AIFRED VST3 beta purchase flow, North3rnLight3r beat catalog, free browser mix analyzer, contact form, release information, and download delivery.
 
-The public site keeps the approved AIFRED mascot as the brand logo and uses `Website asset album art (2).jpg` plus `Brand Mascot Hero.jpg` as beat catalog artwork.
+The current website presents AIFRED as a **$5 one-time beta purchase** with free lifetime updates, no subscription, and no recurring charge.
 
 ## Beat Catalog
 
-The catalog player reads metadata from:
+Catalog metadata lives at:
 
-`apps/website/assets/data/beat_catalog.json`
+```text
+apps/website/assets/data/beat_catalog.json
+```
 
-Audio streams are served through the backend route:
+Audio streams use:
 
-`/api/v1/assets/audio/catalog/<file>`
+```text
+/api/v1/assets/audio/catalog/<file>
+```
 
-The backend reads from the `AIFRED_WEBSITE_ASSETS` Cloudflare R2 binding first and falls back to local static files during development.
+The backend reads catalog audio from the `AIFRED_WEBSITE_ASSETS` Cloudflare R2 binding first and falls back to local static files during development when needed.
 
-Each catalog item should include a title, genre, BPM, price, and stream URL or asset filename. The public player uses only the approved catalog artwork assets.
+Each catalog entry can include title, genre, BPM, price, and stream URL or asset filename. The public player disables normal browser download controls, but this is a UI convenience rather than DRM.
 
-The catalog grid is collapsed by default. The audio player remains visible, but browser download controls are disabled with `controlsList="nodownload"` so the catalog can be previewed without exposing a direct download button in the player UI.
-
-While catalog audio plays, the analyzer canvas runs as a live visualizer. Uploaded-track analysis still draws a still-frame diagnostic after decoding the uploaded file.
+While catalog audio plays, the analyzer canvas runs as a live visualizer. Uploaded-track analysis draws a diagnostic view after the browser decodes the selected audio file.
 
 ## Free Mix Analyzer
 
-The analyzer section accepts browser-supported audio files. It calculates a client-side diagnostic profile and sends metadata to:
+The browser analyzer accepts browser-supported audio files, computes a local diagnostic profile, and submits metadata to:
 
-`POSh /api/v1/analysis/submit`
+```text
+POST /api/v1/analysis/submit
+```
 
 Measured metadata includes:
 
-- hone balance
+- Tone balance
 - Integrated loudness estimate
 - Peak level
 - Crest factor
 - Stereo width
 - Low-end control
 - Harshness control
-- hransient density
+- Transient density
 - Spectral centroid
 
-If the uploaded mix lands inside the professional target range, metadata can enter the reference pool. If it misses the target, metadata is disposed. Audio is not required to be persisted for the public gate.
+The backend applies the current analyzer gate. Accepted metadata can be stored when the optional reference-pool binding is configured. Audio does not need to be persisted for the public metadata gate.
 
-The current gate is intentionally broad. The backend accepts a wide review lane for released records and rejects only hard failures such as clipping or obviously broken tone-control scores.
+## AIFRED VST3
 
-## AIFRED VSh3
+AIFRED has three primary modes.
 
-The VSh has three primary modes.
-
-Analyze:
+### Analyze
 
 - One active mix route.
-- Candlestick-style metering.
+- Candlestick-style session and history metering.
 - Mix signature panel.
-- Real metrics for tone, width, punch, loudness, RMS, peak, crest, correlation, and transient density.
+- Tone, width, punch, loudness, RMS, peak, crest, correlation, transient, and related diagnostic measurements.
+- Request-driven chat using current DSP/reference context.
 
-Reference:
+### Reference
 
-- One Halo.
+- One primary Halo.
 - Genre target overlay.
-- One default reference-pool ring plus up to five per-reference rings.
-- Personal reference file picker.
-- Reference mixer panel with five volume lanes for balancing reference tracks against the live mix.
+- Default reference-pool ring.
+- Up to five personal reference rings.
+- Five independent reference file pickers.
+- Five reference volume lanes.
 
-Compare:
+### Compare
 
-- hwo independent Halo views.
-- Mix A and Mix B have separate DSP routes.
-- Comparison bars show tone, width, punch, loudness, and dynamics differences.
-- A center analog-style match VU shows how close Mix A is to Mix B.
-- In FL Studio, put AIFRED on the master or a bus, enable the Mix B sidechain input in the wrapper, then route the reference track to that sidechain from the mixer send.
+- Two independent Halo views.
+- Separate Mix A and Mix B DSP routes.
+- Tone, width, punch, loudness, and dynamics comparison.
+- Center analog-style match VU.
 
-Metering notes:
+In FL Studio, place AIFRED on the master or a bus, enable the Mix B sidechain input in the wrapper, then route the comparison track to that sidechain from the mixer.
+
+## Metering Notes
 
 - The Halo center can switch between multiband frequency lanes, waveform, and combined spectrometer view.
-- Halo quadrants include visible scale ticks and readable labels for tone, width/correlation, loudness, and punch.
-- The session candlestick meter shows one candle for the current session. The history meter shows one candle per minute for the latest 10 minutes.
-- Candlesticks label open dB, close dB, and the open-to-close variation so level changes are visible without overreacting to tiny float movement.
-- Loudness and peak read in K-weighted LUFS and dBFS.
-- Crest reads in dB.
-- Correlation reads as a -1 to +1 value after a 150 Hz high-pass so bass energy does not dominate the phase read.
-- Chat has its own dedicated module and no hardcoded fix suggestions.
-- The plugin header displays the current AIFRED version so stale FL Studio scans are easier to spot.
-- Gate and local AI settings save into project/local settings. The plugin uses the Chat Focus layout.
-- Local AI uses Ollama at `http://127.0.0.1:11434` with model `aifred:latest`. The optional AIFRED engine gateway runs at `http://127.0.0.1:8787` after installation so the plugin can send measured snapshots without putting network work on the audio thread. If the gateway or Ollama is unavailable, the plugin continues metering and reports the missing dependency.
-- The Windows installer can store an OpenAI-compatible endpoint, API key, and model name for online chat routing. The local engine routes offline chat to the local Ollama model when no external API is configured.
+- Halo quadrants show readable scales and labels for tone, width/correlation, loudness, and punch.
+- The current-session history meter shows one candle per minute for the latest 10 minutes.
+- Loudness uses K-weighted LUFS-style measurements.
+- Peak values use dBFS.
+- Crest is shown in dB.
+- Correlation is measured on a -1 to +1 scale after a 150 Hz high-pass so bass energy does not dominate the phase read.
+- Chat has a dedicated scrollable output area and no hardcoded fix suggestions.
+- The plugin header displays the AIFRED version so stale DAW scans are easier to detect.
+- Reference, gate, and AI settings are persisted where appropriate.
 
-## Install Paths
+## AI Routing
 
-Windows system-wide VSh3:
+### Default local route
 
-`C:\Program Files\Common Files\VSh3\Aifred.vst3`
+```text
+AIFRED VST3
+  -> AIFRED Engine at http://127.0.0.1:8787
+  -> Ollama at http://127.0.0.1:11434
+  -> aifred:latest
+```
 
-Windows engine:
+The local engine keeps network work off the audio thread. If the engine or Ollama is unavailable, the plugin continues metering and reports the missing dependency.
 
-`C:\Program Files\Aifred\bin\AifredEngine.exe`
+### OpenAI route
 
-Windows model:
+When OpenAI is selected and an API key is configured, the engine uses:
 
-`C:\Program Files\Aifred\models\aifred-assistant-q4.gguf`
+```text
+https://api.openai.com/v1/responses
+model: gpt-5.6-luna
+```
 
-Windows user overrides:
+The plugin normalizes an empty or local-only model choice to the OpenAI default when an OpenAI-compatible provider is selected.
 
-`%AppData%\Aifred\user_settings.json`
+## Windows Installation
 
-macOS system-wide VST3:
+Current Windows release artifacts:
 
-`/Library/Audio/Plug-Ins/VST3/Aifred.vst3`
+- `AIFRED-VST3-Setup.exe`
+- `AIFRED-Uninstall.exe`
+- `AIFRED-VST3-windows.zip`
 
-macOS engine:
+Primary install paths:
 
-`/Library/Application Support/Aifred/bin/AifredEngine`
+```text
+C:\Program Files\Common Files\VST3\Aifred.vst3
+C:\Program Files\Aifred\bin\AifredEngine.exe
+C:\Program Files\Aifred\config\config.json
+%AppData%\Aifred\user_settings.json
+```
 
-macOS startup:
+The installer configures the default Ollama route, registers engine startup, starts the engine silently, and checks local readiness.
 
-`/Library/LaunchAgents/com.aifred.engine.plist`
+## macOS Installation
 
-macOS user overrides:
+Current macOS release artifact:
 
-`~/Library/Application Support/Aifred/user_settings.json`
+```text
+AIFRED-VST3-macOS.pkg
+```
 
-macOS manual control:
+Primary install paths:
 
-`/Library/Application Support/Aifred/AIFRED Engine Control.command`
+```text
+/Library/Audio/Plug-Ins/VST3/Aifred.vst3
+/Library/Application Support/Aifred/bin/AifredEngine
+/Library/Application Support/Aifred/config/config.json
+/Library/Application Support/Aifred/setup-aifred-local-ai.sh
+/Library/Application Support/Aifred/AIFRED Engine Control.command
+/Library/LaunchAgents/com.aifred.engine.plist
+~/Library/Application Support/Aifred/user_settings.json
+```
 
-Double-click the control command to start or repair local AI, restart the engine, stop it for the current login session, or show gateway health. The engine starts automatically at login after the package install.
+The LaunchAgent starts the engine at login. Double-click `AIFRED Engine Control.command` to start or repair local AI, restart the engine, stop it for the current login session, or show gateway health.
 
+The macOS package is not yet signed or notarized; that remains a release-hardening task.
 
+## Downloads And Payment
+
+The current website flow uses PayPal order creation/capture through the Cloudflare backend. Successful purchases can receive tokenized download access backed by the `AIFRED_DOWNLOADS` R2 binding when configured.
+
+Current backend routes include:
+
+```text
+POST /api/v1/paypal/create-order
+POST /api/v1/paypal/capture-order
+GET  /api/v1/sales/download
+```
+
+Do not bypass the backend token route for paid delivery unless a release is intentionally made public/free.
+
+## Android Admin App
+
+The Android admin app is owner-only operational software. It can manage chat, catalog uploads, website/repository files, activity, sales, inquiries, references, and registered backend commands.
+
+It is not a public release artifact.

@@ -1,98 +1,79 @@
 # AIFRED PayPal + R2 Delivery Pipeline
 
-## Customer Flow
+The detailed current setup guide is:
 
-1. Customer clicks the $5 PayPal button on `north3rnlight3r.com`.
-2. PayPal sends IPN to `/api/v1/paypal/ipn`.
-3. The backend verifies the IPN with PayPal.
-4. The backend fulfills only `payment_status=Completed`, receiver email match, USD, and amount `5.00`.
-5. A sale record is committed to `ops/payments/sales.json`.
-6. Customer and owner emails are sent with tokenized download links.
-7. Download links call `/api/v1/sales/download`.
-8. The backend validates the token and serves the release asset from R2.
+- [`docs/wiki/PayPal-Cloudflare-R2-Setup-Guide.md`](../../../docs/wiki/PayPal-Cloudflare-R2-Setup-Guide.md)
 
-If an R2 object is missing, the backend falls back to the matching GitHub release asset when `GITHUB_TOKEN` is configured.
+This file is the concise operations summary.
 
-Pending PayPal payments are not fulfilled. PayPal can later send another IPN when the payment becomes `Completed`.
+## Current Customer Flow
 
-## Required Cloudflare Bindings And Secrets
+1. Customer starts the $5 one-time AIFRED beta purchase on `www.north3rnlight3r.com`.
+2. Website calls `POST /api/v1/paypal/create-order`.
+3. Customer approves the PayPal order.
+4. Website calls `POST /api/v1/paypal/capture-order`.
+5. Backend verifies the capture result.
+6. Sale/activity metadata is recorded when configured.
+7. Backend issues tokenized download access.
+8. Download uses `GET /api/v1/sales/download`.
+9. Backend reads the requested release object from `AIFRED_DOWNLOADS` R2 or the configured fallback path.
 
-R2 bucket binding:
+## Current Release Metadata
 
-- Binding name: `AIFRED_DOWNLOADS`
-- Bucket: `aifred-downloads`
-
-Reference intake storage:
-
-- KV binding name: `AIFRED_REFERENCE_POOL`
-- R2 binding name: `AIFRED_REFERENCE_BUCKET`
-- R2 bucket: `aifred-reference-pool`
-
-Sales log storage:
-
-- KV binding name: `AIFRED_SALES_LOG`
-
-Release/version variable:
-
-- `AIFRED_RELEASE_VERSION=v0.3.3-ollama-chat-actions`
-
-PayPal:
-
-- `AIFRED_PAYPAL_BUSINESS=kaeganscott@outlook.com`
-
-GitHub sale log storage:
-
-- `AIFRED_GITHUB_REPO=kaeganscott26/aifred-site`
-- `AIFRED_GITHUB_BRANCH=main`
-- `GITHUB_TOKEN=<repo contents read/write token>`
-
-Email delivery:
-
-- `AIFRED_CONTACT_EMAIL=north3rnlight3rofficial@outlook.com`
-- `AIFRED_EMAIL_FROM=sales@north3rnlight3r.com`
-- Configure either the `MAILER` service binding or Cloudflare Email Workers binding used by the backend.
-
-Fallback release downloads if R2 is not bound:
-
-- `AIFRED_PLUGIN_REPO=kaeganscott26/AIFRED`
-- `AIFRED_PLUGIN_RELEASE_TAG=v0.3.3-ollama-chat`
-- `GITHUB_TOKEN` must be able to read the release asset.
-
-## R2 Object Keys
-
-Upload these objects:
+Repository examples currently use:
 
 ```text
-releases/v0.3.3-ollama-chat-actions/AIFRED-VST3-Setup.exe
-releases/v0.3.3-ollama-chat-actions/AIFRED-VST3-windows.zip
+AIFRED_GITHUB_REPO=kaeganscott26/AIFRED
+AIFRED_PLUGIN_REPO=kaeganscott26/AIFRED
+AIFRED_PLUGIN_RELEASE_TAG=v0.3.6-installer-ai-alias
+AIFRED_RELEASE_VERSION=v0.3.6-installer-ai-alias
 ```
 
-Optional additional packages:
+## Current Release Objects
 
 ```text
-releases/v0.3.3-ollama-chat-actions/AIFRED-VST3-macos.zip
-releases/v0.3.3-ollama-chat-actions/AIFRED-VST3-linux.zip
-releases/v0.3.3-ollama-chat-actions/AIFRED-VST3-arch.zip
+releases/v0.3.6-installer-ai-alias/AIFRED-VST3-Setup.exe
+releases/v0.3.6-installer-ai-alias/AIFRED-Uninstall.exe
+releases/v0.3.6-installer-ai-alias/AIFRED-VST3-windows.zip
+releases/v0.3.6-installer-ai-alias/AIFRED-VST3-macOS.pkg
 ```
 
-## PayPal Account Settings
+Linux and Arch packages are not current GitHub Actions release outputs.
 
-Use a verified PayPal business account. In PayPal, make sure IPN is enabled and points to:
+## Cloudflare Storage
+
+| Binding | Resource / purpose |
+| --- | --- |
+| `AIFRED_DOWNLOADS` | `aifred-downloads` bucket for release delivery |
+| `AIFRED_WEBSITE_ASSETS` | `aifred-website-assets` bucket for catalog/site assets |
+| `AIFRED_REFERENCE_BUCKET` | `aifred-reference-pool` bucket for reference material |
+| `AIFRED_REFERENCE_POOL` | Reference metadata KV |
+| `AIFRED_SALES_LOG` | Sales/activity KV |
+
+## Catalog Audio
+
+Production catalog streams use:
 
 ```text
-https://north3rnlight3r.com/api/v1/paypal/ipn
+/api/v1/assets/audio/catalog/<file>
 ```
 
-PayPal may hold or mark some payments pending because of account verification, eCheck/bank funding, risk review, or seller holds. The site should not release a download until PayPal sends a completed payment event.
+The backend reads from `AIFRED_WEBSITE_ASSETS` first. Local static files remain a development fallback until R2 parity is verified.
 
 ## Admin Visibility
 
-The admin clients read:
+Current admin routes include:
 
 ```text
 GET /api/v1/admin/sales/list
-GET /api/v1/admin/reference/list
 GET /api/v1/admin/logs/list
+GET /api/v1/admin/inquiries/list
+GET /api/v1/admin/dashboard/state
 ```
 
-Sales are loaded from `AIFRED_SALES_LOG` KV with repository fallback. Accepted analyzer references are loaded from `AIFRED_REFERENCE_POOL` KV and mirrored into R2 metadata objects when the R2 binding is present.
+## Important Boundaries
+
+- Do not point GitHub-backed operations at the old `kaeganscott26/aifred-site` repository.
+- Do not advertise old macOS zip, Linux, or Arch artifacts as current release outputs.
+- Do not remove local catalog-audio fallbacks until R2 parity is verified.
+- Do not place live private values in committed files.

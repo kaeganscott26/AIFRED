@@ -1,54 +1,63 @@
 # AIFRED
 
-**AIFRED** is the product repository for the North3rnLight3r JUCE VST3, local AIFRED engine, website, beat catalog, Cloudflare backend, and owner-only Android admin app.
+**AIFRED** is the private product monorepo for the North3rnLight3r JUCE VST3, local AIFRED engine, public website and beat catalog, Cloudflare backend, release tooling, and owner-only Android admin app.
 
-The public-facing product is the AIFRED VST3 and North3rnLight3r beat catalog. The source code, admin app, credentials, prompts, backend maps, and deployment controls are private operational assets.
+## Current Repository State
 
-## Monorepo Consolidation Status
+AIFRED is consolidated into one private monorepo. The canonical authorities are:
 
-AIFRED is now consolidated into one private product monorepo.
+- `plugin-aifred/` — JUCE/C++ VST3 plugin source.
+- `tools/AifredEngine/` — cross-platform local engine source.
+- `apps/website/` — Cloudflare Pages website, browser analyzer, catalog, and backend routes.
+- `apps/admin-android/` — private Android admin app source.
+- `infra/cloudflare/` — Cloudflare support configuration and operational docs.
 
-Active authorities:
+The old duplicate `website/`, `android_admin/`, and raw `North3rnlight3r_Beatz/` trees were removed during monorepo consolidation. Historical phase reports under `docs/operations/` remain migration evidence and are not current runtime authority.
 
-- `plugin-aifred/` is the active JUCE VST3 plugin source.
-- `tools/AifredEngine/` is the active local engine source.
-- `apps/website/` is the active Cloudflare Pages website and backend source.
-- `apps/admin-android/` is the active private Android admin app source.
-- `infra/cloudflare/` contains Cloudflare support configuration.
+## Backend Separation
 
-The old duplicate `website/`, `android_admin/`, and raw `North3rnlight3r_Beatz/` trees were removed from this repo. The historical phase reports remain under `docs/operations/` as migration evidence, but they are superseded by [Final Monorepo Consolidation Report](docs/operations/FINAL_MONOREPO_CONSOLIDATION_REPORT.md).
+AIFRED intentionally has two separate backend systems.
 
-Backend split:
+### Local AI engine
 
-- The website/admin backend lives at `https://www.north3rnlight3r.com/api/v1` and `/ws/chat`.
-- The local engine serves plugin AI/chat at `http://127.0.0.1:8787`.
-- The local engine talks to Ollama at `http://127.0.0.1:11434` with model `aifred:latest`.
-- OpenAI mode uses `https://api.openai.com/v1/responses` with `gpt-5.6-luna` when an API key is configured.
+- Plugin gateway: `http://127.0.0.1:8787`
+- Default local provider: Ollama at `http://127.0.0.1:11434`
+- Default local model: `aifred:latest`
+- OpenAI route: `https://api.openai.com/v1/responses`
+- Default OpenAI model when configured: `gpt-5.6-luna`
 
-Website assets:
+### Cloudflare website/backend
+
+- Production website: `https://www.north3rnlight3r.com`
+- API base: `https://www.north3rnlight3r.com/api/v1`
+- WebSocket chat: `https://www.north3rnlight3r.com/ws/chat`
+- Website source: `apps/website/`
+- Primary app config: `apps/website/wrangler.toml`
+- Operations mirror: `infra/cloudflare/wrangler.toml`
+- Root convenience config: `wrangler.jsonc`, pointed at `apps/website`
+
+Do not merge the local engine and Cloudflare backend. They have separate runtime, deployment, availability, and security responsibilities.
+
+## Website Assets And Delivery
 
 - Catalog audio URLs route through `/api/v1/assets/audio/catalog/<file>`.
-- The Cloudflare Worker reads catalog objects from the `AIFRED_WEBSITE_ASSETS` R2 binding first.
-- Local static files under `apps/website/assets/` remain a development fallback.
+- The Worker reads catalog objects from the `AIFRED_WEBSITE_ASSETS` R2 binding first.
+- Local static files under `apps/website/assets/` remain a development fallback until R2 parity is verified.
+- Installer delivery uses the `AIFRED_DOWNLOADS` R2 binding when configured.
+- Reference material can use `AIFRED_REFERENCE_POOL` KV and `AIFRED_REFERENCE_BUCKET` R2.
 
-## Production
-
-- Website: https://www.north3rnlight3r.com
-- Apex domain: https://north3rnlight3r.com
-- Latest release: https://github.com/kaeganscott26/AIFRED/releases/latest
+The public website currently presents AIFRED as a **$5 one-time beta purchase** with no subscription or recurring charge.
 
 ## Products
 
-| Product | Purpose | Distribution |
+| Product | Purpose | Current distribution |
 | --- | --- | --- |
-| AIFRED VST3 | Mix analysis, reference alignment, compare metering, and chat-guided fix output | Windows installer plus CI-built Windows zip and macOS pkg packages |
-| AIFRED Engine | Local gateway at `127.0.0.1:8787` between the plugin and model providers | Bundled with packages; local AI provider remains Ollama at `http://127.0.0.1:11434` using `aifred:latest` |
-| North3rnLight3r Website | Brand storefront, beat catalog playback, VST sales path, free mix analyzer | Cloudflare Pages custom domain |
-| Android Admin App | Owner-only control panel for chat, catalog uploads, website file control, shell access, and admin operations | Private install only, never public release |
+| AIFRED VST3 | Mix analysis, reference alignment, comparison metering, and chat-guided feedback | Windows installer/zip and macOS pkg |
+| AIFRED Engine | Local gateway between the plugin and model providers | Bundled with Windows and macOS packages |
+| North3rnLight3r Website | Storefront, beat catalog, browser analyzer, contact flow, and backend API | Cloudflare Pages custom domain |
+| Android Admin App | Owner-only control panel for chat, uploads, files, commands, catalog, and activity | Private local build/install only |
 
 ## What AIFRED Measures
-
-AIFRED converts live audio behavior into a compact release-readiness view:
 
 - Tone balance
 - Stereo width and correlation
@@ -57,54 +66,44 @@ AIFRED converts live audio behavior into a compact release-readiness view:
 - Dynamics and crest factor
 - Reference target alignment
 
-The VST separates **Analyze**, **Reference**, and **Compare** into distinct surfaces. Analyze focuses on the current mix signature and candlestick metering. Reference uses one Halo with a target overlay. Compare uses two independent Halo routes for Mix A and Mix B.
+The VST separates **Analyze**, **Reference**, and **Compare** into distinct surfaces. Analyze focuses on the current mix signature and candlestick metering. Reference uses one Halo with target/reference overlays. Compare uses separate Mix A and Mix B analysis routes.
 
-Current v0.3.6 JUCE metering surface:
-
-- One-stick session candlestick meter plus 10-minute history meter
-- Switchable Halo center display for multiband lanes, waveform, or combined spectrometer view
-- Correlation meter filtered above 150 Hz so bass energy does not distort the phase read
-- Halo quadrant labels, scale ticks, and readable frequency/loudness/correlation labels
-- Center Halo spectrometer matching the website visualizer direction
-- Compare-mode analog-style match VU between the two Halos
-- Dedicated scrollable chat module without predetermined fix suggestions
-- Chat Focus layout with genre target, reference gate sensitivity, preconfigured local Ollama, and optional BYO OpenAI-compatible endpoint setup
-- Reference mode with pool ring, five reference rings, five independent reference file pickers, and five reference volume lanes
-- K-weighted loudness readout with momentary, short-term, integrated, LRA, and estimated 4x true peak fields
-- Local AIFRED engine health detection with request-driven Ollama chat
-- Version text in the plugin header so FL Studio cache/install state is visible
-- Genre, gate, and BYO API fields save into the host project state
+Current v0.3.6 plugin surface includes session and minute-history candlesticks, switchable Halo center views, 150 Hz high-passed correlation, reference rings and lanes, Compare mode, scrollable chat, K-weighted loudness fields, local-engine health detection, version display, and persisted AI/reference settings.
 
 ## Repository Map
 
 | Path | Role |
 | --- | --- |
 | `plugin-aifred/` | JUCE/C++ VST3 source |
-| `apps/website/` | Cloudflare Pages site, static catalog, browser analyzer, backend Worker routes |
+| `apps/website/` | Cloudflare Pages site, browser analyzer, catalog, and backend routes |
 | `apps/admin-android/` | Private Android admin app |
 | `tools/AifredEngine/` | Cross-platform local engine source |
 | `tools/AifredWindowsInstaller/` | Windows installer source |
 | `tools/AifredWindowsUninstaller/` | Windows uninstaller source |
-| `tools/` | Packaging, installer, and verification utilities |
-| `.github/workflows/build.yml` | Windows, macOS, Linux, Arch package builds, website checks, release publishing, and Android validation |
-| `docs/wiki/` | Operational wiki, guides, maps, and troubleshooting |
+| `tools/macos/` | macOS packaging and startup tooling |
+| `tools/windows/` | Windows local-AI repair/setup tooling |
+| `tools/release/` | Inventory, validation, dry-run, parity, and release checks |
+| `infra/cloudflare/` | Cloudflare support config and operational docs |
+| `.github/workflows/build.yml` | Windows/macOS builds, website validation, tagged releases, and optional Cloudflare deploy |
+| `docs/wiki/` | Current operational guides and maps |
+| `docs/operations/` | Historical consolidation and preview evidence unless explicitly marked current |
 
-## Release Targets
+## Current Release Targets
 
-The release workflow builds and packages:
+The active release workflow builds and packages:
 
-- `AIFRED-VST3-Setup.exe` for Windows
-- `AIFRED-Uninstall.exe` for Windows
-- `AIFRED-VST3-windows.zip`
-- `AIFRED-VST3-macOS.pkg`
-- `AIFRED-VST3-linux.zip`
-- `AIFRED-VST3-arch.zip`
+- `AIFRED-VST3-Setup.exe` for Windows.
+- `AIFRED-Uninstall.exe` for Windows.
+- `AIFRED-VST3-windows.zip`.
+- `AIFRED-VST3-macOS.pkg`.
 
-The Android admin app is validated by CI but is **not uploaded as a public artifact** and is **not attached to GitHub Releases**.
+Linux and Arch packaging references may still exist in historical records or generic CPack configuration, but they are **not current GitHub Actions release targets** and were intentionally left untouched pending explicit verification.
+
+The Android admin app is private and is not uploaded as a public artifact or attached to public GitHub releases.
 
 ## Build Overview
 
-Windows local build:
+### Windows
 
 ```powershell
 cmake -S . -B build/aifred -DCMAKE_BUILD_TYPE=Release
@@ -113,9 +112,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-aifred.ps1 -Bu
 dotnet publish tools\AifredWindowsInstaller\AifredWindowsInstaller.csproj -c Release -o dist\installer\windows
 ```
 
-Run `dist\installer\windows\AIFRED-VST3-Setup.exe` to install. The installer requests administrator elevation, installs `Aifred.vst3` to `C:\Program Files\Common Files\VST3`, installs `AifredEngine.exe` to `C:\Program Files\Aifred\bin`, writes the default local Ollama config for `aifred:latest`, registers the engine gateway at user login, starts it silently, verifies Ollama at `http://127.0.0.1:11434`, then checks the gateway health at `http://127.0.0.1:8787/health`. Opening the VST also attempts to relaunch the installed local engine if the login startup entry did not. OpenAI-compatible endpoint/API key settings remain optional and are only used when supplied through installer args/environment or saved from the plugin UI.
+The installer installs the VST3 and local engine, writes the default local Ollama configuration, registers engine startup, starts the engine silently, verifies Ollama, and checks `http://127.0.0.1:8787/health`.
 
-macOS local build:
+### macOS
 
 ```sh
 cmake -S . -B build-mac -DCMAKE_BUILD_TYPE=Release
@@ -123,56 +122,57 @@ cmake --build build-mac --config Release --parallel
 tools/macos/package-aifred-macos.sh
 ```
 
-Run `dist/macos/AIFRED-VST3-macOS.pkg` to install. The pkg installs `Aifred.vst3` to `/Library/Audio/Plug-Ins/VST3`, installs `AifredEngine` to `/Library/Application Support/Aifred/bin`, writes default local Ollama config for `aifred:latest`, registers `/Library/LaunchAgents/com.aifred.engine.plist`, and starts the gateway at login. If Ollama is installed, the postinstall/setup scripts create the `aifred:latest` alias from `llama3.2:3b`. The installed `/Library/Application Support/Aifred/AIFRED Engine Control.command` can start, restart, stop, or inspect the engine without reopening the DAW; the repo copy lives at `plugin-aifred/AIFRED Engine Control.command`.
+The pkg installs the VST3 and engine, writes default local Ollama configuration, registers the LaunchAgent, and includes `AIFRED Engine Control.command` for manual start/restart/stop/health operations.
 
-Android local build:
+### Android admin app
 
 ```powershell
-$env:JAVA_HOME='C:\Program Files\Microsoft\jdk-17.0.18.8-hotspot'
-$env:ANDROID_HOME=Join-Path $env:LOCALAPPDATA 'Android\Sdk'
-$env:ANDROID_SDK_ROOT=$env:ANDROID_HOME
-$env:Path="$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:ANDROID_HOME\cmdline-tools\latest\bin;$env:Path"
 cd apps/admin-android
 .\gradlew.bat assembleDebug
 ```
 
-Final monorepo validation:
-
-```powershell
-.\tools\release\aifred_monorepo_validate.sh
-```
+The admin APK is private and should stay local to the owner.
 
 ## Cloudflare Deployment
 
-Cloudflare Pages serves `apps/website/` with custom domains:
+Cloudflare Pages serves `apps/website/` on:
 
 - `www.north3rnlight3r.com`
 - `north3rnlight3r.com`
 
-The Pages project can be deployed locally with Wrangler:
+Local deploy:
 
 ```powershell
 npx wrangler pages deploy apps/website --project-name=north3rnlight3r --branch=main
 ```
 
-GitHub Actions can deploy only when repository secrets contain valid Cloudflare deploy credentials. If credentials are rejected, the build still passes and emits a warning because package builds must not be blocked by Cloudflare auth rotation.
+GitHub Actions deploys from `main` when the required Cloudflare repository configuration is available and accepted. Package and validation jobs are not intentionally blocked by Cloudflare credential rotation.
 
-## Private Operations
+## Validation
 
-Do not make this repository public while it contains:
+```sh
+bash tools/release/aifred_monorepo_validate.sh
+```
 
-- Android admin app source
-- Admin login logic
-- Backend route maps
-- Internal prompts or conversation exports
-- Deployment controls
-- Website source and catalog management code
+Optional Android Gradle task discovery:
 
-The production website is public. This repository is not.
+```sh
+bash tools/release/aifred_monorepo_validate.sh --gradle
+```
+
+## Verification-First Cleanup Rule
+
+These items were intentionally preserved because removal requires explicit verification first:
+
+- Legacy `/api/*` compatibility shim.
+- Local engine `/analyze` route.
+- Local engine `/v1/restart` route.
+- Generic UNIX CPack configuration.
+- `packages/plugin-juce/` and `packages/local-engine/` placeholder directories.
+- Local MP3 website fallback files until R2 parity is verified.
+- Separate sibling GitHub repositories pending individual archive/delete review.
 
 ## Documentation
-
-Start here:
 
 - [Wiki Home](docs/wiki/Home.md)
 - [User Guide](docs/wiki/User-Guide.md)
@@ -180,5 +180,6 @@ Start here:
 - [Developer Guide](docs/wiki/Developer-Guide.md)
 - [Backend Map](docs/wiki/Backend-Map.md)
 - [Function Map](docs/wiki/Function-Map.md)
+- [PayPal / Cloudflare R2 Setup Guide](docs/wiki/PayPal-Cloudflare-R2-Setup-Guide.md)
 - [Troubleshooting](docs/wiki/Troubleshooting.md)
 - [Security And Distribution](docs/wiki/Security-And-Distribution.md)

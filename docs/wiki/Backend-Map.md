@@ -1,8 +1,30 @@
 # Backend Map
 
-The backend is a Cloudflare Pages Worker mounted from `apps/website/_worker.js`.
+The canonical website/backend source lives under `apps/website/`.
+
+## Deployment Authority
+
+- GitHub repository: `kaeganscott26/AIFRED`
+- Production branch: `main`
+- Website source: `apps/website/`
+- Cloudflare Pages project: `north3rnlight3r`
+- Production domains:
+  - `https://www.north3rnlight3r.com`
+  - `https://north3rnlight3r.com`
+
+Cloudflare configuration roles:
+
+| File | Role |
+| --- | --- |
+| `apps/website/wrangler.toml` | Primary website Pages config and resource bindings |
+| `infra/cloudflare/wrangler.toml` | Operations/support mirror |
+| `wrangler.jsonc` | Root convenience config pointed at `apps/website` |
+
+The main GitHub Actions workflow can deploy `apps/website/` to Cloudflare Pages from `main` when the repository's Cloudflare configuration is available and accepted.
 
 ## Worker Entrypoints
+
+`apps/website/_worker.js` routes:
 
 | Route | Handler |
 | --- | --- |
@@ -10,6 +32,8 @@ The backend is a Cloudflare Pages Worker mounted from `apps/website/_worker.js`.
 | `/api/*` | `apps/website/functions/api/[[path]].js` |
 | `/ws/chat` | `apps/website/functions/ws/chat.js` |
 | static assets | `env.ASSETS.fetch(request)` |
+
+The `/api/*` handler is a small legacy compatibility shim. It is intentionally preserved until production usage is explicitly verified.
 
 ## Public API
 
@@ -19,13 +43,17 @@ The backend is a Cloudflare Pages Worker mounted from `apps/website/_worker.js`.
 | `GET` | `/api/v1/catalog/list` | Public beat catalog |
 | `GET` | `/api/v1/soundpacks/list` | Soundpack catalog route |
 | `GET` | `/api/v1/content/get` | Website content payload |
-| `POST` | `/api/v1/analysis/submit` | Free analyzer metadata gate |
+| `POST` | `/api/v1/analysis/submit` | Browser analyzer metadata gate |
 | `POST` | `/api/v1/analyzer/submit` | Alias for analyzer gate |
-| `POST` | `/api/v1/activity/record` | Public site activity logging |
+| `POST` | `/api/v1/activity/record` | Public activity logging |
 | `GET` | `/api/v1/chat/settings` | Chat transport/settings |
 | `GET` | `/api/v1/models/list` | Configured model catalog |
 | `POST` | `/api/v1/chat/ask` | HTTP chat request |
 | `POST` | `/api/v1/inquiries/submit` | Contact form capture |
+| `POST` | `/api/v1/paypal/create-order` | Create PayPal order |
+| `POST` | `/api/v1/paypal/capture-order` | Capture PayPal order |
+| `GET` | `/api/v1/sales/download` | Tokenized purchase download |
+| `GET` | `/api/v1/assets/audio/catalog/<file>` | Catalog audio stream |
 | `GET` | `/ws/chat` | WebSocket chat upgrade |
 
 ## Admin API
@@ -37,39 +65,65 @@ The backend is a Cloudflare Pages Worker mounted from `apps/website/_worker.js`.
 | `GET` | `/api/v1/registry/actions` | Command registry |
 | `GET` | `/api/v1/admin/dashboard/state` | Dashboard summary |
 | `GET` | `/api/v1/admin/catalog/list` | Catalog administration |
-| `POST` | `/api/v1/admin/catalog/upload` | Upload catalog audio and append metadata |
+| `POST` | `/api/v1/admin/catalog/upload` | Upload catalog audio and update metadata |
 | `POST` | `/api/v1/admin/catalog/remove` | Reserved catalog removal route |
 | `POST` | `/api/v1/admin/reference/upload` | Upload licensed reference audio |
-| `POST` | `/api/v1/admin/files/read` | Read repo/deployed file |
-| `POST` | `/api/v1/admin/files/write` | Commit text file update |
-| `GET` | `/api/v1/admin/files/list` | List GitHub-backed repo path |
-| `POST` | `/api/v1/admin/files/delete` | Delete website path |
-| `POST` | `/api/v1/admin/files/upload` | Upload binary website asset |
+| `POST` | `/api/v1/admin/files/read` | Read approved repo/deployed file |
+| `POST` | `/api/v1/admin/files/write` | Commit approved text-file update |
+| `GET` | `/api/v1/admin/files/list` | List approved repository path |
+| `POST` | `/api/v1/admin/files/delete` | Delete approved website path |
+| `POST` | `/api/v1/admin/files/upload` | Upload website asset |
 | `GET` | `/api/v1/admin/inquiries/list` | Inquiry list |
-| `GET` | `/api/v1/admin/logs/list` | Log list |
+| `GET` | `/api/v1/admin/logs/list` | Activity/log list |
 | `GET` | `/api/v1/admin/sales/list` | Sales list |
-| `POST` | `/api/v1/admin/sales/record` | Record PayPal sale metadata |
+| `POST` | `/api/v1/admin/sales/record` | Record sale metadata |
 | `POST` | `/api/v1/admin/chat/settings/save` | Save chat settings payload |
-
-The admin dashboard now reads the same activity feed used for notifications, so buy clicks, order creation, captures, inquiries, downloads, and admin uploads all land in one place. The site keeps that feed in Cloudflare KV when the sales log binding exists and mirrors it to the repo when GitHub is configured.
 
 ## Analyzer Gate
 
-The browser computes upload metrics locally, then submits metadata to `/api/v1/analysis/submit`.
+The browser computes upload metrics locally and submits metadata to `/api/v1/analysis/submit`.
 
-The backend gate now treats -14 to -9 LUFS as the pro center lane and accepts a wider review lane so commercial references are not rejected over tiny audible differences. Peak is still protected: material above 0.05 dBFS is treated as clipping and is rejected.
+The current `proGate` logic in `apps/website/functions/api/v1/[[path]].js` uses weighted loudness, peak, tone, crest, width, low-end-control, and harshness-control checks.
 
-The score combines loudness, peak, tone balance, crest factor, stereo width, low-end control, and harshness control. A mix can pass through either a broad weighted score or the essential pro lane:
+Current hard/essential behavior includes:
 
-- Integrated loudness between -15.5 and -7.0 LUFS.
-- Peak at or below 0.0 dBFS.
-- No severe tone, low-end, or harshness failure.
+- Invalid loudness/peak values can cause rejection.
+- Peak above `0.05 dBFS` is treated as clipping.
+- The broad `essentialPass` loudness lane is `-24.0` through `-3.0 LUFS`.
+- `essentialPass` also requires peak at or below `0.0 dBFS` and no severe tone/low-end/harshness failure.
+- Material above `-7.0 LUFS` is classified through the technically-hot branch rather than being automatically rejected.
+- Final classifications include Strong Reference, Usable Reference, Style-Specific Reference, Technically Hot Reference, Poor Reference, and Reject.
 
-Accepted metadata is persisted only when the optional `AIFRED_REFERENCE_POOL` KV binding exists. Otherwise the API reports `accepted-no-binding` so the site remains usable while Cloudflare bindings are being configured.
+Accepted metadata is persisted only when the optional `AIFRED_REFERENCE_POOL` KV binding exists. Otherwise the API can report `accepted-no-binding` so the site remains usable while persistence is being configured.
 
-## Required Secrets And Bindings
+## Model Routing
 
-Cloudflare Pages:
+Website/admin backend model settings:
+
+- Local model: `aifred:latest`
+- OpenAI default: `gpt-5.6-luna`
+- OpenAI API route: `https://api.openai.com/v1/responses`
+
+The website backend and the local VST engine are separate systems. The VST normally talks to the local engine at `127.0.0.1:8787`; the Cloudflare backend serves the public site and admin app.
+
+## Storage And Bindings
+
+Current Cloudflare config includes:
+
+| Binding | Purpose |
+| --- | --- |
+| `AIFRED_WEBSITE_ASSETS` | Catalog audio and website asset storage |
+| `AIFRED_DOWNLOADS` | Installer/download storage |
+| `AIFRED_REFERENCE_BUCKET` | Accepted reference material |
+| `AIFRED_REFERENCE_POOL` | Reference metadata persistence |
+| `AIFRED_SALES_LOG` | Sales/activity persistence |
+| `MAILER` | Email service binding |
+
+Catalog audio uses R2 first and local files as a development fallback.
+
+## Runtime Configuration Names
+
+Current repository examples and backend code reference configuration names including:
 
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL`
@@ -78,17 +132,12 @@ Cloudflare Pages:
 - `AIFRED_ADMIN_USERNAME`
 - `AIFRED_ADMIN_PASSWORD_SHA256`
 - `AIFRED_ADMIN_SESSION_SECRET`
-- `GITHUB_TOKEN`
 - `AIFRED_GITHUB_REPO`
 - `AIFRED_GITHUB_BRANCH`
-- `AIFRED_REFERENCE_POOL` KV binding, optional
-- `AIFRED_WEBSITE_ASSETS` R2 binding for catalog audio and website asset streaming
-- `AIFRED_DOWNLOADS` R2 binding for installer downloads
-- `AIFRED_REFERENCE_BUCKET` R2 binding for accepted reference material
+- `AIFRED_PLUGIN_REPO`
+- `AIFRED_PLUGIN_RELEASE_TAG`
+- `AIFRED_RELEASE_VERSION`
+- PayPal runtime configuration used by the website backend
+- GitHub/Cloudflare deployment configuration used by server-side code or CI
 
-GitHub Actions:
-
-- `CLOUDFLARE_ACCOUNT_ID`
-- `CLOUDFLARE_API_TOKEN`
-
-If Cloudflare credentials reject in CI, the workflow emits a warning and build validation continues.
+Private values belong in deployment configuration, not committed source files.

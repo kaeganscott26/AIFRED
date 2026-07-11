@@ -7,7 +7,7 @@
     "head_sampling_rate": 1
   },
   "assets": {
-    "directory": "website"
+    "directory": "apps/website"
   },
   "compatibility_flags": [
     "nodejs_compat"

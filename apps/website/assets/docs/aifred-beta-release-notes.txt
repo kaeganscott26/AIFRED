@@ -1,26 +1,35 @@
 AIFRED Official Beta Release Notes
 =================================
 
-Release: v0.3.3-ollama-chat
-Date: April 2026
+Current plugin version: 0.3.6
+Current release tag example: v0.3.6-installer-ai-alias
 
-Welcome to the AIFRED VST3 v0.3.3 Ollama chat release.
+AIFRED is a real-time mix diagnostic VST3 built around Halo analysis, reference alignment, comparison metering, and request-driven AI guidance grounded in current DSP measurements.
 
-Key Features in this Release:
-- Real-time Halo-based analysis (Tone, Width, Loudness, Punch)
-- Reference alignment and A/B comparison
-- Visual feedback optimized for fast mix decisions
-- Stable Windows VST3 build
+Key features:
+- Tone, Width, Loudness, Punch, Dynamics, correlation, crest, and transient analysis.
+- Analyze, Reference, and Compare modes.
+- Canonical interpreted analysis snapshot shared by meters and chat context.
+- Session and minute-history candlestick metering.
+- Five personal reference lanes plus reference-pool overlays.
+- Mix A / Mix B comparison workflow.
+- Scrollable chat using current mix and reference context.
+- Default local AI through AIFRED Engine and Ollama model aifred:latest.
+- Optional OpenAI route using gpt-5.6-luna when configured.
 
-Purchase Details:
-- $5 one-time beta purchase
-- Free updates for life included
-- No subscription or recurring charges
+Current beta purchase:
+- $5 one-time purchase.
+- Free lifetime updates.
+- No subscription.
+- No recurring charge.
 
-Installation:
-1. Download the AIFRED VST3 installer from your purchase confirmation link.
-2. Run the installer and follow the on-screen instructions.
-3. Load AIFRED in your DAW on your master bus or individual tracks.
+Current release targets:
+- Windows installer.
+- Windows uninstaller.
+- Windows VST3 zip.
+- macOS VST3 pkg.
+
+Linux and Arch packages are not current GitHub Actions release targets.
 
 Support:
-For issues or feedback, please contact North3rnLight3r through the website contact form or email north3rnlight3rofficial@outlook.com.
+For issues or feedback, use the North3rnLight3r website contact form or email north3rnlight3rofficial@outlook.com.

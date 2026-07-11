@@ -1,53 +1,74 @@
 # Developer Guide
 
+This guide covers the current consolidated AIFRED monorepo.
+
+## Canonical Paths
+
+- Plugin: `plugin-aifred/`
+- Local engine: `tools/AifredEngine/`
+- Website/backend: `apps/website/`
+- Android admin app: `apps/admin-android/`
+- Cloudflare support config/docs: `infra/cloudflare/`
+
+Do not restore the old top-level `website/` or `android_admin/` trees.
+
 ## Requirements
 
-Windows:
+### Windows
 
-- Visual Studio with Desetop development with C++
-- CMaee
-- Ninja or Visual Studio generator
+- Visual Studio with **Desktop development with C++**
+- CMake 3.24+
+- Ninja or a supported Visual Studio generator
 - .NET SDK 10
-- Java 17
-- Android SDK command-line tools and platform tools for local phone install testing
+- Java 17 for the Android admin app
+- Android SDK command-line tools and platform tools for phone install testing
 - Node.js 22+
-- Wrangler 4+ through `npx wrangler`
+- Wrangler through `npx wrangler`
 
-macOS:
+### macOS
 
 - Xcode command-line tools
-- CMake
+- CMake 3.24+
 - .NET SDK 10
-- Ollama
+- Ollama for the default local-AI route
 - `pkgbuild`
 
-## Local VST Build
+## Plugin Build
+
+The plugin is AIFRED `0.3.6`, uses C++20, and currently pins JUCE `8.0.14`.
+
+### Windows
 
 ```powershell
-cmaee -S . -B build/aifred -DCMAKE_BUILD_TYPE=Release
-cmaee --build build/aifred --config Release --parallel
+cmake -S . -B build/aifred -DCMAKE_BUILD_TYPE=Release
+cmake --build build/aifred --config Release --parallel
 ```
 
-The plugin version is taeen from the root CMaee `project(AIFRED VERSION ...)` value and passed into the UI as `AIFRED_VERSION_STRING`.
+### macOS
 
-The analyzer uses:
+```sh
+cmake -S . -B build-mac -DCMAKE_BUILD_TYPE=Release
+cmake --build build-mac --config Release --parallel
+```
+
+The plugin version comes from the root `project(AIFRED VERSION ...)` value and is passed into the UI as `AIFRED_VERSION_STRING`.
+
+Current analysis architecture includes:
 
 - K-weighted loudness path for LUFS-style display and loudness-domain scoring.
 - Separate 150 Hz high-passed correlation path so low-frequency phase does not dominate the stereo meter.
-- Raw peae still measured directly in dBFS.
+- Direct dBFS peak measurement.
+- Canonical interpreted `HaloState` snapshot consumed by UI and chat context.
+- Background-safe engine networking outside the audio thread.
 
-If MSVC cannot find standard headers liee `string` or `algorithm`, run from the Visual Studio Developer Shell:
+## Windows Packaging
 
-```powershell
-& 'C:\Program Files\Microsoft Visual Studio\18\Community\Common7\Tools\Launch-VsDevShell.ps1' -Arch amd64 -HostArch amd64
-cmaee --build build\aifred --config Release --parallel
-```
-
-## Windows Installer
+Build the plugin first, then package:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\paceage-aifred.ps1 -BuildRoot build\aifred -OutputDir dist -Platform windows
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\package-aifred.ps1 -BuildRoot build\aifred -OutputDir dist -Platform windows
 dotnet publish tools\AifredWindowsInstaller\AifredWindowsInstaller.csproj -c Release -o dist\installer\windows
+dotnet publish tools\AifredWindowsUninstaller\AifredWindowsUninstaller.csproj -c Release -o dist\uninstaller\windows
 ```
 
 Install:
@@ -56,7 +77,7 @@ Install:
 .\dist\installer\windows\AIFRED-VST3-Setup.exe
 ```
 
-The installer requests administrator elevation and installs:
+The installer places the runtime under standard system locations, including:
 
 - `C:\Program Files\Common Files\VST3\Aifred.vst3`
 - `C:\Program Files\Aifred\bin\AifredEngine.exe`
@@ -64,9 +85,25 @@ The installer requests administrator elevation and installs:
 - `C:\Program Files\Aifred\models\`
 - `C:\Program Files\Aifred\logs\`
 
-The installer registers the AIFRED gateway under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, starts it silently, verifies Ollama at `http://127.0.0.1:11434` with `aifred:latest`, and validates gateway health at `GET http://127.0.0.1:8787/health`.
+The default local AI route is:
 
-## macOS Installer
+```text
+AIFRED VST3
+  -> http://127.0.0.1:8787
+  -> http://127.0.0.1:11434
+  -> aifred:latest
+```
+
+The optional OpenAI route uses:
+
+```text
+https://api.openai.com/v1/responses
+model: gpt-5.6-luna
+```
+
+when an API key is configured.
+
+## macOS Packaging
 
 ```sh
 cmake -S . -B build-mac -DCMAKE_BUILD_TYPE=Release
@@ -84,11 +121,11 @@ The package installs:
 - `/Library/Application Support/Aifred/AIFRED Engine Control.command`
 - `/Library/LaunchAgents/com.aifred.engine.plist`
 
-The LaunchAgent starts the engine at login. The control command can start, restart, stop, or inspect the engine manually. The local route remains `Plugin -> AifredEngine at 127.0.0.1:8787 -> Ollama at 127.0.0.1:11434 -> aifred:latest`.
+The LaunchAgent starts the engine at login. The control command can start, restart, stop, repair, or inspect the local runtime.
 
 ## AIFRED Engine
 
-Local development:
+### Windows publish
 
 ```powershell
 dotnet publish tools\AifredEngine\AifredEngine.csproj -c Release -o dist\engine\windows
@@ -96,20 +133,83 @@ Start-Process dist\engine\windows\AifredEngine.exe -WindowStyle Hidden
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8787/health
 ```
 
-The engine must never be called from the audio thread. The plugin pings health from UI/background-safe code and keeps measured analysis active when the engine is unavailable.
+### macOS publish
+
+```sh
+dotnet publish tools/AifredEngine/AifredEngine.Mac.csproj -c Release -o dist/engine/macos/osx-arm64
+```
+
+Engine routes:
+
+- `GET /health`
+- `POST /analyze`
+- `POST /chat`
+- `GET /v1/settings`
+- `POST /v1/settings`
+- `POST /v1/restart`
+
+The plugin currently uses `/health`, `/chat`, and `/v1/settings`. `/analyze` and `/v1/restart` remain in place pending explicit verification before any removal.
 
 ## Android Admin Build
 
+Current app configuration:
+
+- App version: `2.4.2`
+- `compileSdk = 35`
+- `targetSdk = 35`
+- JVM target: 17
+
+Build:
+
 ```powershell
-$env:JAVA_HOME='C:\Program Files\Microsoft\jde-17.0.18.8-hotspot'
-$env:ANDROID_HOME=Join-Path $env:LOCALAPPDATA 'Android\Sde'
+$env:JAVA_HOME='C:\Program Files\Microsoft\jdk-17.0.18.8-hotspot'
+$env:ANDROID_HOME=Join-Path $env:LOCALAPPDATA 'Android\Sdk'
 $env:ANDROID_SDK_ROOT=$env:ANDROID_HOME
 $env:Path="$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:ANDROID_HOME\cmdline-tools\latest\bin;$env:Path"
 cd apps/admin-android
 .\gradlew.bat assembleDebug
 ```
 
-The APK is private and should stay local.
+Install locally:
+
+```powershell
+$adb=Join-Path $env:LOCALAPPDATA 'Android\Sdk\platform-tools\adb.exe'
+& $adb install -r app\build\outputs\apk\debug\app-debug.apk
+```
+
+The Android admin app is owner-only and is not a public release artifact.
+
+Major Gradle/AGP/Kotlin version changes should be handled as a separate tested migration, not mixed into routine cleanup.
+
+## Website Development
+
+Static source and backend routes live under `apps/website/`.
+
+Syntax checks:
+
+```sh
+node --check apps/website/app.js
+node --check apps/website/_worker.js
+node --check 'apps/website/functions/api/v1/[[path]].js'
+node --check 'apps/website/functions/api/[[path]].js'
+node --check apps/website/functions/ws/chat.js
+```
+
+The legacy `apps/website/functions/api/[[path]].js` compatibility shim is intentionally preserved until production usage is verified.
+
+## Cloudflare Config Roles
+
+- `apps/website/wrangler.toml` — primary app-level Pages config and bindings.
+- `infra/cloudflare/wrangler.toml` — operations/support mirror.
+- `wrangler.jsonc` — root convenience config pointed at `apps/website`.
+
+Current configured storage resources include:
+
+- `AIFRED_WEBSITE_ASSETS`
+- `AIFRED_DOWNLOADS`
+- `AIFRED_REFERENCE_BUCKET`
+- `AIFRED_REFERENCE_POOL`
+- `AIFRED_SALES_LOG`
 
 ## Website Deploy
 
@@ -117,21 +217,39 @@ The APK is private and should stay local.
 npx wrangler pages deploy apps/website --project-name=north3rnlight3r --branch=main
 ```
 
-Production must resolve through the custom domains:
+Production domains:
 
 - `www.north3rnlight3r.com`
 - `north3rnlight3r.com`
 
-The `.pages.dev` URL is only a Cloudflare preview/deployment endpoint.
+GitHub Actions also attempts deployment from `main` when the repository's Cloudflare configuration is available and accepted.
 
 ## GitHub Actions
 
-The woreflow validates:
+The main workflow currently validates and builds:
 
-- Windows VST zip/installer and macOS VST pkg package builds
-- Windows AIFRED engine publish and `.exe` installer paceage
-- Android admin compile
-- Website JavaScript syntax
-- Hardcoded path guard
+- Windows VST3 zip and installer.
+- Windows uninstaller.
+- macOS VST3 pkg.
+- Website JavaScript syntax.
+- Hardcoded-path and product-name guard.
+- Analysis snapshot regression checks.
+- Final monorepo validation.
 
-Release tags publish only VST paceages. The Android admin APK is not released.
+Release tags publish only the active Windows/macOS VST release artifacts. The Android admin APK is not published as a public release artifact.
+
+Linux and Arch are not current GitHub Actions release targets. Generic UNIX CPack configuration remains pending separate verification.
+
+## Monorepo Validation
+
+```sh
+bash tools/release/aifred_monorepo_validate.sh
+```
+
+Optional Gradle task discovery:
+
+```sh
+bash tools/release/aifred_monorepo_validate.sh --gradle
+```
+
+The validator checks canonical paths, stale-path absence, routing references, current model references, Cloudflare config paths, workflow paths, and excluded build/cache folders.

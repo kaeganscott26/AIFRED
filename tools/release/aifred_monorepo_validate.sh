@@ -12,7 +12,8 @@ for arg in "$@"; do
 Usage: tools/release/aifred_monorepo_validate.sh [--gradle]
 
 Default mode is safe and read-only. It checks the final consolidated monorepo
-shape, active website/backend routes, local engine routing, and workflow paths.
+shape, active website/backend routes, local engine routing, current config paths,
+active documentation truth, and workflow paths.
 --gradle runs Gradle task discovery in apps/admin-android only.
 USAGE
       exit 0
@@ -109,6 +110,21 @@ for path in website android_admin; do
   forbid_path "$path"
 done
 
+section "Current Root And Cloudflare Config"
+for path in \
+  .gitignore \
+  wrangler.jsonc \
+  apps/website/wrangler.toml \
+  infra/cloudflare/wrangler.toml
+do
+  require_file "$path"
+done
+
+require_reference '"directory": "apps/website"' wrangler.jsonc
+forbid_reference '"directory": "website"' wrangler.jsonc
+require_reference 'apps/admin-android/' .gitignore
+forbid_reference 'android_admin/' .gitignore
+
 section "Website Backend Files"
 for path in \
   apps/website/_worker.js \
@@ -148,7 +164,30 @@ require_reference "/api/v1/assets/audio/catalog" apps/website apps/admin-android
 require_reference "AIFRED_DOWNLOADS" apps/website infra/cloudflare docs README.md
 require_reference "AIFRED_REFERENCE_BUCKET" apps/website infra/cloudflare docs README.md
 require_reference "kaeganscott26/AIFRED" apps/website apps/admin-android docs README.md
-forbid_reference "kaeganscott26/aifred-site" apps/website apps/admin-android .github README.md
+forbid_reference "kaeganscott26/aifred-site" apps/website apps/admin-android .github README.md docs/wiki infra/cloudflare/docs
+
+section "Current Documentation Truth"
+for path in \
+  README.md \
+  aifred_state.md \
+  docs/RELEASE_NOTES.md \
+  docs/wiki/Home.md \
+  docs/wiki/User-Guide.md \
+  docs/wiki/Admin-App-Guide.md \
+  docs/wiki/Developer-Guide.md \
+  docs/wiki/Backend-Map.md \
+  docs/wiki/Function-Map.md \
+  docs/wiki/PayPal-Cloudflare-R2-Setup-Guide.md \
+  docs/wiki/Security-And-Distribution.md
+  do
+  require_file "$path"
+done
+
+require_reference "gpt-5.6-luna" README.md aifred_state.md docs/wiki docs/RELEASE_NOTES.md apps/website/assets/docs
+require_reference "v0.3.6-installer-ai-alias" docs/RELEASE_NOTES.md docs/wiki apps/website/assets/docs apps/website/.dev.vars.example
+forbid_reference "AIFRED-VST3-linux.zip" README.md docs/wiki infra/cloudflare/docs apps/website/assets/docs
+forbid_reference "AIFRED-VST3-arch.zip" README.md docs/wiki infra/cloudflare/docs apps/website/assets/docs
+forbid_reference "AIFRED-VST3-macos.zip" README.md docs/wiki infra/cloudflare/docs apps/website/assets/docs
 
 section "Android Admin Shape"
 for path in \
@@ -184,6 +223,7 @@ for path in \
 do
   require_file "$path"
 done
+require_reference "GIT_TAG 8.0.14" plugin-aifred/CMakeLists.txt
 require_reference "127.0.0.1:8787" tools/AifredEngine plugin-aifred tools/windows tools/macos models/aifred docs README.md
 require_reference "127.0.0.1:11434" tools/AifredEngine plugin-aifred tools/windows tools/macos models/aifred docs README.md
 require_reference "https://api.openai.com/v1" tools/AifredEngine apps/admin-android apps/website docs README.md
@@ -200,6 +240,7 @@ excluded_found="$(find apps infra \( \
   -name node_modules -o \
   -name .wrangler -o \
   -name .gradle -o \
+  -name .kotlin -o \
   -name build -o \
   -name dist -o \
   -name cache -o \
@@ -219,12 +260,15 @@ require_file .github/workflows/build.yml
 require_file .github/workflows/aifred-monorepo-validate.yml
 require_file .github/workflows/aifred-website-preview-dryrun.yml
 require_reference "apps/website" .github/workflows
+require_reference "bash tools/release/aifred_monorepo_validate.sh" .github/workflows/build.yml
 forbid_reference "pages deploy website" .github/workflows
 forbid_reference "node --check website/" .github/workflows
 
-section "Stale Sibling Repo Deletion Guard"
-pass "GitHub repository deletion is intentionally not automated by this validator."
-pass "Delete/archive stale GitHub repositories only after an explicit reviewed repository-name list."
+section "Verification-First Removal Guard"
+pass "Legacy /api compatibility shim is intentionally preserved pending verification."
+pass "Engine /analyze and /v1/restart routes are intentionally preserved pending verification."
+pass "Generic UNIX CPack configuration is intentionally preserved pending verification."
+pass "Package placeholders, local MP3 fallback, and sibling repos are intentionally preserved pending verification."
 
 section "Validation Complete"
-pass "final monorepo shape is valid"
+pass "final monorepo shape and current config/documentation truth are valid"

@@ -1,6 +1,6 @@
 # AIFRED Wiki
 
-This wiki documents the full AIFRED operating system: VST3 plugin, website, backend routes, private Android admin app, build pipeline, distribution model, and troubleshooting.
+This wiki documents the current consolidated AIFRED monorepo: VST3 plugin, local engine, website/backend, private Android admin app, Cloudflare storage/deployment, packaging, distribution, and troubleshooting.
 
 ## Production Entry Points
 
@@ -8,26 +8,44 @@ This wiki documents the full AIFRED operating system: VST3 plugin, website, back
 - Apex domain: https://north3rnlight3r.com
 - GitHub release page: https://github.com/kaeganscott26/AIFRED/releases/latest
 
+## Current Authority Paths
+
+- `plugin-aifred/` — VST3 plugin
+- `tools/AifredEngine/` — local engine
+- `apps/website/` — website and Cloudflare backend
+- `apps/admin-android/` — owner-only Android admin app
+- `infra/cloudflare/` — Cloudflare support configuration and operations docs
+
 ## Wiki Index
 
 | Page | Purpose |
 | --- | --- |
-| [User Guide](User-Guide.md) | How artists and buyers use the website, beat catalog, analyzer, and VST |
-| [Admin App Guide](Admin-App-Guide.md) | Owner-only Android app operation and command reference |
-| [Developer Guide](Developer-Guide.md) | Local setup, builds, packages, CI, and deployment |
-| [Backend Map](Backend-Map.md) | Cloudflare Pages Worker routes and data flow |
-| [Function Map](Function-Map.md) | Software module and function-level responsibility map |
+| [User Guide](User-Guide.md) | Website, analyzer, VST, AI routing, installation, payment/download flow |
+| [Admin App Guide](Admin-App-Guide.md) | Owner-only Android app operation and command/file/upload behavior |
+| [Developer Guide](Developer-Guide.md) | Local setup, builds, packages, CI, validation, and deployment |
+| [Backend Map](Backend-Map.md) | Cloudflare Worker routes, storage bindings, and data flow |
+| [Function Map](Function-Map.md) | Active module and responsibility map across the monorepo |
+| [PayPal / Cloudflare R2 Setup Guide](PayPal-Cloudflare-R2-Setup-Guide.md) | Current payment, storage, release-object, and deployment configuration |
 | [Troubleshooting](Troubleshooting.md) | Common failures and recovery steps |
-| [Security And Distribution](Security-And-Distribution.md) | Privacy, release, admin app, and repository visibility rules |
+| [Security And Distribution](Security-And-Distribution.md) | Privacy, release boundaries, admin app rules, and paid delivery |
+
+## Current Product Truth
+
+- Plugin version: `0.3.6`
+- Default local model: `aifred:latest`
+- Default OpenAI model when configured: `gpt-5.6-luna`
+- Current public beta price shown by the website: `$5 one-time purchase`
+- Current CI release targets: Windows installer/uninstaller/zip and macOS pkg
+- Android admin app: private owner-only, not a public release artifact
 
 ## Product Principles
 
-AIFRED is built around a small set of explicit decisions:
-
-- Keep the public product polished and direct.
+- Keep the public product honest about what currently exists.
 - Keep admin tooling private.
-- Keep the website deployed on the North3rnLight3r domain, not a preview domain.
+- Keep the website on the North3rnLight3r production domains, not a preview domain.
+- Keep the Cloudflare website/backend separate from the local VST engine.
+- Keep canonical source paths explicit.
+- Keep removal decisions verification-first when runtime usage is uncertain.
 - Keep release packages easy to install.
 - Keep analysis modes visually and technically distinct.
 - Keep backend controls auditable and route-based.
-

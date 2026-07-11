@@ -14,10 +14,13 @@ node_modules/
 .wrangler/
 .DS_Store
 .dev.vars
-android_admin/.gradle/
-android_admin/local.properties
-android_admin/build/
-android_admin/app/build/
+
+apps/admin-android/.gradle/
+apps/admin-android/.kotlin/
+apps/admin-android/local.properties
+apps/admin-android/build/
+apps/admin-android/app/build/
+
 tools/**/bin/
 tools/**/obj/
 

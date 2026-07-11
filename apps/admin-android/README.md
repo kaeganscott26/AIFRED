@@ -1,43 +1,71 @@
-# AIFRED Admin | Mobile Management Console
+# AIFRED Admin | Private Android Management Console
 
-Professional Android application for the internal management of the AIFRED web ecosystem and production catalog.
+The AIFRED Android admin app is owner-only operational software for the North3rnLight3r website/backend and catalog.
 
-This application provides the project owner with forensic-level control over website operations, automated inquiry tracking, and catalog distribution, ensuring 100% operational uptime for the AIFRED platform.
+It lives at:
 
-## Management Features
+```text
+apps/admin-android/
+```
 
-- **Dynamic Catalog Control:** Full CRUD operations for the production beat catalog, including metadata management and file synchronization.
-- **System Orchestration:** Website file control, asset deployment, and release documentation management.
-- **Operational Command:** Real-time command dispatch for backend maintenance and API route monitoring.
-- **Engineering Integration:** Advanced browser-analyzer summaries and DSP metric auditing.
-- **AI Sync:** Integrated Ollama-aware model selection with professional fallback logic.
+## Current Responsibilities
 
-## Technical Specifications
+- Authenticated admin access.
+- Website/backend chat and model selection.
+- Catalog audio and metadata uploads.
+- Licensed reference uploads.
+- Website/repository file operations through approved backend routes.
+- Registered backend commands.
+- Sales, inquiries, activity, downloads, and upload visibility.
+- Local Android sandbox shell tools.
 
-- **Target Backend:** `https://www.north3rnlight3r.com`
-- **Build System:** Gradle (Kotlin DSL)
-- **Deployment:** Direct sideload or Google Play Internal Testing.
+## Current Technical State
 
-## Release Information
+- Backend: `https://www.north3rnlight3r.com`
+- App version: `2.4.2`
+- Version code: `241`
+- `compileSdk = 35`
+- `targetSdk = 35`
+- Minimum SDK: 29
+- JVM target: 17
+- UI: Jetpack Compose
+- Networking: OkHttp
+- Async work: Kotlin coroutines
 
-This admin app build is synchronized with the latest AIFRED platform update:
-- **Plugin Version:** `0.3.3 Ollama chat polish`
-- **Admin Version:** `2.4.2`
-- **Release Tag:** `v0.3.3-ollama-chat`
+Current model routes can include:
 
-## Local Development
+- `aifred:latest`
+- `gpt-5.6-luna`
+
+## Local Build
 
 ```powershell
-# Build Release APK
-.\gradlew.bat assembleRelease
-
-# Deploy to Device
-adb install -r app\build\outputs\apk\release\app-release.apk
-
-# Install Windows desktop companion
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\windows-admin\Install-AIFRED-Admin-Desktop.ps1
+cd apps/admin-android
+.\gradlew.bat assembleDebug
 ```
+
+Install locally with ADB:
+
+```powershell
+$adb=Join-Path $env:LOCALAPPDATA 'Android\Sdk\platform-tools\adb.exe'
+& $adb install -r app\build\outputs\apk\debug\app-debug.apk
+```
+
+## Distribution
+
+The app is private and owner-only.
+
+Current policy:
+
+- Keep source in the private AIFRED repository.
+- Build/install locally for the owner's device.
+- Do not attach the APK to public GitHub releases.
+- Do not publish the app through a public app-store listing.
+
+The current `release` build type uses the debug signing configuration and has minification disabled, so it should not be treated as a hardened public production build.
 
 ## Security
 
-The admin app utilizes a secure, offline-aware login system. Access is restricted to the North3rnLight3r administrative credentials.
+Do not commit or publish private local configuration, owner credentials, or provider/deployment values.
+
+The app can use offline-aware owner login and authenticated backend routes. Access should remain restricted to the owner.
