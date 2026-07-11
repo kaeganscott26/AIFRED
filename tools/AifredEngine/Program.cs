@@ -321,7 +321,7 @@ sealed class AifredRuntime
                 }
             };
             var responsesResult = await client.PostAsync($"{endpoint}/responses", new StringContent(responsesBody.ToJsonString(), Encoding.UTF8, "application/json"));
-            responsesResult.EnsureSuccessStatusCode();
+            await EnsureModelResponseSuccessAsync(responsesResult, "OpenAI");
             var responsesJson = JsonNode.Parse(await responsesResult.Content.ReadAsStringAsync())?.AsObject() ?? new JsonObject();
             return CleanAiText(ExtractResponsesText(responsesJson));
         }
@@ -337,10 +337,34 @@ sealed class AifredRuntime
             ["temperature"] = 0.35
         };
         var response = await client.PostAsync($"{endpoint}/chat/completions", new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json"));
-        response.EnsureSuccessStatusCode();
+        await EnsureModelResponseSuccessAsync(response, "OpenAI-compatible");
         var json = JsonNode.Parse(await response.Content.ReadAsStringAsync())?.AsObject() ?? new JsonObject();
         var content = json["choices"]?[0]?["message"]?["content"]?.GetValue<string>() ?? "";
         return CleanAiText(content);
+    }
+
+    static async Task EnsureModelResponseSuccessAsync(HttpResponseMessage response, string providerName)
+    {
+        if (response.IsSuccessStatusCode) return;
+
+        var message = "";
+        try
+        {
+            var payload = JsonNode.Parse(await response.Content.ReadAsStringAsync())?.AsObject();
+            message = payload?["error"]?["message"]?.GetValue<string>() ?? "";
+        }
+        catch {}
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new InvalidOperationException($"{providerName} rejected the API key. Paste a complete, active OpenAI API key and save the route again.");
+        }
+
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            message = $"{providerName} request failed with HTTP {(int) response.StatusCode} {response.ReasonPhrase}.";
+        }
+        throw new InvalidOperationException(message);
     }
 
     static string ExtractResponsesText(JsonObject json)
@@ -577,7 +601,7 @@ sealed class AifredRuntime
     string EffectiveApiKey()
     {
         var overrideEnabled = GetBool(userSettings, "provider_override_enabled", false);
-        return overrideEnabled ? GetString(userSettings, "api_key", "") : GetString(config, "openai_api_key", "");
+        return (overrideEnabled ? GetString(userSettings, "api_key", "") : GetString(config, "openai_api_key", "")).Trim();
     }
 
     void Log(string line)
