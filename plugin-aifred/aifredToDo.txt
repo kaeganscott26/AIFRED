@@ -1,0 +1,21 @@
+FLAGSHIP UI TODO — Persistent Halo / Meter Shell
+
+Goal:
+Keep the halo, meter lanes, scale markings, labels, and center display visible at all times.
+
+No-signal behavior:
+- Stop rendering live metric values
+- Stop pulse movement
+- Clear or freeze spectrum and waveform data
+- Display “No Signal” in the halo center
+- Preserve all static meter outlines and labels
+
+Signal-active behavior:
+- Resume live arcs, spectrum, waveform, pulse, and numerical readings automatically
+
+Implementation area:
+plugin-aifred/Source/PluginEditor.cpp
+AifredAudioProcessorEditor::drawHalo()
+
+Current blocker:
+The early return inside the no-signal branch prevents the static halo and meter framework from being drawn.
