@@ -38,22 +38,34 @@ struct DspMetrics {
   float crestDb = 0.0f;
   float correlation = 1.0f;
   float transientDensity = 0.0f;
+  
   std::array<float, 8> spectrumBands {};
   std::array<float, 96> waveform {};
+  
   float candleOpen = 0.0f;
   float candleHigh = 0.0f;
   float candleLow = 0.0f;
   float candleClose = 0.0f;
+  
   std::array<float, 10> sessionCandleOpen {};
   std::array<float, 10> sessionCandleHigh {};
   std::array<float, 10> sessionCandleLow {};
   std::array<float, 10> sessionCandleClose {};
+  
   std::array<float, 10> minuteCandleOpen {};
   std::array<float, 10> minuteCandleHigh {};
   std::array<float, 10> minuteCandleLow {};
   std::array<float, 10> minuteCandleClose {};
+
+  std::array<float, 10> liveCandleOpen {};
+  std::array<float, 10> liveCandleHigh {};
+  std::array<float, 10> liveCandleLow {};
+  std::array<float, 10> liveCandleClose {}; 
+
+
   int sessionCandleCount = 0;
   int minuteCandleCount = 0;
+  int liveCandleCount = 0;
 };
 
 struct ReferenceTarget {
