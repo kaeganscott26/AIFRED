@@ -68,10 +68,12 @@ private:
   FeatureFrame smoothed_;
   ReferenceTarget referenceTarget_;
   CandleFrame liveSessionCandle_;
+  std::array<CandleFrame, 10> liveCandles_ {};
   std::array<CandleFrame, 10> sessionCandles_ {};
   std::array<CandleFrame, 10> minuteCandles_ {};
   double sampleRate_ = 44100.0;
   float smoothing_ = 0.965f;
+  double liveCandleWindowSamples_ = 0.0;
   double sessionWindowSamples_ = 0.0;
   double minuteWindowSamples_ = 0.0;
   double integratedWeightedSquares_ = 0.0;
@@ -82,8 +84,10 @@ private:
   double shortTermSamples_ = 0.0;
   float previousTruePeakLeft_ = 0.0f;
   float previousTruePeakRight_ = 0.0f;
+  int liveCandleWrite_ = 0;
   int sessionCandleWrite_ = 0;
   int minuteCandleWrite_ = 0;
+  int liveCandleCount_ = 0;
   int sessionCandleCount_ = 0;
   int minuteCandleCount_ = 0;
   float hpLeft_ = 0.0f;
