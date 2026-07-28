@@ -20,16 +20,23 @@ public:
   void resized() override;
 
 private:
+  enum class CandleStripType 
+  {
+    Session,
+    Minute,
+    Live
+  };
+  
   void timerCallback() override;
   void buttonClicked(juce::Button*) override;
   void sliderValueChanged(juce::Slider*) override;
+  
   void drawHeader(juce::Graphics&, juce::Rectangle<int>);
+  
   void drawHalo(juce::Graphics&, juce::Rectangle<int>, const HaloState&, const char* title, bool referenceOverlay);
   void drawDomainCard(juce::Graphics&, juce::Rectangle<int>, const char*, Domain, const DomainAlignment&, const HaloState&);
   void drawCandles(juce::Graphics&, juce::Rectangle<int>, const HaloState&);
-  void drawCandleStrip(juce::Graphics&, juce::Rectangle<int>, const HaloState&, bool minuteView);
-  void drawChatPanel(juce::Graphics&, juce::Rectangle<int>);
-  void drawHaloSpectrometer(juce::Graphics&, juce::Rectangle<float>, const HaloState&);
+  void drawCandleStrip(juce::Graphics&, juce::Rectangle<int>, const HaloState&, CandleStripType type);
   void drawReferenceMixer(juce::Graphics&, juce::Rectangle<int>);
   void drawCompare(juce::Graphics&, juce::Rectangle<int>);
   void drawCompareVu(juce::Graphics&, juce::Rectangle<int>, const HaloState&, const HaloState&);
