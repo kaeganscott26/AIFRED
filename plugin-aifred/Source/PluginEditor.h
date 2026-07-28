@@ -37,6 +37,8 @@ private:
   void drawDomainCard(juce::Graphics&, juce::Rectangle<int>, const char*, Domain, const DomainAlignment&, const HaloState&);
   void drawCandles(juce::Graphics&, juce::Rectangle<int>, const HaloState&);
   void drawCandleStrip(juce::Graphics&, juce::Rectangle<int>, const HaloState&, CandleStripType type);
+  void drawChatPanel(juce::Graphics&, juce::Rectangle<int>);
+  void drawHaloSpectrometer(juce::Graphics&, juce::Rectangle<float>, const HaloState&);
   void drawReferenceMixer(juce::Graphics&, juce::Rectangle<int>);
   void drawCompare(juce::Graphics&, juce::Rectangle<int>);
   void drawCompareVu(juce::Graphics&, juce::Rectangle<int>, const HaloState&, const HaloState&);

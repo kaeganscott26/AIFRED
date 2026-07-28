@@ -877,52 +877,62 @@ void AifredAudioProcessorEditor::drawCandles(juce::Graphics& g, juce::Rectangle<
   g.drawText("CANDLESTICK METERS", inner.removeFromTop(28), juce::Justification::centredLeft);
   g.setFont(juce::FontOptions(11.5f));
   g.setColour(Colours::muted);
-  g.drawText("Left: ten saved sessions. Right: current session timeline, one candle per minute.", inner.removeFromTop(20), juce::Justification::centredLeft);
+  g.drawText("Ten saved sessions, ten one-minute candles, and a rolling 30-second live window.",
+             inner.removeFromTop(20), juce::Justification::centredLeft);
 
-  auto top = inner.removeFromTop(juce::roundToInt(static_cast<float>(inner.getHeight()) * 0.46f));
-  drawCandleStrip(g, top.removeFromLeft(top.getWidth() / 2).reduced(0, 10), state, false);
-  drawCandleStrip(g, top.reduced(10, 10), state, true);
-
-  auto plot = inner.reduced(4, 12).toFloat();
-  g.setColour(Colours::line.withAlpha(0.40f));
-  for (int i = 1; i < 4; ++i) {
-    const auto y = plot.getY() + plot.getHeight() * static_cast<float>(i) / 4.0f;
-    g.drawHorizontalLine(juce::roundToInt(y), plot.getX(), plot.getRight());
-  }
-
-  if (!state.hasSignal || !state.valuesValid) {
-    g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
-    g.setColour(Colours::ink);
-    g.drawText("current candle unavailable", plot.toNearestInt(), juce::Justification::centred);
-    g.drawText("O --  C --  Δ --", inner.removeFromBottom(18), juce::Justification::centred);
-    return;
-  }
-
-  const auto yOpen = plot.getBottom() - state.metrics.candleOpen * plot.getHeight();
-  const auto yClose = plot.getBottom() - state.metrics.candleClose * plot.getHeight();
-  const auto yHigh = plot.getBottom() - state.metrics.candleHigh * plot.getHeight();
-  const auto yLow = plot.getBottom() - state.metrics.candleLow * plot.getHeight();
-  const auto x = plot.getCentreX();
-  g.setColour(Colours::ink.withAlpha(0.55f));
-  g.drawLine(x, yHigh, x, yLow, 2.0f);
-  auto body = juce::Rectangle<float>(x - 28.0f, std::min(yOpen, yClose), 56.0f, std::max(5.0f, std::abs(yClose - yOpen)));
-  g.setColour(yClose >= yOpen ? Colours::green.withAlpha(0.8f) : Colours::red.withAlpha(0.8f));
-  g.fillRoundedRectangle(body, 5.0f);
-  g.setColour(Colours::cyan.withAlpha(0.75f));
-  g.drawRoundedRectangle(body.expanded(1.0f), 5.0f, 1.0f);
-  g.setFont(juce::FontOptions(11.0f, juce::Font::bold));
-  g.setColour(Colours::ink);
-  g.drawText("O " + candleDb(state.metrics.candleOpen) + "  C " + candleDb(state.metrics.candleClose) + "  Δ " + juce::String((-42.0f + state.metrics.candleClose * 34.0f) - (-42.0f + state.metrics.candleOpen * 34.0f), 1) + " dB",
-             inner.removeFromBottom(18), juce::Justification::centred);
+  const auto stripHeight = juce::jmax(36, (inner.getHeight() - 16) / 3);
+  drawCandleStrip(g, inner.removeFromTop(stripHeight), state, CandleStripType::Session);
+  inner.removeFromTop(8);
+  drawCandleStrip(g, inner.removeFromTop(stripHeight), state, CandleStripType::Minute);
+  inner.removeFromTop(8);
+  drawCandleStrip(g, inner, state, CandleStripType::Live);
 }
 
-void AifredAudioProcessorEditor::drawCandleStrip(juce::Graphics& g, juce::Rectangle<int> bounds, const HaloState& state, bool minuteView) {
+void AifredAudioProcessorEditor::drawCandleStrip(juce::Graphics& g, juce::Rectangle<int> bounds, const HaloState& state, CandleStripType type) {
+  const std::array<float, 10>* open = nullptr;
+  const std::array<float, 10>* high = nullptr;
+  const std::array<float, 10>* low = nullptr;
+  const std::array<float, 10>* close = nullptr;
+  int count = 0;
+  const char* title = nullptr;
+  const char* emptyText = nullptr;
+
+  switch (type) {
+    case CandleStripType::Session:
+      open = &state.metrics.sessionCandleOpen;
+      high = &state.metrics.sessionCandleHigh;
+      low = &state.metrics.sessionCandleLow;
+      close = &state.metrics.sessionCandleClose;
+      count = state.metrics.sessionCandleCount;
+      title = "10 SESSION";
+      emptyText = "no saved sessions";
+      break;
+    case CandleStripType::Minute:
+      open = &state.metrics.minuteCandleOpen;
+      high = &state.metrics.minuteCandleHigh;
+      low = &state.metrics.minuteCandleLow;
+      close = &state.metrics.minuteCandleClose;
+      count = state.metrics.minuteCandleCount;
+      title = "10 MINUTE";
+      emptyText = "no minute candles yet";
+      break;
+    case CandleStripType::Live:
+      open = &state.metrics.liveCandleOpen;
+      high = &state.metrics.liveCandleHigh;
+      low = &state.metrics.liveCandleLow;
+      close = &state.metrics.liveCandleClose;
+      count = state.metrics.liveCandleCount;
+      title = "LIVE 30 SEC · 3 SEC EACH";
+      emptyText = "waiting for live candles";
+      break;
+  }
+
   auto plot = bounds.toFloat();
   g.setColour(Colours::line.withAlpha(0.45f));
   g.drawRoundedRectangle(plot, 6.0f, 1.0f);
   g.setFont(juce::FontOptions(10.0f, juce::Font::bold));
   g.setColour(Colours::muted);
-  g.drawText(minuteView ? "10 MIN" : "10 SESSION", bounds.removeFromTop(16), juce::Justification::centred);
+  g.drawText(title, bounds.removeFromTop(16), juce::Justification::centred);
   plot = bounds.reduced(6, 4).toFloat();
 
   for (int grid = 1; grid <= 3; ++grid) {
@@ -931,27 +941,26 @@ void AifredAudioProcessorEditor::drawCandleStrip(juce::Graphics& g, juce::Rectan
     g.drawHorizontalLine(juce::roundToInt(y), plot.getX(), plot.getRight());
   }
 
-  const auto count = minuteView ? state.metrics.minuteCandleCount : state.metrics.sessionCandleCount;
   const auto width = plot.getWidth() / 10.0f;
   if (count <= 0) {
     g.setFont(juce::FontOptions(10.0f));
     g.setColour(Colours::muted);
-    g.drawText(minuteView ? "no minute candles yet" : "no saved sessions", plot.toNearestInt(), juce::Justification::centred);
+    g.drawText(emptyText, plot.toNearestInt(), juce::Justification::centred);
     return;
   }
   for (int i = 0; i < 10; ++i) {
-    const auto open = minuteView ? state.metrics.minuteCandleOpen[static_cast<size_t>(i)] : state.metrics.sessionCandleOpen[static_cast<size_t>(i)];
-    const auto high = minuteView ? state.metrics.minuteCandleHigh[static_cast<size_t>(i)] : state.metrics.sessionCandleHigh[static_cast<size_t>(i)];
-    const auto low = minuteView ? state.metrics.minuteCandleLow[static_cast<size_t>(i)] : state.metrics.sessionCandleLow[static_cast<size_t>(i)];
-    const auto close = minuteView ? state.metrics.minuteCandleClose[static_cast<size_t>(i)] : state.metrics.sessionCandleClose[static_cast<size_t>(i)];
     if (i < 10 - count && count < 10) continue;
     const auto x = plot.getX() + static_cast<float>(i) * width + width * 0.5f;
     const auto mapY = [&](float value) { return plot.getBottom() - clamp01(value) * plot.getHeight(); };
     g.setColour(Colours::ink.withAlpha(0.34f));
-    g.drawLine(x, mapY(high), x, mapY(low), 1.4f);
-    auto body = juce::Rectangle<float>(x - width * 0.26f, std::min(mapY(open), mapY(close)),
-                                       width * 0.52f, std::max(3.0f, std::abs(mapY(close) - mapY(open))));
-    g.setColour(close >= open ? Colours::green.withAlpha(0.75f) : Colours::red.withAlpha(0.75f));
+    g.drawLine(x, mapY((*high)[static_cast<size_t>(i)]), x, mapY((*low)[static_cast<size_t>(i)]), 1.4f);
+    auto body = juce::Rectangle<float>(x - width * 0.26f,
+                                       std::min(mapY((*open)[static_cast<size_t>(i)]), mapY((*close)[static_cast<size_t>(i)])),
+                                       width * 0.52f,
+                                       std::max(3.0f, std::abs(mapY((*close)[static_cast<size_t>(i)]) - mapY((*open)[static_cast<size_t>(i)]))));
+    g.setColour((*close)[static_cast<size_t>(i)] >= (*open)[static_cast<size_t>(i)]
+                  ? Colours::green.withAlpha(0.75f)
+                  : Colours::red.withAlpha(0.75f));
     g.fillRoundedRectangle(body, 3.0f);
   }
 }
