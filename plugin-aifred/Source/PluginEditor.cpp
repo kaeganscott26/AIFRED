@@ -705,22 +705,21 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
   auto area = bounds.reduced(28).toFloat();
   auto centre = area.getCentre();
   const auto radius = std::min(area.getWidth(), area.getHeight()) * 0.36f;
-  if (!state.hasSignal || !state.valuesValid) {
-    g.setFont(uiFont(14.0f, 13.0f, juce::Font::bold));
-    g.setColour(Colours::muted);
-    g.drawText(title, juce::Rectangle<float>(centre.x - 130.0f, centre.y - radius * 0.58f, 260.0f, 22.0f).toNearestInt(), juce::Justification::centred);
-    g.setFont(uiFont(16.0f, 14.0f, juce::Font::bold));
-    g.setColour(Colours::ink);
-    g.drawText(state.hasSignal ? "analysis unavailable" : "waiting for signal",
-               juce::Rectangle<float>(centre.x - 150.0f, centre.y - 12.0f, 300.0f, 24.0f).toNearestInt(),
-               juce::Justification::centred);
-    return;
-  }
+  const auto hasValidLiveData = state.hasSignal && state.valuesValid;
   auto accent = referenceOverlay ? genreColour(genreMenu_.getSelectedId()) : accentForMode(processor_.getMode());
-  const auto dynamics01 = clamp01((state.metrics.crestDb - 3.0f) / 12.0f);
-  const auto tone01 = clamp01(state.metrics.spectralTilt);
-  const auto truePeak01 = clamp01((state.metrics.truePeakDb + 24.0f) / 18.0f);
-  const auto width01 = clamp01(state.metrics.stereoWidth);
+  const auto dynamics01 = hasValidLiveData ? clamp01((state.metrics.crestDb - 3.0f) / 12.0f) : 0.0f;
+  const auto tone01 = hasValidLiveData ? clamp01(state.metrics.spectralTilt) : 0.0f;
+  const float truePeak01 =
+      juce::jlimit(
+          0.0f,
+          1.0f,
+          juce::jmap(
+              state.metrics.truePeakDb,
+              -24.0f,
+              -6.0f,
+              0.0f,
+              1.0f));
+  const auto width01 = hasValidLiveData ? clamp01(state.metrics.stereoWidth) : 0.0f;
   const std::array<float, 4> values { 
     dynamics01,
     tone01,
@@ -728,7 +727,7 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
     width01
   };
   const auto dynamicPulse = clamp01(0.28f * values[2] + 0.26f * values[3] + 0.20f * values[0] + 0.18f * values[1]);
-  const auto pulse = 0.82f + dynamicPulse * 0.14f;
+  const auto pulse = hasValidLiveData ? 0.82f + dynamicPulse * 0.14f : 1.0f;
 
   g.setColour(accent.withAlpha(referenceOverlay ? 0.18f : 0.10f));
   g.fillEllipse(centre.x - radius, centre.y - radius, radius * 2.0f, radius * 2.0f);
@@ -737,10 +736,10 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
 
   const std::array<juce::Colour, 4> colours {Colours::cyan, Colours::green, Colours::yellow, Colours::violet};
   const std::array<juce::String, 4> labels {
-    "Crest " + juce::String(state.metrics.crestDb, 1) + " dB",
-    "Tilt " + juce::String(state.metrics.spectralTilt, 2),
-    "True Peak " + juce::String(state.metrics.truePeakDb, 1) + " dBTP",
-    "Width " + juce::String(state.metrics.stereoWidth, 2)
+    hasValidLiveData ? "Crest " + juce::String(state.metrics.crestDb, 1) + " dB" : "Crest —",
+    hasValidLiveData ? "Tilt " + juce::String(state.metrics.spectralTilt, 2) : "Tilt —",
+    hasValidLiveData ? "True Peak " + juce::String(state.metrics.truePeakDb, 1) + " dBTP" : "True Peak —",
+    hasValidLiveData ? "Width " + juce::String(state.metrics.stereoWidth, 2) : "Width —"
   };
   for (int i = 0; i < 4; ++i) {
     const auto lane = static_cast<float>(i);
@@ -816,7 +815,7 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
 
   drawHaloSpectrometer(g, juce::Rectangle<float>(centre.x - radius * 0.74f, centre.y - radius * 0.26f, radius * 1.48f, radius * 0.52f), state);
   g.setFont(uiFont(14.0f, 13.0f, juce::Font::bold));
-  g.setColour(colourForAlignment(state.totalAlignment01));
+  g.setColour(hasValidLiveData ? colourForAlignment(state.totalAlignment01) : Colours::muted);
   g.drawText(title, juce::Rectangle<float>(centre.x - 130.0f, centre.y - radius * 0.58f, 260.0f, 22.0f).toNearestInt(), juce::Justification::centred);
 }
 
@@ -825,6 +824,13 @@ void AifredAudioProcessorEditor::drawHaloSpectrometer(juce::Graphics& g, juce::R
   g.fillRoundedRectangle(bounds, 8.0f);
   g.setColour(Colours::line.withAlpha(0.72f));
   g.drawRoundedRectangle(bounds, 8.0f, 1.0f);
+
+  if (!state.hasSignal || !state.valuesValid) {
+    g.setFont(uiFont(16.0f, 14.0f, juce::Font::bold));
+    g.setColour(Colours::ink);
+    g.drawText("No Signal", bounds.toNearestInt(), juce::Justification::centred);
+    return;
+  }
 
   auto plot = bounds.reduced(10.0f, 8.0f);
   if (haloCenterMode_ == 0 || haloCenterMode_ == 2) {
