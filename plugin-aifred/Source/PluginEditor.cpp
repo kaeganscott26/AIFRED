@@ -709,16 +709,10 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
   auto accent = referenceOverlay ? genreColour(genreMenu_.getSelectedId()) : accentForMode(processor_.getMode());
   const auto dynamics01 = hasValidLiveData ? clamp01((state.metrics.crestDb - 3.0f) / 12.0f) : 0.0f;
   const auto tone01 = hasValidLiveData ? clamp01(state.metrics.spectralTilt) : 0.0f;
-  const float truePeak01 =
-      juce::jlimit(
-          0.0f,
-          1.0f,
-          juce::jmap(
-              state.metrics.truePeakDb,
-              -24.0f,
-              -6.0f,
-              0.0f,
-              1.0f));
+  const auto truePeak01 =
+      hasValidLiveData
+          ? clamp01((state.metrics.truePeakDb + 24.0f) / 18.0f)
+          : 0.0f;
   const auto width01 = hasValidLiveData ? clamp01(state.metrics.stereoWidth) : 0.0f;
   const std::array<float, 4> values { 
     dynamics01,
@@ -736,10 +730,10 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
 
   const std::array<juce::Colour, 4> colours {Colours::cyan, Colours::green, Colours::yellow, Colours::violet};
   const std::array<juce::String, 4> labels {
-    hasValidLiveData ? "Crest " + juce::String(state.metrics.crestDb, 1) + " dB" : "Crest —",
-    hasValidLiveData ? "Tilt " + juce::String(state.metrics.spectralTilt, 2) : "Tilt —",
-    hasValidLiveData ? "True Peak " + juce::String(state.metrics.truePeakDb, 1) + " dBTP" : "True Peak —",
-    hasValidLiveData ? "Width " + juce::String(state.metrics.stereoWidth, 2) : "Width —"
+    hasValidLiveData ? "CREST " + juce::String(state.metrics.crestDb, 1) + " dB" : "CREST —",
+    hasValidLiveData ? "TILT " + juce::String(state.metrics.spectralTilt, 2) : "TILT —",
+    hasValidLiveData ? "TP " + juce::String(state.metrics.truePeakDb, 1) + " dBTP" : "TP —",
+    hasValidLiveData ? "WIDTH " + juce::String(state.metrics.stereoWidth, 2) : "WIDTH —"
   };
   for (int i = 0; i < 4; ++i) {
     const auto lane = static_cast<float>(i);
@@ -749,18 +743,28 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
                      juce::degreesToRadians(start), juce::degreesToRadians(start + 72.0f), true);
     g.setColour(Colours::line.withAlpha(0.45f));
     g.strokePath(bg, juce::PathStrokeType(7.0f));
+    const auto value =
+        clamp01(values[static_cast<size_t>(i)]);
+    const auto arcStart =
+        i == 2
+            ? start + 72.0f * (1.0f - value)
+            : start;
+    const auto arcEnd = start + 72.0f;
     juce::Path arc;
     arc.addCentredArc(centre.x, centre.y, radius + 18.0f + lane * 8.0f, radius + 18.0f + lane * 8.0f, 0.0f,
-                      juce::degreesToRadians(start), juce::degreesToRadians(start + 72.0f * clamp01(values[static_cast<size_t>(i)])), true);
+                      juce::degreesToRadians(arcStart), juce::degreesToRadians(
+                          i == 2
+                              ? arcEnd
+                              : start + 72.0f * value), true);
     g.setColour(colours[static_cast<size_t>(i)].withAlpha(0.95f));
     g.strokePath(arc, juce::PathStrokeType(7.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     const auto labelAngle = juce::degreesToRadians(start + 36.0f);
     const auto labelRadius = radius + 58.0f;
     const auto labelCentre = juce::Point<float>(centre.x + std::cos(labelAngle) * labelRadius,
                                                 centre.y + std::sin(labelAngle) * labelRadius);
-    g.setFont(uiFont(13.0f, 13.0f, juce::Font::bold));
+    g.setFont(uiFont(10.5f, 11.0f, juce::Font::bold));
     g.setColour(Colours::ink);
-    g.drawText(labels[static_cast<size_t>(i)], juce::Rectangle<float>(labelCentre.x - 42.0f, labelCentre.y - 11.0f, 84.0f, 22.0f).toNearestInt(), juce::Justification::centred);
+    g.drawText(labels[static_cast<size_t>(i)], juce::Rectangle<float>(labelCentre.x - 65.0f, labelCentre.y - 10.0f, 130.0f, 20.0f).toNearestInt(), juce::Justification::centred);
   }
 
   for (int tick = 0; tick < 40; ++tick) {
@@ -782,11 +786,11 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
     {-60.f, "DARK", Colours::green},
     {12.0f, "BRIGHT", Colours::green},
 
-    {30.0f, "-24 dB TruePeak", Colours::yellow},
-    {102.0f, "-6 dB TruePeak", Colours::yellow},
+    {30.0f, "-24 dBTP", Colours::yellow},
+    {102.0f, "-6 dBTP", Colours::yellow},
 
     {120.0f, "MONO", Colours::violet},
-    {192.0f, "Stereo", Colours::violet}
+    {192.0f, "STEREO", Colours::violet}
   }};
   for (const auto& item : scaleLabels) {
     const auto angle = juce::degreesToRadians(item.angle);
