@@ -865,31 +865,173 @@ void AifredAudioProcessorEditor::drawHaloSpectrometer(juce::Graphics& g, juce::R
   g.drawText(haloCenterMode_ == 0 ? "MULTIBAND" : (haloCenterMode_ == 1 ? "WAVEFORM" : "BANDS + WAVE"), bounds.toNearestInt().removeFromTop(14), juce::Justification::centred);
 }
 
-void AifredAudioProcessorEditor::drawDomainCard(juce::Graphics& g, juce::Rectangle<int> bounds, const char* name, Domain domain, const DomainAlignment& alignment, const HaloState& state) {
+void AifredAudioProcessorEditor::drawDomainCard(
+    juce::Graphics& g,
+    juce::Rectangle<int> bounds,
+    const char* name,
+    Domain domain,
+    const DomainAlignment& alignment,
+    const HaloState& state)
+{
+  juce::ignoreUnused(alignment);
+
   drawPanel(g, bounds.toFloat(), 8.0f);
+
   auto inner = bounds.reduced(12, 8);
-  const auto displayValue = processor_.getMode() == AnalysisMode::Analyze
-    ? metricValue(state, domain == Domain::Tone ? 0 : (domain == Domain::Stereo ? 1 : (domain == Domain::Dynamics ? 2 : 3)))
-    : alignment.alignment01;
-  g.setFont(uiFont(13.0f, 13.0f, juce::Font::bold));
-  g.setColour(Colours::green);
-  g.drawText(name, inner.removeFromTop(18), juce::Justification::centredLeft);
-  auto bar = inner.removeFromBottom(12).toFloat();
-  g.setColour(Colours::line.withAlpha(0.5f));
-  g.fillRoundedRectangle(bar, 5.0f);
-  g.setColour(colourForAlignment(displayValue));
-  g.fillRoundedRectangle(bar.withWidth(bar.getWidth() * displayValue), 5.0f);
-  g.setFont(uiFont(22.0f, 18.0f, juce::Font::bold));
-  g.setColour(Colours::ink);
-  g.drawText(scoreText(alignment.alignment01, state, domain), inner.removeFromTop(32), juce::Justification::centredLeft);
-  g.setFont(uiFont(11.5f, 13.0f));
-  g.setColour(Colours::muted);
-  juce::String units = juce::String(alignment.rawPrimaryMetric, 2) + " primary / " + juce::String(alignment.rawSecondaryMetric, 2) + " secondary";
-  if (juce::String(name) == "LOUDNESS") units = dbText(alignment.rawPrimaryMetric, "LUFS ST") + " / " + dbText(alignment.rawSecondaryMetric, "dBTP");
-  if (juce::String(name) == "PUNCH") units = "punch " + juce::String(alignment.rawSecondaryMetric, 2) + " / " + dbText(alignment.rawPrimaryMetric, "dB crest");
-  if (juce::String(name) == "WIDTH") units = "width " + juce::String(alignment.rawPrimaryMetric, 2) + " / corr HP150 " + juce::String(alignment.rawSecondaryMetric, 2);
-  if (juce::String(name) == "TONE") units = "tilt " + juce::String(alignment.rawPrimaryMetric, 2) + " / " + dbText(alignment.rawSecondaryMetric, "LUFS K");
-  g.drawFittedText(perceptualBand(displayValue) + " / " + units, inner, juce::Justification::centredLeft, 1);
+
+  float displayValue = 0.0f;
+  juce::String primaryText;
+  juce::String measurementText;
+
+  switch (domain)
+  {
+    case Domain::Tone:
+    {
+      displayValue =
+          clamp01(state.metrics.spectralTilt);
+
+      primaryText =
+          juce::String(
+              state.metrics.spectralTilt,
+              2)
+          + " tilt";
+
+      measurementText =
+          "DARK -> BRIGHT / spectral tilt "
+          + juce::String(
+              state.metrics.spectralTilt,
+              2);
+
+      break;
+    }
+
+    case Domain::Stereo:
+    {
+      displayValue =
+          clamp01(state.metrics.stereoWidth);
+
+      primaryText =
+          juce::String(
+              state.metrics.stereoWidth,
+              2)
+          + " width";
+
+      measurementText =
+          "MONO -> STEREO / corr "
+          + juce::String(
+              state.metrics.correlation,
+              2);
+
+      break;
+    }
+
+    case Domain::Dynamics:
+    {
+      displayValue =
+          clamp01(
+              (state.metrics.crestDb - 3.0f)
+              / 12.0f);
+
+      primaryText =
+          juce::String(
+              state.metrics.crestDb,
+              1)
+          + " dB crest";
+
+      measurementText =
+          "COMPRESSED -> DYNAMIC / crest factor "
+          + juce::String(
+              state.metrics.crestDb,
+              1)
+          + " dB";
+
+      break;
+    }
+
+    case Domain::Loudness:
+    {
+      displayValue =
+          clamp01(
+              (state.metrics.shortTermLufs + 24.0f)
+              / 18.0f);
+
+      primaryText =
+          juce::String(
+              state.metrics.shortTermLufs,
+              1)
+          + " LUFS";
+
+      measurementText =
+          "SHORT-TERM LUFS / TP "
+          + juce::String(
+              state.metrics.truePeakDb,
+              1)
+          + " dBTP";
+
+      break;
+    }
+  }
+
+  g.setFont(
+      uiFont(
+          13.0f,
+          13.0f,
+          juce::Font::bold));
+
+  g.setColour(
+      Colours::green);
+
+  g.drawText(
+      name,
+      inner.removeFromTop(18),
+      juce::Justification::centredLeft);
+
+  auto bar =
+      inner.removeFromBottom(12).toFloat();
+
+  g.setColour(
+      Colours::line.withAlpha(0.5f));
+
+  g.fillRoundedRectangle(
+      bar,
+      5.0f);
+
+  g.setColour(
+      colourForAlignment(displayValue));
+
+  g.fillRoundedRectangle(
+      bar.withWidth(
+          bar.getWidth()
+          * displayValue),
+      5.0f);
+
+  g.setFont(
+      uiFont(
+          22.0f,
+          18.0f,
+          juce::Font::bold));
+
+  g.setColour(
+      Colours::ink);
+
+  g.drawText(
+      primaryText,
+      inner.removeFromTop(32),
+      juce::Justification::centredLeft);
+
+  g.setFont(
+      uiFont(
+          11.5f,
+          13.0f));
+
+  g.setColour(
+      Colours::muted);
+
+  g.drawFittedText(
+      measurementText,
+      inner,
+      juce::Justification::centredLeft,
+      1);
 }
 
 void AifredAudioProcessorEditor::drawCandles(
