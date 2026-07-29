@@ -717,7 +717,16 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
     return;
   }
   auto accent = referenceOverlay ? genreColour(genreMenu_.getSelectedId()) : accentForMode(processor_.getMode());
-  const std::array<float, 4> values {metricValue(state, 2), metricValue(state, 0), metricValue(state, 3), metricValue(state, 1)};
+  const auto dynamics01 = clamp01((state.metrics.crestDb - 3.0f) / 12.0f);
+  const auto tone01 = clamp01(state.metrics.spectralTilt);
+  const auto truePeak01 = clamp01((state.metrics.truePeakDb + 24.0f) / 18.0f);
+  const auto width01 = clamp01(state.metrics.stereoWidth);
+  const std::array<float, 4> values { 
+    dynamics01,
+    tone01,
+    truePeak01,
+    width01
+  };
   const auto dynamicPulse = clamp01(0.28f * values[2] + 0.26f * values[3] + 0.20f * values[0] + 0.18f * values[1]);
   const auto pulse = 0.82f + dynamicPulse * 0.14f;
 
@@ -727,7 +736,12 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
   g.drawEllipse(centre.x - radius * pulse, centre.y - radius * pulse, radius * 2.0f * pulse, radius * 2.0f * pulse, 3.0f + 3.0f * state.metrics.width01);
 
   const std::array<juce::Colour, 4> colours {Colours::cyan, Colours::green, Colours::yellow, Colours::violet};
-  const std::array<const char*, 4> labels {"Punch", "Tone", "Loudness", "Width"};
+  const std::array<juce::String, 4> labels {
+    "Crest " + juce::String(state.metrics.crestDb, 1) + " dB",
+    "Tilt " + juce::String(state.metrics.spectralTilt, 2),
+    "True Peak " + juce::String(state.metrics.truePeakDb, 1) + " dBTP",
+    "Width " + juce::String(state.metrics.stereoWidth, 2)
+  };
   for (int i = 0; i < 4; ++i) {
     const auto lane = static_cast<float>(i);
     const float start = -150.0f + lane * 90.0f;
@@ -763,14 +777,17 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
 
   struct ScaleLabel { float angle; juce::String text; juce::Colour colour; };
   const std::array<ScaleLabel, 8> scaleLabels {{
-    {-150.0f, "DRY", Colours::cyan},
-    {-78.0f, "PUNCH " + juce::String(state.metrics.crestDb, 1) + " dB", Colours::cyan},
-    {-60.0f, "DARK", Colours::green},
-    {12.0f, "TONE " + scoreText(state.toneScore01, state, Domain::Tone), Colours::green},
-    {30.0f, "-24", Colours::yellow},
-    {102.0f, "ST " + juce::String(state.metrics.shortTermLufs, 1) + " / TP " + juce::String(state.metrics.truePeakDb, 1), Colours::yellow},
-    {120.0f, "-1", Colours::violet},
-    {192.0f, "CORR " + juce::String(state.metrics.correlation, 2), Colours::violet}
+    {-150.0f, "COMPRESSED", Colours::cyan},
+    {-78.0f, "DYNAMIC", Colours::cyan},
+    
+    {-60.f, "DARK", Colours::green},
+    {12.0f, "BRIGHT", Colours::green},
+
+    {30.0f, "-24 dB TruePeak", Colours::yellow},
+    {102.0f, "-6 dB TruePeak", Colours::yellow},
+
+    {120.0f, "MONO", Colours::violet},
+    {192.0f, "Stereo", Colours::violet}
   }};
   for (const auto& item : scaleLabels) {
     const auto angle = juce::degreesToRadians(item.angle);
