@@ -28,3 +28,4 @@ tools/**/obj/
 !.dev.vars.example
 .env*
 !.env.example
+.forge/metadata.sqlite
