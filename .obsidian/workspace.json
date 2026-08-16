@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "aifred_state.md",
+                "file": "README.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "aifred_state"
+              "title": "README"
             }
           }
         ]
@@ -182,6 +182,8 @@
   },
   "active": "fe1919d421e6f9a8",
   "lastOpenFiles": [
+    "build/ninja-release/_deps/juce-src/README.md",
+    "aifred_state.md",
     "plugin-aifred/Assets/aifred-mascot.jpg",
     "README.md",
     "CHANGELOG.md",
