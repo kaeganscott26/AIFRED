@@ -1,6 +1,6 @@
 const __base = window.location.origin;
 window.AIFRED_CONFIG = {
-  apiBase: __base,
+  apiBase: http://127.0.0.1:11434/v1
   contactEmail: "north3rnlight3rofficial@outlook.com",
   paypal: {},
   downloadUrls: {
