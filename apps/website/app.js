@@ -1,5 +1,5 @@
 const config = window.AIFRED_CONFIG || {};
-const API_BASE = String(config.apiBase || window.location.origin || "https://api.openai.com/v1").replace(/\/+$/, "");
+const API_BASE = String(config.apiBase || window.location.origin || "north3rnlight3r.com/api/v1").replace(/\/+$/, "");
 const CONTACT_EMAIL = String(config.contactEmail || "north3rnlight3rofficial@outlook.com").trim();
 const DEFAULT_ART = "assets/showcase/album-art-02.jpg";
 const CATALOG_ART = ["assets/showcase/album-art-02.jpg", "assets/brand/aifred-mascot.jpg"];
