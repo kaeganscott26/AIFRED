@@ -1,6 +1,8 @@
-const __base = window.location.origin;
+const __base = String(window.AIFRED_API_BASE_URL || window.location.origin).replace(/\/+$/, "");
+const __apiV1Base = __base.endsWith("/v1") ? __base : `${__base}/v1`;
 window.AIFRED_CONFIG = {
-  apiBase: http://127.0.0.1:11434/v1
+  apiBase: __base,
+  apiV1Base: __apiV1Base,
   contactEmail: "north3rnlight3rofficial@outlook.com",
   paypal: {},
   downloadUrls: {

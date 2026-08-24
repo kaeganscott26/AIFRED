@@ -1,6 +1,8 @@
-name = "aifred-site"
+# Historical operations mirror. Do not deploy this file independently; use
+# apps/website/wrangler.toml and verify the Pages project before promotion.
+name = "north3rnlight3r"
 pages_build_output_dir = "../../apps/website"
-compatibility_date = "2026-04-22"
+compatibility_date = "2026-08-23"
 
 [[services]]
 binding = "MAILER"
@@ -28,12 +30,12 @@ binding = "AIFRED_REFERENCE_BUCKET"
 bucket_name = "aifred-reference-pool"
 
 [env.production]
-compatibility_date = "2026-04-14"
+compatibility_date = "2026-08-23"
 
 [[env.production.services]]
 binding = "MAILER"
 service = "aifred-mailer"
-environment = ""
+environment = "production"
 
 [[env.production.kv_namespaces]]
 binding = "AIFRED_REFERENCE_POOL"

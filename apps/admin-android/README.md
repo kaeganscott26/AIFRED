@@ -32,6 +32,8 @@ apps/admin-android/
 - Networking: OkHttp
 - Async work: Kotlin coroutines
 
+The AI client uses the OpenAI-compatible API base contract. Configure the host/root with `AIFRED_BASE_URL`; the client appends `/v1` routes such as `/v1/models` and `/v1/chat/completions`.
+
 Current model routes can include:
 
 - `aifred:latest`

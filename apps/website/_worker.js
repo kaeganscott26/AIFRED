@@ -11,6 +11,10 @@ export default {
       return wsChat({ request, env, ctx, params: {} });
     }
 
+    if (path === "health" || path.startsWith("v1/")) {
+      return apiV1({ request, env, ctx, params: { path: path === "health" ? ["health"] : path.slice(3).split("/").filter(Boolean) } });
+    }
+
     if (path.startsWith("api/v1/")) {
       return apiV1({
         request,

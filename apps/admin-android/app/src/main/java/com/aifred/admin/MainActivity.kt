@@ -2694,13 +2694,13 @@ class ApiClient(private val baseUrl: String, private val token: String) {
 
         return try {
             val body = JSONObject()
-                .put("prompt", prompt)
+                .put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", prompt)))
                 .put("session_id", sessionId)
                 .put("model", model)
                 .toString()
 
             val request = Request.Builder()
-                .url(endpoint("/api/v1/chat/ask"))
+                .url(endpoint("/v1/chat/completions"))
                 .addHeader("Content-Type", "application/json")
                 .apply {
                     if (token.isNotBlank()) {
@@ -2713,10 +2713,10 @@ class ApiClient(private val baseUrl: String, private val token: String) {
             client.newCall(request).execute().use { response ->
                 val raw = response.body?.string().orEmpty()
                 val payload = runCatching { JSONObject(raw) }.getOrNull()
-                if (response.isSuccessful && payload?.optBoolean("ok") == true) {
-                    payload.optString("summary")
-                        .ifBlank { payload.optString("answer") }
-                        .ifBlank { raw.ifEmpty { "ok" } }
+                if (response.isSuccessful && payload != null) {
+                    (payload.optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("message")?.optString("content")
+                        ?.ifBlank { payload.optString("answer") }
+                        ?: raw).ifBlank { "ok" }
                 } else {
                     payload?.optString("error", "chat request failed") ?: raw.ifEmpty { "chat request failed" }
                 }
@@ -2875,7 +2875,7 @@ class ApiClient(private val baseUrl: String, private val token: String) {
 
         return try {
             val request = Request.Builder()
-                .url(endpoint("/api/v1/models/list"))
+                .url(endpoint("/v1/models"))
                 .apply {
                     if (token.isNotBlank()) {
                         addHeader("Authorization", "Bearer $token")
@@ -2885,8 +2885,11 @@ class ApiClient(private val baseUrl: String, private val token: String) {
             client.newCall(request).execute().use { response ->
                 val raw = response.body?.string().orEmpty()
                 val payload = runCatching { JSONObject(raw.ifEmpty { "{}" }) }.getOrNull()
-                val models = jsonStringList(payload?.optJSONArray("models"))
-                if (response.isSuccessful && payload?.optBoolean("ok") == true && models.isNotEmpty()) {
+                val models = buildList {
+                    val items = payload?.optJSONArray("data")
+                    if (items != null) for (index in 0 until items.length()) items.optJSONObject(index)?.optString("id")?.takeIf { it.isNotBlank() }?.let(::add)
+                }
+                if (response.isSuccessful && models.isNotEmpty()) {
                     ModelCatalog(
                         models = models,
                         activeModel = payload.optString("active_model", models.first())

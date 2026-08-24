@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AIFRED Operations</title>
+    <style>body{font:16px system-ui,sans-serif;background:#10131a;color:#eef;padding:2rem;max-width:60rem;margin:auto}button,input{font:inherit;padding:.6rem;margin:.25rem 0}button{cursor:pointer}pre{white-space:pre-wrap;background:#1b2230;padding:1rem;border-radius:.5rem}section{margin:1rem 0}</style>
+  </head>
+  <body>
+    <h1>AIFRED Operations</h1>
+    <p>Operator access is enforced by the backend. This console never displays secret values.</p>
+    <section id="login"><input id="username" autocomplete="username" placeholder="Username" /><input id="password" type="password" autocomplete="current-password" placeholder="Password" /><button id="login-button">Sign in</button></section>
+    <section id="panel" hidden><button id="refresh">Refresh status</button><button id="logout">Sign out</button><pre id="output">Not connected.</pre></section>
+    <script>
+      const tokenKey = "aifred.ops.session";
+      const output = document.querySelector("#output");
+      const request = (path, init = {}) => fetch(path, { ...init, headers: { "content-type": "application/json", authorization: `Bearer ${sessionStorage.getItem(tokenKey) || ""}`, ...(init.headers || {}) } });
+      async function refresh() { const r = await request("/api/v1/admin/ops/status"); output.textContent = JSON.stringify(await r.json(), null, 2); }
+      document.querySelector("#login-button").onclick = async () => { const r = await fetch("/api/v1/admin/login", { method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({username:username.value,password:password.value}) }); const p=await r.json(); if(!r.ok) return output.textContent=p.error||"Sign-in failed"; sessionStorage.setItem(tokenKey,p.session_token); login.hidden=true; panel.hidden=false; refresh(); };
+      document.querySelector("#refresh").onclick = refresh;
+      document.querySelector("#logout").onclick = () => { sessionStorage.removeItem(tokenKey); location.reload(); };
+      if(sessionStorage.getItem(tokenKey)){ login.hidden=true; panel.hidden=false; refresh(); }
+    </script>
+  </body>
+</html>

@@ -39,13 +39,14 @@ async function sha256Hex(input) {
 
 function getExpectedAdmin(env) {
   return {
-    username: String(env.AIFRED_ADMIN_USERNAME || "North3rnLight3r").trim(),
-    passwordHash: String(env.AIFRED_ADMIN_PASSWORD_SHA256 || "c5c5188f8c698dfa5f956f4883f878a212d882fef0c8aed7c49a12c41d9ad8c5").trim().toLowerCase()
+    username: String(env.AIFRED_ADMIN_USERNAME || "").trim(),
+    passwordHash: String(env.AIFRED_ADMIN_PASSWORD_SHA256 || "").trim().toLowerCase()
   };
 }
 
 async function createAdminSession(username, env) {
-  const secret = String(env.AIFRED_ADMIN_SESSION_SECRET || env.AIFRED_API_TOKEN || "aifred-local-session").trim();
+  const secret = String(env.AIFRED_ADMIN_SESSION_SECRET || "").trim();
+  if (!secret) throw new Error("AIFRED_ADMIN_SESSION_SECRET is not configured");
   const issuedAt = Date.now();
   const nonce = crypto.randomUUID();
   const payload = `${username}|${issuedAt}|${nonce}`;
@@ -65,7 +66,8 @@ async function verifyAdmin(request, env) {
     if (!username || !issuedAt || !nonce || !sig) return false;
     const ageMs = Date.now() - Number(issuedAt);
     if (!Number.isFinite(ageMs) || ageMs < 0 || ageMs > 24 * 60 * 60 * 1000) return false;
-    const secret = String(env.AIFRED_ADMIN_SESSION_SECRET || env.AIFRED_API_TOKEN || "aifred-local-session").trim();
+    const secret = String(env.AIFRED_ADMIN_SESSION_SECRET || "").trim();
+    if (!secret) return false;
     const expected = await sha256Hex(`${username}|${issuedAt}|${nonce}|${secret}`);
     return expected === sig;
   } catch (_) {
@@ -447,6 +449,95 @@ async function handleChat(request, env) {
   } catch (error) {
     return json({ ok: false, error: error.message || "chat provider failed" }, { status: 503 });
   }
+}
+
+function openAiError(message, type = "invalid_request_error", code = null, param = null) {
+  return { error: { message: String(message), type, code, param } };
+}
+
+function canonicalModelList(env) {
+  const models = [];
+  if (env.OPENAI_API_KEY) models.push(String(env.OPENAI_MODEL || "gpt-5.6-luna"));
+  if (env.OLLAMA_BASE_URL) models.push(String(env.OLLAMA_MODEL || "aifred:latest"));
+  return [...new Set(models.filter(Boolean))];
+}
+
+function canonicalModelsResponse(env) {
+  const created = Math.floor(Date.now() / 1000);
+  return {
+    object: "list",
+    data: canonicalModelList(env).map((id) => ({ id, object: "model", created, owned_by: id.startsWith("gpt-") ? "openai" : "aifred" }))
+  };
+}
+
+function messagesFromBody(body) {
+  if (!Array.isArray(body.messages) || body.messages.length === 0) throw new Error("messages must be a non-empty array");
+  return body.messages.map((message) => {
+    const role = String(message?.role || "").trim();
+    if (!["system", "user", "assistant", "tool"].includes(role)) throw new Error("messages contains an unsupported role");
+    const content = Array.isArray(message.content)
+      ? message.content.map((part) => part?.text || "").join("")
+      : String(message.content ?? "");
+    return { role, content };
+  });
+}
+
+function completionResponse(model, content, usage = {}) {
+  return {
+    id: `chatcmpl-${crypto.randomUUID()}`,
+    object: "chat.completion",
+    created: Math.floor(Date.now() / 1000),
+    model,
+    choices: [{ index: 0, message: { role: "assistant", content }, finish_reason: "stop" }],
+    usage: { prompt_tokens: Number(usage.prompt_tokens || 0), completion_tokens: Number(usage.completion_tokens || 0), total_tokens: Number(usage.total_tokens || 0) }
+  };
+}
+
+async function canonicalChat(request, env) {
+  let body;
+  try { body = await request.json(); } catch (_) { return json(openAiError("request body must be valid JSON"), { status: 400 }); }
+  let messages;
+  try { messages = messagesFromBody(body); } catch (error) { return json(openAiError(error.message), { status: 400 }); }
+  const model = String(body.model || env.OPENAI_MODEL || env.OLLAMA_MODEL || "").trim();
+  if (!model) return json(openAiError("model is required"), { status: 400 });
+  const stream = body.stream === true;
+  try {
+    let result;
+    if (env.OLLAMA_BASE_URL && (!env.OPENAI_API_KEY || model === env.OLLAMA_MODEL)) {
+      const response = await fetch(`${String(env.OLLAMA_BASE_URL).replace(/\/+$/, "")}/api/chat`, {
+        method: "POST", headers: { "content-type": "application/json", ...(env.OLLAMA_API_TOKEN ? { authorization: `Bearer ${env.OLLAMA_API_TOKEN}` } : {}) },
+        body: JSON.stringify({ model, messages, stream, options: { temperature: body.temperature, top_p: body.top_p, max_tokens: body.max_tokens } })
+      });
+      if (!response.ok) return json(openAiError("chat provider failed", "server_error"), { status: 502 });
+      if (stream) {
+        const reader = response.body?.getReader();
+        if (!reader) return json(openAiError("stream unavailable", "server_error"), { status: 502 });
+        const decoder = new TextDecoder();
+        const encoder = new TextEncoder();
+        const streamBody = new ReadableStream({ async pull(controller) { const { value, done } = await reader.read(); if (done) { controller.enqueue(encoder.encode("data: [DONE]\n\n")); controller.close(); return; } for (const line of decoder.decode(value, { stream: true }).split("\n").filter(Boolean)) { try { const item = JSON.parse(line); const delta = item.message?.content || ""; if (delta) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ id: "chatcmpl-stream", object: "chat.completion.chunk", created: Math.floor(Date.now()/1000), model, choices: [{ index: 0, delta: { content: delta }, finish_reason: null }] })}\n\n`)); } catch (_) {} } } });
+        return new Response(streamBody, { headers: { "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-cache", connection: "keep-alive" } });
+      }
+      const payload = await response.json();
+      result = completionResponse(model, payload.message?.content || payload.response || "", payload.prompt_eval_count ? { prompt_tokens: payload.prompt_eval_count, completion_tokens: payload.eval_count, total_tokens: payload.prompt_eval_count + payload.eval_count } : {});
+    } else if (env.OPENAI_API_KEY) {
+      const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ model, input: messages, temperature: body.temperature, max_output_tokens: body.max_tokens }) });
+      const payload = await response.json();
+      if (!response.ok) return json(openAiError(payload?.error?.message || "chat provider failed", "server_error"), { status: 502 });
+      const content = payload.output_text || payload.output?.flatMap((item) => item.content || []).map((part) => part.text || "").join("").trim() || "";
+      result = completionResponse(model, content, { prompt_tokens: payload.usage?.input_tokens, completion_tokens: payload.usage?.output_tokens, total_tokens: payload.usage?.total_tokens });
+    } else return json(openAiError("no chat provider is configured", "server_error"), { status: 503 });
+    if (!stream) return json(result);
+    return new Response(`data: ${JSON.stringify({ ...result, object: "chat.completion.chunk", choices: [{ index: 0, delta: result.choices[0].message, finish_reason: "stop" }] })}\n\ndata: [DONE]\n\n`, { headers: { "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-cache" } });
+  } catch (error) { return json(openAiError(error.message || "chat provider failed", "server_error"), { status: 503 }); }
+}
+
+async function handleOpsStatus(request, env) {
+  if (!(await verifyAdmin(request, env))) return json(openAiError("admin session required", "authentication_error"), { status: 401 });
+  return json({ ok: true, service: "AIFRED operations", snapshot_at: new Date().toISOString(), health: { api: "ok", providers: canonicalModelList(env).length, mailer: Boolean(env.MAILER), r2: { downloads: Boolean(env.AIFRED_DOWNLOADS), website_assets: Boolean(env.AIFRED_WEBSITE_ASSETS), reference: Boolean(env.AIFRED_REFERENCE_BUCKET) }, kv: { reference_pool: Boolean(env.AIFRED_REFERENCE_POOL), sales_log: Boolean(env.AIFRED_SALES_LOG) } }, deploy: repoConfig(env), paypal: { configured: Boolean(env.PAYPAL_CLIENT_ID && env.PAYPAL_CLIENT_SECRET), environment: String(env.PAYPAL_ENVIRONMENT || env.AIFRED_PAYPAL_ENVIRONMENT || "live").toLowerCase() } });
+}
+
+function paypalEnvironment(env) {
+  return String(env.PAYPAL_ENVIRONMENT || env.AIFRED_PAYPAL_ENVIRONMENT || "live").toLowerCase() === "sandbox" ? "sandbox" : "live";
 }
 
 function paypalApiBase(env) {
@@ -1629,7 +1720,11 @@ export async function onRequest({ request, env, params }) {
 
   if (request.method === "OPTIONS") return new Response(null, { status: 204 });
   try {
-  if (path === "health") return json({ ok: true, service: "AIFRED website backend" });
+  if (path === "health") return json({ ok: true, service: "AIFRED API", api_version: "v1" });
+  if (path === "models") return json(canonicalModelsResponse(env));
+  if (path === "chat/completions" && request.method === "POST") return canonicalChat(request, env);
+  if (path === "embeddings" && request.method === "POST") return json(openAiError("embeddings provider is not configured", "server_error"), { status: 501 });
+  if (path === "responses") return json(openAiError("responses is reserved for a future compatible implementation", "not_implemented"), { status: 501 });
   if (path === "catalog/list") return json({ ok: true, tracks: withR2CatalogUrls(request, await loadCatalog(request)) });
   if (path === "soundpacks/list") return json({ ok: true, soundpacks: [] });
   if (path === "content/get") return json({ ok: true, content: contentPayload() });
@@ -1683,6 +1778,7 @@ export async function onRequest({ request, env, params }) {
       deploy: { source: repoConfig(env).repo, branch: repoConfig(env).branch, target: "Cloudflare Pages project aifred-site" }
     });
   }
+  if (path === "admin/ops/status" && request.method === "GET") return handleOpsStatus(request, env);
   if (path === "admin/catalog/list") return json({ ok: true, tracks: withR2CatalogUrls(request, await loadCatalog(request)) });
   if (path === "admin/files/read" && request.method === "POST") return handleAdminFileRead(request, env);
   if (path === "admin/files/write" && request.method === "POST") return handleAdminFileWrite(request, env);
@@ -1745,7 +1841,7 @@ export async function onRequest({ request, env, params }) {
       }
     });
   }
-  if (path === "chat/ask" && request.method === "POST") return handleChat(request, env);
+  if (path === "chat/ask" && request.method === "POST") return canonicalChat(request, env);
   if (path === "paypal/config" && request.method === "GET") return handlePayPalConfig(request, env);
   if (path === "paypal/create-order" && request.method === "POST") return handlePayPalCreateOrder(request, env);
   if (path === "paypal/capture-order" && request.method === "POST") return handlePayPalCaptureOrder(request, env);

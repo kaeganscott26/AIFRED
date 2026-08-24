@@ -1,0 +1,12 @@
+{
+  "type": "module",
+  "dependencies": {
+    "esbuild": "^0.28.2",
+    "workerd": "^1.20260824.1",
+    "wrangler": "^4.125.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "workerd@1.20260824.1": true
+  }
+}
