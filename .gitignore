@@ -29,3 +29,5 @@ tools/**/obj/
 .env*
 !.env.example
 .forge/metadata.sqlite
+**/.forge/metadata.sqlite
+.smart-env

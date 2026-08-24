@@ -2590,6 +2590,11 @@ class ApiClient(private val baseUrl: String, private val token: String) {
         return "${baseUrl.trimEnd('/')}$path"
     }
 
+    private fun v1Endpoint(path: String): String {
+        val root = baseUrl.trimEnd('/').let { if (it.endsWith("/v1")) it else "$it/v1" }
+        return "$root${if (path.startsWith('/')) path else "/$path"}"
+    }
+
     private fun isDirectOllama(): Boolean {
         val normalized = baseUrl.lowercase().trimEnd('/')
         return normalized.contains(":11434") || (normalized.contains("ollama") && normalized.endsWith("/api"))
@@ -2700,7 +2705,7 @@ class ApiClient(private val baseUrl: String, private val token: String) {
                 .toString()
 
             val request = Request.Builder()
-                .url(endpoint("/v1/chat/completions"))
+                .url(v1Endpoint("/chat/completions"))
                 .addHeader("Content-Type", "application/json")
                 .apply {
                     if (token.isNotBlank()) {
@@ -2875,7 +2880,7 @@ class ApiClient(private val baseUrl: String, private val token: String) {
 
         return try {
             val request = Request.Builder()
-                .url(endpoint("/v1/models"))
+                .url(v1Endpoint("/models"))
                 .apply {
                     if (token.isNotBlank()) {
                         addHeader("Authorization", "Bearer $token")
