@@ -4,5 +4,8 @@
   "smart-connections",
   "obsidian-mind-map",
   "smart-lookup",
-  "obsidian-local-rest-api"
+  "obsidian-local-rest-api",
+  "smart-context",
+  "smart-chatgpt",
+  "smart-templates"
 ]

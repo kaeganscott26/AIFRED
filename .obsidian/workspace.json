@@ -47,12 +47,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "docs/BRANCH_CONSOLIDATION_AUDIT_2026-08-22.md",
+                "file": "docs/wiki/Developer-Guide.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "BRANCH_CONSOLIDATION_AUDIT_2026-08-22"
+              "title": "Developer-Guide"
             }
           }
         ],
@@ -276,16 +276,32 @@
       "templates:Insert template": false,
       "command-palette:Open command palette": false,
       "bases:Create new base": false,
-      "realclaudian:Open Claudian": false
+      "realclaudian:Open Claudian": false,
+      "smart-connections:Smart Connections: Open random connection": false,
+      "smart-connections:Smart Connections: Open connections view": false,
+      "smart-connections:Toggle Footer Connections": false,
+      "smart-lookup:Smart Lookup: Open lookup view": false,
+      "smart-context:Smart Context: List Named Contexts": false,
+      "smart-context:Smart Context: Open Builder": false,
+      "smart-context:Smart Context: Copy current": false,
+      "smart-templates:Smart Templates: Open template context": false
     }
   },
-  "active": "26db7cb798f73fd4",
+  "active": "e5f956ca807f0fe9",
   "lastOpenFiles": [
+    "docs/operations/PHASE6_ASSET_ACCEPTANCE_CHECKLIST.md",
+    "docs/architecture/AIFRED_SYSTEM_MAP.md",
+    "docs/AIFRED_WINDOWS_RELEASE_ARCHITECTURE.md",
+    "docs/operations/website-cloudflare-production-2026-08-25.md",
+    "docs/operations/PHASE9_PREVIEW_READINESS_CLOSURE_REPORT.md",
+    "docs/operations/PHASE9_BLOCKER_CLOSURE_CHECKLIST.md",
+    "docs/flagship/AIFRED_FLAGSHIP_BUILD_PLAN.md",
+    "agenticTestText.md",
+    "docs/BRANCH_CONSOLIDATION_AUDIT_2026-08-22.md",
     "docs/PLUGIN-STABILIZATION.md",
     "docs/BACKEND-ROUTING-MACOS.md",
     "docs/architecture/PATH_AUTHORITY_MAP.md",
     "docs/architecture/BACKEND_SEPARATION_CONTRACT.md",
-    "docs/architecture/AIFRED_SYSTEM_MAP.md",
     "docs/architecture/AIFRED_API_CONTRACT.md",
     "apps/website/assets/docs/aifred-system-requirements.md",
     "docs/wiki/Developer-Guide.md",
