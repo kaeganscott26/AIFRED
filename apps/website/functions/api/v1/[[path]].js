@@ -371,6 +371,147 @@ function contentPayload() {
   };
 }
 
+const API_RUNTIME_CONFIG_KEY = "admin:config:api-runtime";
+
+function defaultRuntimeApiConfig(env) {
+  return {
+    provider: String(env.AIFRED_CHAT_PROVIDER || (env.OPENAI_API_KEY ? "openai" : env.OLLAMA_BASE_URL ? "ollama" : "website")).toLowerCase(),
+    ollama_base_url: String(env.OLLAMA_BASE_URL || "").replace(/\/+$/, ""),
+    ollama_model: String(env.OLLAMA_MODEL || "aifred:latest"),
+    openai_model: String(env.OPENAI_MODEL || "gpt-5.6-luna")
+  };
+}
+
+async function loadRuntimeApiConfig(env) {
+  const defaults = defaultRuntimeApiConfig(env);
+  if (!env.AIFRED_SALES_LOG || typeof env.AIFRED_SALES_LOG.get !== "function") return defaults;
+  try {
+    const raw = await env.AIFRED_SALES_LOG.get(API_RUNTIME_CONFIG_KEY);
+    if (!raw) return defaults;
+    const stored = JSON.parse(raw);
+    return {
+      provider: ["website", "ollama", "openai"].includes(String(stored.provider || "").toLowerCase()) ? String(stored.provider).toLowerCase() : defaults.provider,
+      ollama_base_url: String(stored.ollama_base_url || defaults.ollama_base_url).replace(/\/+$/, ""),
+      ollama_model: String(stored.ollama_model || defaults.ollama_model),
+      openai_model: String(stored.openai_model || defaults.openai_model)
+    };
+  } catch (_) {
+    return defaults;
+  }
+}
+
+async function runtimeChatEnv(env) {
+  const config = await loadRuntimeApiConfig(env);
+  return {
+    ...env,
+    AIFRED_CHAT_PROVIDER: config.provider,
+    OLLAMA_BASE_URL: config.ollama_base_url,
+    OLLAMA_MODEL: config.ollama_model,
+    OPENAI_MODEL: config.openai_model
+  };
+}
+
+function validateCloudflareOllamaUrl(value) {
+  if (!value) return "";
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:") return "Cloudflare Ollama endpoints must use HTTPS";
+    const host = url.hostname.toLowerCase();
+    if (host === "localhost" || host === "127.0.0.1" || host === "::1" || host.endsWith(".local")) {
+      return "Cloudflare cannot reach a device-local Ollama endpoint";
+    }
+    return "";
+  } catch (_) {
+    return "Ollama endpoint must be a valid HTTPS URL";
+  }
+}
+
+function safeRuntimeApiPayload(config, env) {
+  return {
+    provider: config.provider,
+    ollama: {
+      base_url: config.ollama_base_url,
+      model: config.ollama_model,
+      configured: Boolean(config.ollama_base_url),
+      token_configured: Boolean(env.OLLAMA_API_TOKEN),
+      access_service_token_configured: Boolean(env.OLLAMA_ACCESS_CLIENT_ID && env.OLLAMA_ACCESS_CLIENT_SECRET)
+    },
+    openai: {
+      base_url: "https://api.openai.com/v1",
+      model: config.openai_model,
+      configured: Boolean(env.OPENAI_API_KEY)
+    },
+    persistence: env.AIFRED_SALES_LOG ? "Cloudflare KV" : "environment defaults only",
+    secret_values_exposed: false
+  };
+}
+
+async function handleAdminApiConfig(request, env) {
+  const config = await loadRuntimeApiConfig(env);
+  if (request.method === "GET") return json({ ok: true, config: safeRuntimeApiPayload(config, env) });
+  if (request.method !== "POST") return json({ ok: false, error: "method not allowed" }, { status: 405 });
+  if (!env.AIFRED_SALES_LOG || typeof env.AIFRED_SALES_LOG.put !== "function") {
+    return json({ ok: false, error: "API configuration persistence requires AIFRED_SALES_LOG KV" }, { status: 503 });
+  }
+  const body = await readJson(request);
+  const has = (key) => Object.prototype.hasOwnProperty.call(body, key);
+  const next = {
+    provider: String(body.provider || config.provider).trim().toLowerCase(),
+    ollama_base_url: String(has("ollama_base_url") ? body.ollama_base_url : config.ollama_base_url).trim().replace(/\/+$/, ""),
+    ollama_model: String(has("ollama_model") ? body.ollama_model : config.ollama_model).trim(),
+    openai_model: String(has("openai_model") ? body.openai_model : config.openai_model).trim()
+  };
+  if (!["website", "ollama", "openai"].includes(next.provider)) {
+    return json({ ok: false, error: "provider must be website, ollama, or openai" }, { status: 400 });
+  }
+  const ollamaUrlError = validateCloudflareOllamaUrl(next.ollama_base_url);
+  if (ollamaUrlError) return json({ ok: false, error: ollamaUrlError }, { status: 400 });
+  if (next.provider === "ollama" && !next.ollama_base_url) {
+    return json({ ok: false, error: "A reachable HTTPS Ollama endpoint is required" }, { status: 400 });
+  }
+  if (!next.ollama_model || !next.openai_model) {
+    return json({ ok: false, error: "Ollama and OpenAI model names are required" }, { status: 400 });
+  }
+  await env.AIFRED_SALES_LOG.put(API_RUNTIME_CONFIG_KEY, JSON.stringify(next));
+  return json({ ok: true, config: safeRuntimeApiPayload(next, env), message: "API configuration saved to KV; provider secrets remain Cloudflare-managed" });
+}
+
+async function handleAdminApiTest(request, env) {
+  const configured = await runtimeChatEnv(env);
+  const body = request.method === "POST" ? await readJson(request) : {};
+  const provider = String(body.provider || configured.AIFRED_CHAT_PROVIDER || "").toLowerCase();
+  try {
+    if (provider === "ollama") {
+      const base = String(configured.OLLAMA_BASE_URL || "").replace(/\/+$/, "");
+      if (!base) return json({ ok: false, error: "OLLAMA_BASE_URL is not configured" }, { status: 503 });
+      const response = await fetch(`${base}/api/tags`, {
+        headers: {
+          ...(configured.OLLAMA_API_TOKEN ? { authorization: `Bearer ${configured.OLLAMA_API_TOKEN}` } : {}),
+          ...(configured.OLLAMA_ACCESS_CLIENT_ID && configured.OLLAMA_ACCESS_CLIENT_SECRET ? {
+            "CF-Access-Client-Id": configured.OLLAMA_ACCESS_CLIENT_ID,
+            "CF-Access-Client-Secret": configured.OLLAMA_ACCESS_CLIENT_SECRET
+          } : {})
+        }
+      });
+      if (!response.ok) return json({ ok: false, error: `Ollama test failed with HTTP ${response.status}` }, { status: 502 });
+      const payload = await response.json();
+      const models = Array.isArray(payload.models) ? payload.models.map((item) => String(item.name || "")).filter(Boolean) : [];
+      return json({ ok: true, provider, models, message: `Ollama connected; ${models.length} model(s) discovered` });
+    }
+    if (provider === "openai") {
+      if (!configured.OPENAI_API_KEY) return json({ ok: false, error: "OPENAI_API_KEY is not configured" }, { status: 503 });
+      const response = await fetch("https://api.openai.com/v1/models", { headers: { authorization: `Bearer ${configured.OPENAI_API_KEY}` } });
+      if (!response.ok) return json({ ok: false, error: `OpenAI test failed with HTTP ${response.status}` }, { status: 502 });
+      const payload = await response.json();
+      const models = Array.isArray(payload.data) ? payload.data.map((item) => String(item.id || "")).filter((id) => id.startsWith("gpt-")).slice(0, 50) : [];
+      return json({ ok: true, provider, models, message: `OpenAI connected; ${models.length} GPT model(s) discovered` });
+    }
+    return json({ ok: true, provider: "website", models: canonicalModelList(configured), message: "Website API profile is available" });
+  } catch (error) {
+    return json({ ok: false, error: error.message || "provider test failed" }, { status: 503 });
+  }
+}
+
 async function askOpenAI(env, message) {
   const apiKey = env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
@@ -400,16 +541,24 @@ async function askOpenAI(env, message) {
   return { provider: "openai", model, answer };
 }
 
+function ollamaRequestHeaders(env, includeJson = false) {
+  return {
+    ...(includeJson ? { "content-type": "application/json" } : {}),
+    ...(env.OLLAMA_API_TOKEN ? { authorization: `Bearer ${env.OLLAMA_API_TOKEN}` } : {}),
+    ...(env.OLLAMA_ACCESS_CLIENT_ID && env.OLLAMA_ACCESS_CLIENT_SECRET ? {
+      "CF-Access-Client-Id": env.OLLAMA_ACCESS_CLIENT_ID,
+      "CF-Access-Client-Secret": env.OLLAMA_ACCESS_CLIENT_SECRET
+    } : {})
+  };
+}
+
 async function askOllama(env, message) {
   const base = String(env.OLLAMA_BASE_URL || "").replace(/\/+$/, "");
   if (!base) throw new Error("OLLAMA_BASE_URL is not configured");
   const model = env.OLLAMA_MODEL || "aifred:latest";
   const response = await fetch(`${base}/api/chat`, {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      ...(env.OLLAMA_API_TOKEN ? { "authorization": `Bearer ${env.OLLAMA_API_TOKEN}` } : {})
-    },
+    headers: ollamaRequestHeaders(env, true),
     body: JSON.stringify({
       model,
       stream: false,
@@ -428,6 +577,7 @@ async function askOllama(env, message) {
 }
 
 async function handleChat(request, env) {
+  env = await runtimeChatEnv(env);
   const body = await readJson(request);
   const message = String(body.message || body.prompt || "").trim();
   if (!message) return json({ ok: false, error: "message is required" }, { status: 400 });
@@ -486,6 +636,7 @@ function completionResponse(model, content, usage = {}) {
 }
 
 async function canonicalChat(request, env) {
+  env = await runtimeChatEnv(env);
   let body;
   try { body = await request.json(); } catch (_) { return json(openAiError("request body must be valid JSON"), { status: 400 }); }
   let messages;
@@ -497,7 +648,7 @@ async function canonicalChat(request, env) {
     let result;
     if (env.OLLAMA_BASE_URL && (!env.OPENAI_API_KEY || model === env.OLLAMA_MODEL)) {
       const response = await fetch(`${String(env.OLLAMA_BASE_URL).replace(/\/+$/, "")}/api/chat`, {
-        method: "POST", headers: { "content-type": "application/json", ...(env.OLLAMA_API_TOKEN ? { authorization: `Bearer ${env.OLLAMA_API_TOKEN}` } : {}) },
+        method: "POST", headers: ollamaRequestHeaders(env, true),
         body: JSON.stringify({ model, messages, stream, options: { temperature: body.temperature, top_p: body.top_p, max_tokens: body.max_tokens } })
       });
       if (!response.ok) return json(openAiError("chat provider failed", "server_error"), { status: 502 });
@@ -525,18 +676,21 @@ async function canonicalChat(request, env) {
 
 async function handleOpsStatus(request, env) {
   if (!(await verifyAdmin(request, env))) return json(openAiError("admin session required", "authentication_error"), { status: 401 });
+  const runtimeEnv = await runtimeChatEnv(env);
+  const runtimeConfig = await loadRuntimeApiConfig(env);
   return json({
     ok: true,
     service: "AIFRED operations",
     snapshot_at: new Date().toISOString(),
     health: {
       api: "ok",
-      providers: canonicalModelList(env).length,
+      providers: canonicalModelList(runtimeEnv).length,
       r2: { downloads_and_assets: Boolean(env.AIFRED_DOWNLOADS), reference: Boolean(env.AIFRED_REFERENCE_BUCKET) },
       kv: { reference_pool: Boolean(env.AIFRED_REFERENCE_POOL), activity_log: Boolean(env.AIFRED_SALES_LOG) }
     },
     deploy: repoConfig(env),
-    distribution: { mode: "free", payment_pipeline: "disabled" }
+    distribution: { mode: "free", payment_pipeline: "disabled" },
+    api_configuration: safeRuntimeApiPayload(runtimeConfig, env)
   });
 }
 
@@ -552,7 +706,7 @@ function chatSettingsPayload(request, env) {
     active_model: ollamaModel,
     models: [ollamaModel, openAiModel].filter(Boolean),
     settings: {
-      transport_mode: "websocket",
+      transport_mode: "http",
       webhook: { enabled: false, url: "", secret: "", events: ["chat.completed", "chat.failed"] },
       context: { use_previous_response_id: true, memory_window_items: 40, summary_items: 6, max_prompt_chars: 4000, compact_threshold: 12 },
       prompt: { tone: "direct", personality_mode: "professional_mentor", system_prefix: "", system_suffix: "" },
@@ -1381,7 +1535,7 @@ export async function onRequest({ request, env, params }) {
   if (request.method === "OPTIONS") return new Response(null, { status: 204 });
   try {
   if (path === "health") return json({ ok: true, service: "AIFRED API", api_version: "v1" });
-  if (path === "models") return json(canonicalModelsResponse(env));
+  if (path === "models") return json(canonicalModelsResponse(await runtimeChatEnv(env)));
   if (path === "chat/completions" && request.method === "POST") return canonicalChat(request, env);
   if (path === "embeddings" && request.method === "POST") return json(openAiError("embeddings provider is not configured", "server_error"), { status: 501 });
   if (path === "responses") return json(openAiError("responses is reserved for a future compatible implementation", "not_implemented"), { status: 501 });
@@ -1391,14 +1545,16 @@ export async function onRequest({ request, env, params }) {
   if (path === "activity/record" && request.method === "POST") return handleActivityRecord(request, env);
   if (path === "analysis/submit" && request.method === "POST") return handleAnalysisSubmit(request, env);
   if (path === "analyzer/submit" && request.method === "POST") return handleAnalysisSubmit(request, env);
-  if (path === "chat/settings") return json(chatSettingsPayload(request, env));
+  if (path === "chat/settings") return json(chatSettingsPayload(request, await runtimeChatEnv(env)));
   if (path === "downloads/plugin" && (request.method === "GET" || request.method === "HEAD")) return handlePluginDownload(request, env);
   if (path.startsWith("assets/") && (request.method === "GET" || request.method === "HEAD")) return fetchWebsiteAssetResponse(request, env, path.slice("assets/".length));
   if (path === "admin/login" && request.method === "POST") return handleAdminLogin(request, env);
   if (path.startsWith("admin/") && !(await verifyAdmin(request, env))) {
     return json({ ok: false, error: "admin session required" }, { status: 401 });
   }
-  if (path === "admin/chat/settings/save" && request.method === "POST") return json(chatSettingsPayload(request, env));
+  if (path === "admin/api/config") return handleAdminApiConfig(request, env);
+  if (path === "admin/api/test" && (request.method === "GET" || request.method === "POST")) return handleAdminApiTest(request, env);
+  if (path === "admin/chat/settings/save" && request.method === "POST") return json(chatSettingsPayload(request, await runtimeChatEnv(env)));
   if (path === "command/run" && request.method === "POST") return handleCommand(request, env);
   if (path === "registry/actions") return json({ ok: true, actions: commandCatalog() });
   if (path === "admin/dashboard/state") {
@@ -1492,15 +1648,16 @@ export async function onRequest({ request, env, params }) {
     });
   }
   if (path === "models/list") {
-    const ollamaModel = env.OLLAMA_MODEL || "aifred:latest";
-    const openAiModel = env.OPENAI_MODEL || "gpt-5.6-luna";
+    const runtimeEnv = await runtimeChatEnv(env);
+    const ollamaModel = runtimeEnv.OLLAMA_MODEL || "aifred:latest";
+    const openAiModel = runtimeEnv.OPENAI_MODEL || "gpt-5.6-luna";
     return json({
       ok: true,
       models: [ollamaModel, openAiModel].filter(Boolean),
       active_model: ollamaModel,
       providers: {
-        openai: { configured: Boolean(env.OPENAI_API_KEY), model: openAiModel },
-        ollama: { configured: Boolean(env.OLLAMA_BASE_URL), model: ollamaModel }
+        openai: { configured: Boolean(runtimeEnv.OPENAI_API_KEY), model: openAiModel },
+        ollama: { configured: Boolean(runtimeEnv.OLLAMA_BASE_URL), model: ollamaModel }
       }
     });
   }

@@ -30,7 +30,9 @@ AIFRED intentionally has two separate backend systems.
 
 - Production website: `https://www.north3rnlight3r.com`
 - API base: `https://www.north3rnlight3r.com/api/v1`
-- WebSocket chat: `https://www.north3rnlight3r.com/ws/chat`
+- HTTP chat: `https://www.north3rnlight3r.com/api/v1/chat/ask`
+- Optional WebSocket compatibility route: `wss://www.north3rnlight3r.com/ws/chat`
+- Owner operations console: `https://www.north3rnlight3r.com/ops`
 - Website source: `apps/website/`
 - Primary app config: `apps/website/wrangler.toml`
 - Operations mirror: `infra/cloudflare/wrangler.toml`
@@ -52,7 +54,7 @@ The public website currently offers the AIFRED Windows and macOS beta packages p
 
 | Product | Purpose | Current distribution |
 | --- | --- | --- |
-| AIFRED VST3 | Mix analysis, reference alignment, comparison metering, and chat-guided feedback | Windows installer/zip and macOS pkg |
+| AIFRED VST3 | Mix analysis, reference alignment, comparison metering, and chat-guided feedback | Windows installer/ZIP and currently published macOS ZIP; pkg is a build target |
 | AIFRED Engine | Local gateway between the plugin and model providers | Bundled with Windows and macOS packages |
 | North3rnLight3r Website | Storefront, beat catalog, browser analyzer, contact flow, and backend API | Cloudflare Pages custom domain |
 | Android Admin App | Owner-only control panel for chat, uploads, files, commands, catalog, and activity | Private local build/install only |

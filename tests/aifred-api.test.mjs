@@ -45,7 +45,7 @@ test("admin operations require server-side authorization", async () => {
 });
 
 test("all admin data routes require server-side authorization", async () => {
-  for (const path of ["admin/dashboard/state", "admin/catalog/list", "admin/inquiries/list", "admin/logs/list", "admin/sales/list", "admin/reference/list"]) {
+  for (const path of ["admin/dashboard/state", "admin/catalog/list", "admin/inquiries/list", "admin/logs/list", "admin/sales/list", "admin/reference/list", "admin/api/config", "admin/api/test"]) {
     const response = await onRequest({
       request: request(`/api/v1/${path}`),
       env,
@@ -84,6 +84,75 @@ test("authorized admin can read operations status", async () => {
   const response = await onRequest({ request: request("/api/v1/admin/ops/status", { headers: { authorization: `Bearer ${session}` } }), env: configuredEnv, params: { path: ["admin", "ops", "status"] } });
   assert.equal(response.status, 200);
   assert.equal((await response.json()).service, "AIFRED operations");
+});
+
+test("authorized API configuration is KV-backed, secret-safe, and testable", async () => {
+  const password = "test-password";
+  const records = new Map();
+  const configuredEnv = {
+    AIFRED_ADMIN_USERNAME: "operator",
+    AIFRED_ADMIN_PASSWORD_SHA256: createHash("sha256").update(password).digest("hex"),
+    AIFRED_ADMIN_SESSION_SECRET: "test-secret",
+    OLLAMA_ACCESS_CLIENT_ID: "access-client-id",
+    OLLAMA_ACCESS_CLIENT_SECRET: "access-client-secret",
+    AIFRED_SALES_LOG: {
+      async get(key) { return records.get(key) || null; },
+      async put(key, value) { records.set(key, value); }
+    }
+  };
+  const login = await onRequest({ request: request("/api/v1/admin/login", { method: "POST", body: JSON.stringify({ username: "operator", password }) }), env: configuredEnv, params: { path: ["admin", "login"] } });
+  const session = (await login.json()).session_token;
+  const headers = { authorization: `Bearer ${session}`, "content-type": "application/json" };
+  const save = await onRequest({
+    request: request("/api/v1/admin/api/config", { method: "POST", headers, body: JSON.stringify({ provider: "ollama", ollama_base_url: "https://ollama.example.test", ollama_model: "aifred:latest", openai_model: "gpt-test" }) }),
+    env: configuredEnv,
+    params: { path: ["admin", "api", "config"] }
+  });
+  const saved = await save.json();
+  assert.equal(save.status, 200);
+  assert.equal(saved.config.ollama.base_url, "https://ollama.example.test");
+  assert.equal(saved.config.secret_values_exposed, false);
+  assert.doesNotMatch(JSON.stringify(saved), /api_key|client_secret/i);
+
+  const rejected = await onRequest({
+    request: request("/api/v1/admin/api/config", { method: "POST", headers, body: JSON.stringify({ provider: "ollama", ollama_base_url: "http://127.0.0.1:11434", ollama_model: "aifred:latest", openai_model: "gpt-test" }) }),
+    env: configuredEnv,
+    params: { path: ["admin", "api", "config"] }
+  });
+  assert.equal(rejected.status, 400);
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    assert.equal(String(url), "https://ollama.example.test/api/tags");
+    assert.equal(init.headers["CF-Access-Client-Id"], "access-client-id");
+    assert.equal(init.headers["CF-Access-Client-Secret"], "access-client-secret");
+    return new Response(JSON.stringify({ models: [{ name: "aifred:latest" }] }), { headers: { "content-type": "application/json" } });
+  };
+  try {
+    const tested = await onRequest({
+      request: request("/api/v1/admin/api/test", { method: "POST", headers, body: JSON.stringify({ provider: "ollama" }) }),
+      env: configuredEnv,
+      params: { path: ["admin", "api", "test"] }
+    });
+    assert.equal(tested.status, 200);
+    assert.deepEqual((await tested.json()).models, ["aifred:latest"]);
+
+    globalThis.fetch = async (url, init = {}) => {
+      assert.equal(String(url), "https://ollama.example.test/api/chat");
+      assert.equal(init.headers["CF-Access-Client-Id"], "access-client-id");
+      assert.equal(init.headers["CF-Access-Client-Secret"], "access-client-secret");
+      return new Response(JSON.stringify({ message: { content: "runtime ollama ready" } }), { headers: { "content-type": "application/json" } });
+    };
+    const chat = await onRequest({
+      request: request("/api/v1/chat/ask", { method: "POST", body: JSON.stringify({ model: "aifred:latest", messages: [{ role: "user", content: "status" }] }) }),
+      env: configuredEnv,
+      params: { path: ["chat", "ask"] }
+    });
+    assert.equal(chat.status, 200);
+    assert.equal((await chat.json()).choices[0].message.content, "runtime ollama ready");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("embeddings and future responses are explicit", async () => {

@@ -67,7 +67,11 @@ The in-app local registry includes read-only/non-root commands for working direc
 
 Catalog playback resolves the website API's relative `/api/v1/assets/audio/catalog/...` paths against `AIFRED_BASE_URL` before passing them to Android `MediaPlayer`. This keeps mobile playback on the same controlled R2-backed streaming routes as the website.
 
-The Chat tab includes an API Configuration module with Website, Local Ollama, and OpenAI profiles. Operators can edit the endpoint and model, enter an API key when required, test discovery, and apply the profile without rebuilding the APK. The selected profile is stored in app-private storage with Android backup disabled; API keys are never written to the repository. A phone cannot reach a workstation's Ollama service through `127.0.0.1`, so use the workstation's reachable LAN address when Ollama is not running on the phone itself.
+The Chat tab includes an API Configuration module with Website, Local Ollama, and OpenAI profiles. Operators can edit the endpoint and model, enter an API key when required, test discovery, and apply the profile without rebuilding the APK. Authenticated **Save Website Route** and **Test Website Route** controls provide the same Cloudflare runtime-routing capability as `/ops`; provider secrets remain Cloudflare-managed. The selected phone profile is stored in app-private storage with Android backup disabled, and API keys are never written to the repository.
+
+Android cleartext transport is enabled because local Ollama commonly uses HTTP, but the app rejects public cleartext endpoints and accepts HTTP only for loopback/private-network hosts. `127.0.0.1` means the phone itself unless an ADB reverse mapping is active; otherwise use the workstation's reachable private LAN address. Cloudflare Pages cannot use a private/loopback URL and requires an authenticated, publicly reachable HTTPS tunnel or service endpoint.
+
+No operator password or password verifier is hardcoded in the APK source. Offline login is available only after the owner explicitly saves credentials into the app's private, non-backed-up storage.
 
 ## Distribution
 

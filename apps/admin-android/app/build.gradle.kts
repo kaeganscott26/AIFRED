@@ -23,6 +23,7 @@ android {
         targetSdk = 35
         versionCode = 243
         versionName = "2.3.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         val configuredBaseUrl = (project.findProperty("AIFRED_BASE_URL") as String?)
             ?.trim()
@@ -106,4 +107,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }

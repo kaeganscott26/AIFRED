@@ -79,7 +79,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
-import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import java.util.UUID
 
@@ -283,7 +282,6 @@ private const val ADMIN_NOTIFICATION_CHANNEL = "AIFRED_admin_status"
 private const val ADMIN_NOTIFICATION_ID = 2207
 private const val DEFAULT_ADMIN_USERNAME = "North3rnLight3r"
 private const val DEFAULT_ADMIN_PASSWORD = ""
-private const val DEFAULT_ADMIN_PASSWORD_SHA256 = "c5c5188f8c698dfa5f956f4883f878a212d882fef0c8aed7c49a12c41d9ad8c5"
 private const val ADMIN_PREFS_NAME = "AIFRED_admin_local_config"
 private const val ADMIN_PREF_USERNAME = "admin_username"
 private const val ADMIN_PREF_PASSWORD = "admin_password"
@@ -346,17 +344,16 @@ private fun saveApiConfiguration(context: Context, configuration: ApiConfigurati
         .apply()
 }
 
-private fun sha256Hex(value: String): String {
-    val digest = MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8))
-    return digest.joinToString("") { "%02x".format(it) }
-}
-
-private fun localAdminLogin(username: String, password: String): AdminLoginResult {
+private fun localAdminLogin(
+    username: String,
+    password: String,
+    expectedUsername: String,
+    expectedPassword: String
+): AdminLoginResult {
     val normalizedUser = username.trim()
-    val localUserOk = normalizedUser == DEFAULT_ADMIN_USERNAME
-    val savedPasswordOk = password.isNotEmpty() && DEFAULT_ADMIN_PASSWORD.isNotEmpty() && password == DEFAULT_ADMIN_PASSWORD
-    val hashOk = sha256Hex(password) == DEFAULT_ADMIN_PASSWORD_SHA256
-    return if (localUserOk && (savedPasswordOk || hashOk)) {
+    val localUserOk = expectedUsername.isNotBlank() && normalizedUser == expectedUsername.trim()
+    val savedPasswordOk = expectedPassword.isNotEmpty() && password == expectedPassword
+    return if (localUserOk && savedPasswordOk) {
         AdminLoginResult(
             ok = true,
             username = normalizedUser,
@@ -825,8 +822,8 @@ fun AIFREDAdminApp() {
     var activeApiConfiguration by remember { mutableStateOf(initialApiConfiguration) }
     var apiConfigurationStatus by remember { mutableStateOf("API profile ready") }
     val client = remember { ApiClient(BuildConfig.AIFRED_BASE_URL, BuildConfig.AIFRED_API_TOKEN) }
-    val chatClient = remember(activeApiConfiguration.baseUrl, activeApiConfiguration.apiKey) {
-        ApiClient(activeApiConfiguration.baseUrl, activeApiConfiguration.apiKey)
+    val chatClient = remember(activeApiConfiguration.baseUrl, activeApiConfiguration.apiKey, activeApiConfiguration.provider) {
+        ApiClient(activeApiConfiguration.baseUrl, activeApiConfiguration.apiKey, activeApiConfiguration.provider)
     }
     val mediaPlayer = remember {
         MediaPlayer().apply {
@@ -866,6 +863,8 @@ fun AIFREDAdminApp() {
     var uploadUri by remember { mutableStateOf<Uri?>(null) }
     var adminUser by remember(configuredAdminUser) { mutableStateOf(configuredAdminUser) }
     var adminPassword by remember(configuredAdminPassword) { mutableStateOf(configuredAdminPassword) }
+    var savedAdminUser by remember(configuredAdminUser) { mutableStateOf(configuredAdminUser) }
+    var savedAdminPassword by remember(configuredAdminPassword) { mutableStateOf(configuredAdminPassword) }
     var adminSessionToken by remember { mutableStateOf("") }
 
     var uploadMode by remember { mutableStateOf(UploadMode.CATALOG) }
@@ -963,7 +962,7 @@ fun AIFREDAdminApp() {
 
         if (configuredAdminUser.isNotEmpty() && configuredAdminPassword.isNotEmpty()) {
             val result = withContext(Dispatchers.IO) {
-                client.adminLogin(configuredAdminUser, configuredAdminPassword)
+                client.adminLogin(configuredAdminUser, configuredAdminPassword, configuredAdminUser, configuredAdminPassword)
             }
             if (result.ok) {
                 adminUser = result.username
@@ -1321,10 +1320,11 @@ fun AIFREDAdminApp() {
                                     baseUrl = apiConfiguration.baseUrl.trim().trimEnd('/'),
                                     model = apiConfiguration.model.trim()
                                 )
+                                val endpointError = validateApiEndpoint(normalized.baseUrl)
                                 if (normalized.baseUrl.isBlank() || normalized.model.isBlank()) {
                                     apiConfigurationStatus = "Endpoint and model are required"
-                                } else if (!normalized.baseUrl.startsWith("https://") && !normalized.baseUrl.startsWith("http://")) {
-                                    apiConfigurationStatus = "Endpoint must use http:// or https://"
+                                } else if (endpointError != null) {
+                                    apiConfigurationStatus = endpointError
                                 } else {
                                     saveApiConfiguration(context, normalized)
                                     apiConfiguration = normalized
@@ -1338,14 +1338,52 @@ fun AIFREDAdminApp() {
                                     baseUrl = apiConfiguration.baseUrl.trim().trimEnd('/'),
                                     model = apiConfiguration.model.trim()
                                 )
-                                scope.launch {
-                                    apiConfigurationStatus = "testing ${draft.provider}"
-                                    val result = withContext(Dispatchers.IO) {
-                                        ApiClient(draft.baseUrl, draft.apiKey).testApiConnection()
+                                val endpointError = validateApiEndpoint(draft.baseUrl)
+                                if (endpointError != null) {
+                                    apiConfigurationStatus = endpointError
+                                } else {
+                                    scope.launch {
+                                        apiConfigurationStatus = "testing ${draft.provider}"
+                                        val result = withContext(Dispatchers.IO) {
+                                            ApiClient(draft.baseUrl, draft.apiKey, draft.provider).testApiConnection()
+                                        }
+                                        apiConfigurationStatus = result.message
+                                        if (result.ok && result.models.isNotEmpty()) {
+                                            chatModels = result.models
+                                        }
                                     }
-                                    apiConfigurationStatus = result.message
-                                    if (result.ok && result.models.isNotEmpty()) {
-                                        chatModels = result.models
+                                }
+                            },
+                            onSaveWebsiteApiConfiguration = {
+                                if (adminSessionToken.isBlank()) {
+                                    apiConfigurationStatus = "Online admin login is required"
+                                } else {
+                                    val draft = apiConfiguration.copy(
+                                        baseUrl = apiConfiguration.baseUrl.trim().trimEnd('/'),
+                                        model = apiConfiguration.model.trim()
+                                    )
+                                    scope.launch {
+                                        apiConfigurationStatus = "saving website ${draft.provider} route"
+                                        val result = withContext(Dispatchers.IO) {
+                                            client.saveWebsiteApiConfiguration(adminSessionToken, draft)
+                                        }
+                                        apiConfigurationStatus = result.message
+                                    }
+                                }
+                            },
+                            onTestWebsiteApiConfiguration = {
+                                if (adminSessionToken.isBlank()) {
+                                    apiConfigurationStatus = "Online admin login is required"
+                                } else {
+                                    scope.launch {
+                                        apiConfigurationStatus = "testing website ${apiConfiguration.provider} route"
+                                        val result = withContext(Dispatchers.IO) {
+                                            client.testWebsiteApiConfiguration(adminSessionToken, apiConfiguration.provider)
+                                        }
+                                        apiConfigurationStatus = result.message
+                                        if (result.ok && result.models.isNotEmpty()) {
+                                            chatModels = result.models
+                                        }
                                     }
                                 }
                             },
@@ -1451,6 +1489,8 @@ fun AIFREDAdminApp() {
                                 }
 
                                 saveConfiguredAdminCredentials(context, username, password)
+                                savedAdminUser = username
+                                savedAdminPassword = password
                                 status = "admin credentials saved locally"
                                 postAdminNotification(context, "Admin Credentials Saved", "Saved locally for $username")
                             },
@@ -1465,7 +1505,7 @@ fun AIFREDAdminApp() {
                                 scope.launch {
                                     status = "admin login"
                                     val result = withContext(Dispatchers.IO) {
-                                        client.adminLogin(username, password)
+                                        client.adminLogin(username, password, savedAdminUser, savedAdminPassword)
                                     }
                                     if (result.ok) {
                                         adminSessionToken = result.sessionToken
@@ -1875,6 +1915,8 @@ fun ChatScreen(
     onApiConfigurationChange: (ApiConfiguration) -> Unit,
     onApplyApiConfiguration: () -> Unit,
     onTestApiConfiguration: () -> Unit,
+    onSaveWebsiteApiConfiguration: () -> Unit,
+    onTestWebsiteApiConfiguration: () -> Unit,
     chatSettings: ChatSettings,
     chatWebsocketUrl: String,
     chatSettingsPersistence: String,
@@ -2014,9 +2056,24 @@ fun ChatScreen(
             Button(onClick = onTestApiConfiguration, modifier = Modifier.weight(1f)) { Text("Test API") }
             Button(onClick = onApplyApiConfiguration, modifier = Modifier.weight(1f)) { Text("Apply + Save") }
         }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(
+                onClick = onTestWebsiteApiConfiguration,
+                enabled = adminSessionActive,
+                modifier = Modifier.weight(1f)
+            ) { Text("Test Website Route") }
+            Button(
+                onClick = onSaveWebsiteApiConfiguration,
+                enabled = adminSessionActive,
+                modifier = Modifier.weight(1f)
+            ) { Text("Save Website Route") }
+        }
         Text(text = apiConfigurationStatus, color = Color(0xFF8DB0C8))
         Text(
-            text = "Profiles are stored only in this app's private, non-backed-up storage. For Ollama on another device, replace 127.0.0.1 with that host's reachable LAN address.",
+            text = "Apply + Save updates this phone. Authenticated Website Route controls update/test Cloudflare KV. Cloudflare Ollama requires a reachable HTTPS endpoint; direct phone-to-Ollama may use loopback or a trusted private LAN address.",
             color = Color(0xFF8DB0C8)
         )
 
@@ -2685,7 +2742,11 @@ fun CommandScreen(
     }
 }
 
-class ApiClient(private val baseUrl: String, private val token: String) {
+class ApiClient(
+    private val baseUrl: String,
+    private val token: String,
+    private val provider: String = ""
+) {
     private val client = OkHttpClient.Builder().build()
     private var ws: WebSocket? = null
 
@@ -2700,11 +2761,12 @@ class ApiClient(private val baseUrl: String, private val token: String) {
 
     private fun isDirectOllama(): Boolean {
         val normalized = baseUrl.lowercase().trimEnd('/')
-        return normalized.contains(":11434") || (normalized.contains("ollama") && normalized.endsWith("/api"))
+        return provider.equals("ollama", ignoreCase = true) || normalized.contains(":11434") ||
+            (normalized.contains("ollama") && normalized.endsWith("/api"))
     }
 
     private fun isDirectOpenAI(): Boolean {
-        return baseUrl.lowercase().contains("api.openai.com")
+        return provider.equals("openai", ignoreCase = true) || baseUrl.lowercase().contains("api.openai.com")
     }
 
     fun connectChat(
@@ -2974,6 +3036,68 @@ class ApiClient(private val baseUrl: String, private val token: String) {
             }
         } catch (error: Exception) {
             ApiConnectionResult(false, "API test failed: ${error.message ?: "network error"}")
+        }
+    }
+
+    fun saveWebsiteApiConfiguration(adminSessionToken: String, configuration: ApiConfiguration): ApiConnectionResult {
+        if (adminSessionToken.isBlank() || adminSessionToken.startsWith("local-admin-")) {
+            return ApiConnectionResult(false, "Online admin login is required")
+        }
+        val body = JSONObject().put("provider", configuration.provider)
+        when (configuration.provider) {
+            "ollama" -> body
+                .put("ollama_base_url", configuration.baseUrl.trimEnd('/'))
+                .put("ollama_model", configuration.model)
+            "openai" -> body.put("openai_model", configuration.model)
+        }
+        return adminApiConfigurationRequest(
+            path = "/api/v1/admin/api/config",
+            adminSessionToken = adminSessionToken,
+            body = body
+        )
+    }
+
+    fun testWebsiteApiConfiguration(adminSessionToken: String, provider: String): ApiConnectionResult {
+        if (adminSessionToken.isBlank() || adminSessionToken.startsWith("local-admin-")) {
+            return ApiConnectionResult(false, "Online admin login is required")
+        }
+        return adminApiConfigurationRequest(
+            path = "/api/v1/admin/api/test",
+            adminSessionToken = adminSessionToken,
+            body = JSONObject().put("provider", provider)
+        )
+    }
+
+    private fun adminApiConfigurationRequest(
+        path: String,
+        adminSessionToken: String,
+        body: JSONObject
+    ): ApiConnectionResult {
+        return try {
+            val request = Request.Builder()
+                .url(endpoint(path))
+                .addHeader("Authorization", "Bearer $adminSessionToken")
+                .addHeader("Content-Type", "application/json")
+                .post(body.toString().toRequestBody("application/json".toMediaType()))
+                .build()
+            client.newCall(request).execute().use { response ->
+                val payload = runCatching { JSONObject(response.body?.string().orEmpty()) }.getOrElse { JSONObject() }
+                val models = buildList {
+                    val items = payload.optJSONArray("models")
+                    if (items != null) {
+                        for (index in 0 until items.length()) {
+                            items.optString(index).trim().takeIf { it.isNotBlank() }?.let(::add)
+                        }
+                    }
+                }
+                val message = payload.optString(
+                    if (response.isSuccessful) "message" else "error",
+                    if (response.isSuccessful) "Website API configuration updated" else "Website API request failed with HTTP ${response.code}"
+                )
+                ApiConnectionResult(response.isSuccessful && payload.optBoolean("ok", false), message, models)
+            }
+        } catch (error: Exception) {
+            ApiConnectionResult(false, "Website API request failed: ${error.message ?: "network error"}")
         }
     }
 
@@ -3282,8 +3406,13 @@ class ApiClient(private val baseUrl: String, private val token: String) {
         }
     }
 
-    fun adminLogin(username: String, password: String): AdminLoginResult {
-        val local = localAdminLogin(username, password)
+    fun adminLogin(
+        username: String,
+        password: String,
+        expectedLocalUsername: String = "",
+        expectedLocalPassword: String = ""
+    ): AdminLoginResult {
+        val local = localAdminLogin(username, password, expectedLocalUsername, expectedLocalPassword)
         return try {
             val body = JSONObject()
                 .put("username", username)

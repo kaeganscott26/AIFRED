@@ -49,6 +49,7 @@ The plugin's active runtime path uses `/health`, `/chat`, and `/v1/settings`.
 | `apps/website/functions/api/v1/[[path]].js` | Main website/backend/admin API |
 | `apps/website/functions/api/[[path]].js` | Legacy `/api/*` compatibility shim; preserved pending production-usage verification |
 | `apps/website/functions/ws/chat.js` | WebSocket chat bridge |
+| `apps/website/ops.html` | Authenticated status, runtime API routing, provider test, and admin chat console |
 | `apps/website/assets/data/beat_catalog.json` | Canonical beat catalog metadata |
 
 ## Cloudflare Backend
@@ -65,6 +66,7 @@ Main backend responsibilities in `apps/website/functions/api/v1/[[path]].js` inc
 | `askOllama` | Ollama generation call |
 | Chat routing | Select configured provider and return chat output |
 | Model/settings payloads | Report configured Ollama/OpenAI model routes |
+| Runtime API configuration | Store secret-safe provider/endpoint/model selection in KV and test protected provider connectivity |
 | GitHub file operations | Read/write/list/delete approved repository paths |
 | Upload handlers | Website assets, catalog audio, and reference uploads |
 | Activity/inquiry handlers | Persist public runtime events to KV and expose historical read-only records |
@@ -83,7 +85,7 @@ Major responsibilities:
 | --- | --- |
 | `MainActivity` | Android entry point |
 | `AIFREDAdminApp` | App state, login, navigation, and API client setup |
-| `ChatScreen` | Chat UI and model selection |
+| `ChatScreen` | Chat UI, local API profiles, model selection, and authenticated Cloudflare route management |
 | `UploadScreen` | Catalog/reference/website asset upload UI |
 | `CommandScreen` | Backend action buttons and local Android sandbox terminal |
 | `ApiClient` | HTTP, WebSocket, admin file, upload, command, catalog, activity, and chat API calls |

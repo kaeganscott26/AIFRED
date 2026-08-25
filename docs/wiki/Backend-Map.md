@@ -77,6 +77,9 @@ The `/api/*` handler is a small legacy compatibility shim. It is intentionally p
 | `GET` | `/api/v1/admin/inquiries/list` | Inquiry list |
 | `GET` | `/api/v1/admin/logs/list` | Activity/log list |
 | `GET` | `/api/v1/admin/sales/list` | Sales list |
+| `GET`, `POST` | `/api/v1/admin/api/config` | Read or update secret-safe runtime model routing in KV |
+| `GET`, `POST` | `/api/v1/admin/api/test` | Test Website, Ollama, or OpenAI connectivity without exposing secrets |
+| `GET` | `/api/v1/admin/ops/status` | Operations/binding/distribution status |
 | `POST` | `/api/v1/admin/chat/settings/save` | Save chat settings payload |
 
 ## Analyzer Gate
@@ -104,6 +107,8 @@ Website/admin backend model settings:
 - OpenAI default: `gpt-5.6-luna`
 - OpenAI API route: `https://api.openai.com/v1/responses`
 
+The authenticated `/ops` console and Android admin app can update the non-secret provider, endpoint, and model selection stored under `AIFRED_SALES_LOG` KV. Provider keys, Ollama gateway tokens, and Cloudflare Access service-token credentials remain Pages secrets. Runtime chat uses the KV selection without requiring a source commit or redeployment.
+
 The website backend and the local VST engine are separate systems. The VST normally talks to the local engine at `127.0.0.1:8787`; the Cloudflare backend serves the public site and admin app.
 
 ## Storage And Bindings
@@ -127,6 +132,8 @@ Current repository examples and backend code reference configuration names inclu
 - `OPENAI_MODEL`
 - `OLLAMA_BASE_URL`
 - `OLLAMA_MODEL`
+- `OLLAMA_API_TOKEN` when the HTTPS Ollama gateway uses bearer authentication
+- `OLLAMA_ACCESS_CLIENT_ID` and `OLLAMA_ACCESS_CLIENT_SECRET` for a Cloudflare Access service-token policy
 - `AIFRED_ADMIN_USERNAME`
 - `AIFRED_ADMIN_PASSWORD_SHA256`
 - `AIFRED_ADMIN_SESSION_SECRET`
@@ -138,3 +145,5 @@ Current repository examples and backend code reference configuration names inclu
 - GitHub/Cloudflare deployment configuration used by server-side code or CI
 
 Private values belong in deployment configuration, not committed source files.
+
+Local development may use `http://127.0.0.1:11434`. Production Pages must use a publicly reachable HTTPS URL, normally a named Cloudflare Tunnel protected by Access. Never point Pages at loopback/private addresses or expose Ollama through an unauthenticated temporary tunnel.

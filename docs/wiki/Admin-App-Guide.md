@@ -121,7 +121,11 @@ The Chat tab provides three switchable profiles:
 
 Edit the endpoint/model, provide a key when the selected provider requires one, use **Test API**, then use **Apply + Save**. The profile is stored only in the app's private preferences and Android backup is disabled. No API key belongs in Gradle files, tracked examples, documentation, screenshots, or Git history.
 
-On Android, `127.0.0.1` means the phone. To use Ollama on a workstation or Termux host, enter an HTTP endpoint reachable from the phone on the same trusted network and configure that service's bind/firewall controls deliberately.
+After an online admin login, **Save Website Route** writes the selected provider/model route to Cloudflare KV and **Test Website Route** runs the corresponding server-side connectivity test. This matches the API controls at `/ops`. Provider credentials and Cloudflare Access service tokens remain deployment secrets; neither console returns them.
+
+On Android, `127.0.0.1` means the phone. To use Ollama on a workstation or Termux host, enter an HTTP endpoint reachable from the phone on the same trusted network and configure that service's bind/firewall controls deliberately. The Android network policy permits cleartext for local-model compatibility, while app validation rejects public HTTP hosts and limits cleartext API profiles to loopback/private-network addresses. Cloudflare's website route separately requires HTTPS and rejects loopback/local hosts.
+
+No operator password or reusable verifier is tracked in source. Offline login compares against credentials the owner explicitly saved in the app's private storage; otherwise online backend authentication is required.
 
 ## Website File Access
 

@@ -74,7 +74,11 @@ async function askModel(env, message) {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        ...(env.OLLAMA_API_TOKEN ? { "authorization": `Bearer ${env.OLLAMA_API_TOKEN}` } : {})
+        ...(env.OLLAMA_API_TOKEN ? { "authorization": `Bearer ${env.OLLAMA_API_TOKEN}` } : {}),
+        ...(env.OLLAMA_ACCESS_CLIENT_ID && env.OLLAMA_ACCESS_CLIENT_SECRET ? {
+          "CF-Access-Client-Id": env.OLLAMA_ACCESS_CLIENT_ID,
+          "CF-Access-Client-Secret": env.OLLAMA_ACCESS_CLIENT_SECRET
+        } : {})
       },
       body: JSON.stringify({
         model,
