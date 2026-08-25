@@ -27,8 +27,8 @@
             "state": {
               "type": "smart-lookup-release-notes-view",
               "state": {},
-              "icon": "file-text",
-              "title": "Release Notes"
+              "icon": "lucide-ghost",
+              "title": "smart-lookup-release-notes-view"
             }
           },
           {
@@ -40,9 +40,23 @@
               "icon": "file-text",
               "title": "Release Notes"
             }
+          },
+          {
+            "id": "e5f956ca807f0fe9",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "docs/BRANCH_CONSOLIDATION_AUDIT_2026-08-22.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "BRANCH_CONSOLIDATION_AUDIT_2026-08-22"
+            }
           }
         ],
-        "currentTab": 2
+        "currentTab": 3
       }
     ],
     "direction": "vertical"
@@ -62,9 +76,7 @@
               "type": "file-explorer",
               "state": {
                 "sortOrder": "alphabetical",
-                "autoReveal": false,
-                "showSearch": false,
-                "searchQuery": ""
+                "autoReveal": false
               },
               "icon": "lucide-folder-closed",
               "title": "Files"
@@ -249,7 +261,7 @@
             }
           }
         ],
-        "currentTab": 9
+        "currentTab": 7
       }
     ],
     "direction": "horizontal",
@@ -264,27 +276,28 @@
       "templates:Insert template": false,
       "command-palette:Open command palette": false,
       "bases:Create new base": false,
-      "realclaudian:Open Claudian": false,
-      "smart-connections:Smart Connections: Open random connection": false,
-      "smart-connections:Smart Connections: Open connections view": false,
-      "smart-connections:Toggle Footer Connections": false,
-      "smart-lookup:Smart Lookup: Open lookup view": false
+      "realclaudian:Open Claudian": false
     }
   },
-  "active": "4e0c31f7ec46dddd",
+  "active": "26db7cb798f73fd4",
   "lastOpenFiles": [
+    "docs/PLUGIN-STABILIZATION.md",
+    "docs/BACKEND-ROUTING-MACOS.md",
+    "docs/architecture/PATH_AUTHORITY_MAP.md",
+    "docs/architecture/BACKEND_SEPARATION_CONTRACT.md",
+    "docs/architecture/AIFRED_SYSTEM_MAP.md",
+    "docs/architecture/AIFRED_API_CONTRACT.md",
+    "apps/website/assets/docs/aifred-system-requirements.md",
+    "docs/wiki/Developer-Guide.md",
+    "README.md",
     "build/ninja-release/_deps/juce-src/README.md",
     "aifred_state.md",
     "plugin-aifred/Assets/aifred-mascot.jpg",
-    "README.md",
     "CHANGELOG.md",
-    "docs/wiki/Developer-Guide.md",
     "docs/wiki/Backend-Map.md",
     "docs/wiki/Admin-App-Guide.md",
     "docs/wiki/Troubleshooting.md",
-    "docs/BACKEND-ROUTING-MACOS.md",
     "docs/REFERENCE_PROFILE_SYNC_FOUNDATION.md",
-    "docs/PLUGIN-STABILIZATION.md",
     "docs/RELEASE_NOTES.md"
   ]
 }
