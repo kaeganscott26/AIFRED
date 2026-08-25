@@ -859,6 +859,7 @@ function inquiriesRepoPath() {
 function assetNameForKey(key) {
   if (key === "setup") return "AIFRED-VST3-Setup.exe";
   if (key === "zip") return "AIFRED-VST3-windows.zip";
+  if (key === "macos") return "AIFRED-VST3-macos.zip";
   return "";
 }
 
@@ -1006,7 +1007,7 @@ async function handlePluginDownload(request, env) {
   const url = new URL(request.url);
   const assetKey = String(url.searchParams.get("asset") || "").trim();
   const assetName = assetNameForKey(assetKey);
-  if (!assetName) return json({ ok: false, error: "asset must be setup or zip" }, { status: 400 });
+  if (!assetName) return json({ ok: false, error: "asset must be setup, zip, or macos" }, { status: 400 });
 
   const response = await fetchReleaseAssetResponse(request, env, assetName);
   if (request.method === "GET" && response.ok) {

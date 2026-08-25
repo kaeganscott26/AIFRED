@@ -20,21 +20,16 @@ AIFRED VST3 -> http://127.0.0.1:8787 -> http://127.0.0.1:11434 -> aifred:latest
 macOS
 -----
 Current macOS release artifact:
-- AIFRED-VST3-macOS.pkg
+- AIFRED-VST3-macos.zip
 
-Install Ollama first, then run the pkg.
+The published v0.3.6 tag does not contain a pkg or dmg installer. Extract the ZIP and copy Aifred.vst3 to:
+- ~/Library/Audio/Plug-Ins/VST3/Aifred.vst3
 
-The package installs:
-- /Library/Audio/Plug-Ins/VST3/Aifred.vst3
-- /Library/Application Support/Aifred/bin/AifredEngine
-- /Library/Application Support/Aifred/config/config.json
-- /Library/Application Support/Aifred/setup-aifred-local-ai.sh
-- /Library/Application Support/Aifred/AIFRED Engine Control.command
-- /Library/LaunchAgents/com.aifred.engine.plist
+Create ~/Library/Audio/Plug-Ins/VST3 if it does not exist. Restart the DAW and rescan VST3 plugins after copying the bundle.
 
-The LaunchAgent starts the engine at login. Use AIFRED Engine Control.command to start or repair local AI, restart the engine, stop it for the current login session, or show gateway health.
+The published ZIP contains the VST3 bundle but not a packaged AIFRED Engine binary. Local-engine installation remains a separate setup step for this release.
 
-The current macOS package is not yet signed or notarized.
+The current macOS ZIP is not notarized. A signed/notarized pkg or dmg remains release technical debt.
 
 OpenAI
 ------

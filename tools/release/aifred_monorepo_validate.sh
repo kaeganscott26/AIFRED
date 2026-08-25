@@ -189,7 +189,7 @@ require_reference "gpt-5.6-luna" README.md aifred_state.md docs/wiki docs/RELEAS
 require_reference "v0.3.6-installer-ai-alias" docs/RELEASE_NOTES.md docs/wiki apps/website/assets/docs apps/website/.dev.vars.example
 forbid_reference "AIFRED-VST3-linux.zip" README.md docs/wiki infra/cloudflare/docs apps/website/assets/docs
 forbid_reference "AIFRED-VST3-arch.zip" README.md docs/wiki infra/cloudflare/docs apps/website/assets/docs
-forbid_reference "AIFRED-VST3-macos.zip" README.md docs/wiki infra/cloudflare/docs apps/website/assets/docs
+require_reference "AIFRED-VST3-macos.zip" docs/wiki apps/website
 
 section "Android Admin Shape"
 for path in \

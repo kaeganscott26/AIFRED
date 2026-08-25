@@ -170,6 +170,7 @@ function renderUnlockedDownloads(downloads) {
   const items = [
     ["Windows Installer", downloads.setup],
     ["Windows ZIP", downloads.zip],
+    ["macOS Plugin (ZIP)", downloads.macos],
     ["Release Notes", releaseNotes]
   ].filter(([, url]) => url);
   aifredDownloads.innerHTML = "";
@@ -197,6 +198,7 @@ function renderReleaseActions() {
   renderUnlockedDownloads({
     setup: DOWNLOAD_URLS.windowsInstaller,
     zip: DOWNLOAD_URLS.windowsZip,
+    macos: DOWNLOAD_URLS.macosZip,
     releaseNotes
   });
   setDistributionStatus("AIFRED beta is free while this download window is open. No payment or account is required.");

@@ -52,6 +52,7 @@ The `/api/*` handler is a small legacy compatibility shim. It is intentionally p
 | `POST` | `/api/v1/inquiries/submit` | Contact form capture |
 | `GET`, `HEAD` | `/api/v1/downloads/plugin?asset=setup` | Free Windows installer download |
 | `GET`, `HEAD` | `/api/v1/downloads/plugin?asset=zip` | Free Windows ZIP download |
+| `GET`, `HEAD` | `/api/v1/downloads/plugin?asset=macos` | Free macOS VST3 ZIP download |
 | `GET` | `/api/v1/assets/audio/catalog/<file>` | Catalog audio stream |
 | `GET`, `HEAD` | `/api/v1/assets/audio/catalog/<file>?download=1` | Free catalog MP3 download |
 | `GET` | `/ws/chat` | WebSocket chat upgrade |

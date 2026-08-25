@@ -11,8 +11,8 @@ Current build:
 - Scrollable request-driven chat with real DSP/reference context.
 - Default local AI route through AIFRED Engine -> Ollama -> aifred:latest.
 - Optional OpenAI route through https://api.openai.com/v1/responses using gpt-5.6-luna when configured.
-- Windows installer, Windows uninstaller, Windows VST3 zip, and macOS pkg release targets.
-- Public website currently offers free Windows plugin and catalog MP3 downloads with no checkout or account requirement.
+- The published tag contains a Windows installer, Windows uninstaller, Windows VST3 ZIP, and macOS VST3 ZIP.
+- Public website currently offers free Windows/macOS plugin and catalog MP3 downloads with no checkout or account requirement.
 - Public plugin downloads stream versioned objects through the AIFRED_DOWNLOADS Cloudflare R2 binding.
 - Catalog audio uses AIFRED_DOWNLOADS R2 first with local development fallback and byte-range support.
 - Android admin app remains owner-only and is not a public release artifact.

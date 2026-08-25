@@ -42,6 +42,7 @@ Release objects:
 ```text
 releases/v0.3.6-installer-ai-alias/AIFRED-VST3-Setup.exe
 releases/v0.3.6-installer-ai-alias/AIFRED-VST3-windows.zip
+releases/v0.3.6-installer-ai-alias/AIFRED-VST3-macos.zip
 ```
 
 Website/catalog objects mirror the local `apps/website/assets/` tree:
@@ -60,6 +61,7 @@ Keep `aifred-downloads` private. The Pages Worker reads it through the R2 bindin
 ```text
 GET|HEAD /api/v1/downloads/plugin?asset=setup
 GET|HEAD /api/v1/downloads/plugin?asset=zip
+GET|HEAD /api/v1/downloads/plugin?asset=macos
 GET|HEAD /api/v1/assets/audio/catalog/<file>?download=1
 ```
 

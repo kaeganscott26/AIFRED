@@ -131,6 +131,25 @@ test("setup downloads resolve the installer object without a token", async () =>
   assert.equal(response.headers.get("content-length"), "2");
 });
 
+test("macOS downloads resolve the published plugin ZIP", async () => {
+  const response = await onRequest({
+    request: request("/api/v1/downloads/plugin?asset=macos"),
+    env: {
+      ...env,
+      AIFRED_RELEASE_VERSION: "v0.3.6-installer-ai-alias",
+      AIFRED_DOWNLOADS: {
+        async get(key) {
+          assert.equal(key, "releases/v0.3.6-installer-ai-alias/AIFRED-VST3-macos.zip");
+          return { body: new Uint8Array([80, 75]), size: 2, httpMetadata: { contentType: "application/zip" } };
+        }
+      }
+    },
+    params: { path: ["downloads", "plugin"] }
+  });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-disposition"), 'attachment; filename="AIFRED-VST3-macos.zip"');
+});
+
 test("plugin download HEAD returns metadata without a response body", async () => {
   const response = await onRequest({
     request: request("/api/v1/downloads/plugin?asset=zip", { method: "HEAD" }),

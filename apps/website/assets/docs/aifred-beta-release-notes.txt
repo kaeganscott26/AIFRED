@@ -18,7 +18,7 @@ Key features:
 - Optional OpenAI route using gpt-5.6-luna when configured.
 
 Current beta distribution:
-- Free Windows installer and VST3 ZIP downloads.
+- Free Windows installer/ZIP and macOS VST3 ZIP downloads.
 - No checkout or account required.
 - Catalog MP3 downloads are free; contact North3rnLight3r for commercial licensing.
 
@@ -26,7 +26,7 @@ Current release targets:
 - Windows installer.
 - Windows uninstaller.
 - Windows VST3 zip.
-- macOS VST3 pkg.
+- Published macOS VST3 ZIP (manual install).
 
 Linux and Arch packages are not current GitHub Actions release targets.
 

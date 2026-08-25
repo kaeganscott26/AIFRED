@@ -7,6 +7,7 @@ window.AIFRED_CONFIG = {
   downloadUrls: {
     windowsInstaller: `${__apiV1Base}/downloads/plugin?asset=setup`,
     windowsZip: `${__apiV1Base}/downloads/plugin?asset=zip`,
+    macosZip: `${__apiV1Base}/downloads/plugin?asset=macos`,
     releaseNotes: `${__base}/assets/docs/aifred-release-notes.txt`
   },
   productPrice: "Free beta download"
