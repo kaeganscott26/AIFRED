@@ -14,7 +14,7 @@ Current authority summary:
 - Main API: `apps/website/functions/api/v1/[[path]].js`
 - Legacy compatibility shim: `apps/website/functions/api/[[path]].js`
 - WebSocket chat: `apps/website/functions/ws/chat.js`
-- Production project name used by deploy tooling: `north3rnlight3r`
+- Production project name used by deploy tooling: `aifred-site`
 - Production branch: `main`
 
 Cloudflare config roles:
@@ -23,4 +23,4 @@ Cloudflare config roles:
 - `infra/cloudflare/wrangler.toml` — operations/support mirror.
 - `wrangler.jsonc` — root convenience config pointed at `apps/website`.
 
-Do not restore the deleted top-level `website/` source tree or point backend file operations at the old `kaeganscott26/aifred-site` repository.
+Do not restore the deleted top-level `website/` source tree or point backend file operations at the retired standalone website repository.

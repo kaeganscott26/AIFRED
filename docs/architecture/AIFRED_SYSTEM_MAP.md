@@ -33,7 +33,7 @@ Role:
 - Served by Cloudflare Pages/Worker.
 - Used by `apps/website`.
 - Used by `apps/admin-android`.
-- Owns public website routes, contact/inquiry routes, catalog routes, admin routes, activity logs, PayPal/download flow, and web chat routes.
+- Owns public website routes, KV-backed contact/activity routes, catalog routes, admin routes, free R2 download flow, and web chat routes.
 - May be used by the plugin only for metadata, release, or fallback routes if explicitly wired.
 
 Important web routes:

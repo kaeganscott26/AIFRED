@@ -41,12 +41,12 @@ Do not merge the local engine and Cloudflare backend. They have separate runtime
 ## Website Assets And Delivery
 
 - Catalog audio URLs route through `/api/v1/assets/audio/catalog/<file>`.
-- The Worker reads catalog objects from the `AIFRED_WEBSITE_ASSETS` R2 binding first.
+- The Worker reads release and catalog objects from the existing `AIFRED_DOWNLOADS` R2 binding first.
 - Local static files under `apps/website/assets/` remain a development fallback until R2 parity is verified.
-- Installer delivery uses the `AIFRED_DOWNLOADS` R2 binding when configured.
+- Public plugin downloads use `/api/v1/downloads/plugin`; beat downloads use `/api/v1/assets/audio/catalog/<file>?download=1`.
 - Reference material can use `AIFRED_REFERENCE_POOL` KV and `AIFRED_REFERENCE_BUCKET` R2.
 
-The public website currently presents AIFRED as a **$5 one-time beta purchase** with no subscription or recurring charge.
+The public website currently offers the AIFRED Windows beta and catalog MP3s as **free downloads**. The PayPal pipeline is disabled.
 
 ## Products
 
@@ -140,13 +140,15 @@ Cloudflare Pages serves `apps/website/` on:
 - `www.north3rnlight3r.com`
 - `north3rnlight3r.com`
 
-Local deploy:
+Install the pinned website tooling, validate, and deploy to the active Pages project:
 
 ```powershell
-npx wrangler pages deploy apps/website --project-name=north3rnlight3r --branch=main
+npm ci --prefix apps
+npm --prefix apps run website:check
+npm --prefix apps run website:deploy
 ```
 
-GitHub Actions deploys from `main` when the required Cloudflare repository configuration is available and accepted. Package and validation jobs are not intentionally blocked by Cloudflare credential rotation.
+Pushes to `main` run validation and packaging. Production deployment is explicit: run the repository npm command after the pushed SHA is confirmed, or manually dispatch the workflow when Cloudflare repository secrets are configured. Cloudflare's duplicate native Git deployment path is disabled.
 
 ## Validation
 
@@ -180,6 +182,6 @@ These items were intentionally preserved because removal requires explicit verif
 - [Developer Guide](docs/wiki/Developer-Guide.md)
 - [Backend Map](docs/wiki/Backend-Map.md)
 - [Function Map](docs/wiki/Function-Map.md)
-- [PayPal / Cloudflare R2 Setup Guide](docs/wiki/PayPal-Cloudflare-R2-Setup-Guide.md)
+- [Cloudflare / R2 Setup Guide](docs/wiki/Cloudflare-R2-Setup-Guide.md)
 - [Troubleshooting](docs/wiki/Troubleshooting.md)
 - [Security And Distribution](docs/wiki/Security-And-Distribution.md)

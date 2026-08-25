@@ -7,7 +7,7 @@ The canonical website/backend source lives under `apps/website/`.
 - GitHub repository: `kaeganscott26/AIFRED`
 - Production branch: `main`
 - Website source: `apps/website/`
-- Cloudflare Pages project: `north3rnlight3r`
+- Cloudflare Pages project: `aifred-site`
 - Production domains:
   - `https://www.north3rnlight3r.com`
   - `https://north3rnlight3r.com`
@@ -20,7 +20,7 @@ Cloudflare configuration roles:
 | `infra/cloudflare/wrangler.toml` | Operations/support mirror |
 | `wrangler.jsonc` | Root convenience config pointed at `apps/website` |
 
-The main GitHub Actions workflow can deploy `apps/website/` to Cloudflare Pages from `main` when the repository's Cloudflare configuration is available and accepted.
+The main GitHub Actions workflow validates pushes and can deploy `apps/website/` through a manual dispatch. Local and CI deployment use the same npm script. Cloudflare native Git deployment is disabled to avoid a second competing deployment path.
 
 ## Worker Entrypoints
 
@@ -50,10 +50,10 @@ The `/api/*` handler is a small legacy compatibility shim. It is intentionally p
 | `GET` | `/api/v1/models/list` | Configured model catalog |
 | `POST` | `/api/v1/chat/ask` | HTTP chat request |
 | `POST` | `/api/v1/inquiries/submit` | Contact form capture |
-| `POST` | `/api/v1/paypal/create-order` | Create PayPal order |
-| `POST` | `/api/v1/paypal/capture-order` | Capture PayPal order |
-| `GET` | `/api/v1/sales/download` | Tokenized purchase download |
+| `GET`, `HEAD` | `/api/v1/downloads/plugin?asset=setup` | Free Windows installer download |
+| `GET`, `HEAD` | `/api/v1/downloads/plugin?asset=zip` | Free Windows ZIP download |
 | `GET` | `/api/v1/assets/audio/catalog/<file>` | Catalog audio stream |
+| `GET`, `HEAD` | `/api/v1/assets/audio/catalog/<file>?download=1` | Free catalog MP3 download |
 | `GET` | `/ws/chat` | WebSocket chat upgrade |
 
 ## Admin API
@@ -76,7 +76,6 @@ The `/api/*` handler is a small legacy compatibility shim. It is intentionally p
 | `GET` | `/api/v1/admin/inquiries/list` | Inquiry list |
 | `GET` | `/api/v1/admin/logs/list` | Activity/log list |
 | `GET` | `/api/v1/admin/sales/list` | Sales list |
-| `POST` | `/api/v1/admin/sales/record` | Record sale metadata |
 | `POST` | `/api/v1/admin/chat/settings/save` | Save chat settings payload |
 
 ## Analyzer Gate
@@ -112,12 +111,10 @@ Current Cloudflare config includes:
 
 | Binding | Purpose |
 | --- | --- |
-| `AIFRED_WEBSITE_ASSETS` | Catalog audio and website asset storage |
-| `AIFRED_DOWNLOADS` | Installer/download storage |
+| `AIFRED_DOWNLOADS` | Versioned plugin releases plus catalog/website assets |
 | `AIFRED_REFERENCE_BUCKET` | Accepted reference material |
 | `AIFRED_REFERENCE_POOL` | Reference metadata persistence |
-| `AIFRED_SALES_LOG` | Sales/activity persistence |
-| `MAILER` | Email service binding |
+| `AIFRED_SALES_LOG` | Current activity/inquiry logging plus historical sales compatibility |
 
 Catalog audio uses R2 first and local files as a development fallback.
 
@@ -137,7 +134,6 @@ Current repository examples and backend code reference configuration names inclu
 - `AIFRED_PLUGIN_REPO`
 - `AIFRED_PLUGIN_RELEASE_TAG`
 - `AIFRED_RELEASE_VERSION`
-- PayPal runtime configuration used by the website backend
 - GitHub/Cloudflare deployment configuration used by server-side code or CI
 
 Private values belong in deployment configuration, not committed source files.

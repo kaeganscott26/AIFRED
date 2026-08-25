@@ -23,7 +23,7 @@ Responsibilities:
 - Beat catalog.
 - Inquiry/contact backend.
 - Admin APIs.
-- PayPal/download flow.
+- Free plugin/catalog download flow through the private R2 binding.
 - Activity logs.
 - Possible web chat.
 

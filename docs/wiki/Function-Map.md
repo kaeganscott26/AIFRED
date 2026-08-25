@@ -42,8 +42,8 @@ The plugin's active runtime path uses `/health`, `/chat`, and `/v1/settings`.
 | File | Responsibility |
 | --- | --- |
 | `apps/website/index.html` | Public page structure and product/catalog/analyzer surfaces |
-| `apps/website/styles.css` | Brand styling, analyzer, catalog, purchase, and release layout |
-| `apps/website/app.js` | Catalog player, analyzer DSP, PayPal flow, downloads, contact flow, activity events |
+| `apps/website/styles.css` | Brand styling, analyzer, catalog, free-download, and release layout |
+| `apps/website/app.js` | Catalog player, analyzer DSP, free downloads, contact flow, activity events |
 | `apps/website/config.js` | Public runtime config and product display settings |
 | `apps/website/_worker.js` | Cloudflare Pages Worker router |
 | `apps/website/functions/api/v1/[[path]].js` | Main website/backend/admin API |
@@ -67,8 +67,8 @@ Main backend responsibilities in `apps/website/functions/api/v1/[[path]].js` inc
 | Model/settings payloads | Report configured Ollama/OpenAI model routes |
 | GitHub file operations | Read/write/list/delete approved repository paths |
 | Upload handlers | Website assets, catalog audio, and reference uploads |
-| Activity/sales handlers | Record and expose operational activity and sale metadata |
-| PayPal handlers | Create/capture orders and tokenized download delivery |
+| Activity/inquiry handlers | Persist public runtime events to KV and expose historical read-only records |
+| Free download handlers | Stream allowlisted plugin releases and safe catalog paths from R2 with range support |
 | Command registry | Execute allowlisted owner/admin operations |
 
 ## Android Admin App

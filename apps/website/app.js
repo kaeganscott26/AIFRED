@@ -4,7 +4,6 @@ const CONTACT_EMAIL = String(config.contactEmail || "north3rnlight3rofficial@out
 const DEFAULT_ART = "assets/showcase/album-art-02.jpg";
 const CATALOG_ART = ["assets/showcase/album-art-02.jpg", "assets/brand/aifred-mascot.jpg"];
 const DOWNLOAD_URLS = config.downloadUrls || {};
-const PAYPAL_CONFIG = config.paypal || {};
 
 const catalogList = document.getElementById("catalog-list");
 const catalogRefresh = document.getElementById("catalog-refresh");
@@ -16,8 +15,7 @@ const contactForm = document.getElementById("contact-form");
 const contactStatus = document.getElementById("contact-status");
 const year = document.getElementById("year");
 const aifredDownloads = document.getElementById("aifred-downloads");
-const aifredPayPalButtons = document.getElementById("aifred-paypal-buttons");
-const aifredPurchaseStatus = document.getElementById("aifred-purchase-status");
+const aifredDistributionStatus = document.getElementById("aifred-distribution-status");
 const analysisUpload = document.getElementById("analysis-upload");
 const spectralCanvas = document.getElementById("spectral-canvas");
 const analysisTitle = document.getElementById("analysis-title");
@@ -86,6 +84,12 @@ function trackUrl(track) {
   return String(track.stream_url || track.full_song_url || track.public_url || localCatalogUrl(track.asset_file_name || track.file_name || "")).trim();
 }
 
+function trackDownloadUrl(track) {
+  const url = new URL(track.download_url || trackUrl(track), window.location.href);
+  url.searchParams.set("download", "1");
+  return url.toString();
+}
+
 function trackTitle(track) {
   return String(track.title || track.file_name || "North3rnLight3r beat").replace(/\.(wav|mp3)$/i, "").trim();
 }
@@ -114,15 +118,16 @@ function renderCatalog() {
     const title = trackTitle(track);
     const bpm = String(track.bpm || track.tempo || "BPM N/A");
     const genre = String(track.genre || "North3rnLight3r");
-    const price = String(track.price || "$100");
+    const downloadUrl = trackDownloadUrl(track);
     const card = document.createElement("article");
     card.className = "catalog-card";
     card.innerHTML = `
       <img src="${CATALOG_ART[index % CATALOG_ART.length] || DEFAULT_ART}" alt="${title} artwork" loading="lazy" />
       <h3>${title}</h3>
-      <p>${bpm} · ${genre} · ${price}</p>
+      <p>${bpm} · ${genre} · Free MP3 download</p>
       <div class="card-actions">
         <button class="btn" type="button">Play</button>
+        <a class="btn ghost" href="${downloadUrl}" download>Download</a>
       </div>
     `;
     card.querySelector("img").addEventListener("error", (event) => {
@@ -138,9 +143,11 @@ function renderCatalog() {
         title,
         bpm,
         genre,
-        price,
         stream_url: trackUrl(track)
       });
+    });
+    card.querySelector("a").addEventListener("click", () => {
+      void recordActivity("catalog.download.clicked", { title, bpm, genre, download_url: downloadUrl });
     });
     catalogList.appendChild(card);
   });
@@ -153,35 +160,17 @@ function setCatalogOpen(open) {
   catalogToggle.setAttribute("aria-expanded", String(catalogOpen));
 }
 
-function setPurchaseStatus(message) {
-  if (aifredPurchaseStatus) aifredPurchaseStatus.textContent = message;
-}
-
-function loadScript(src) {
-  return new Promise((resolve, reject) => {
-    const existing = document.querySelector(`script[src="${src}"]`);
-    if (existing) {
-      existing.addEventListener("load", resolve, { once: true });
-      existing.addEventListener("error", reject, { once: true });
-      if (window.paypal) resolve();
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = src;
-    script.async = true;
-    script.addEventListener("load", resolve, { once: true });
-    script.addEventListener("error", reject, { once: true });
-    document.head.appendChild(script);
-  });
+function setDistributionStatus(message) {
+  if (aifredDistributionStatus) aifredDistributionStatus.textContent = message;
 }
 
 function renderUnlockedDownloads(downloads) {
   if (!aifredDownloads || !downloads) return;
   const releaseNotes = String(DOWNLOAD_URLS.releaseNotes || "assets/docs/aifred-release-notes.txt").trim();
   const items = [
-    ["Windows installer", downloads.setup],
-    ["Windows zip", downloads.zip],
-    ["Release notes", releaseNotes]
+    ["Windows Installer", downloads.setup],
+    ["Windows ZIP", downloads.zip],
+    ["Release Notes", releaseNotes]
   ].filter(([, url]) => url);
   aifredDownloads.innerHTML = "";
   items.forEach(([label, url]) => {
@@ -191,104 +180,26 @@ function renderUnlockedDownloads(downloads) {
     link.rel = "noreferrer";
     link.textContent = label;
     link.addEventListener("click", () => {
-      void recordActivity("website.download.clicked", { label, url });
+      const eventType = label.startsWith("Windows") ? "plugin.download.clicked" : "website.download.clicked";
+      void recordActivity(eventType, { label, url });
     });
     aifredDownloads.appendChild(link);
   });
 }
 
-async function renderPayPalButtons() {
-  if (!aifredPayPalButtons) return false;
-  const payload = await getJson("/api/v1/paypal/config", { ok: false });
-  const paypalConfig = payload.paypal || {};
-  if (!payload.ok || !paypalConfig.configured || !paypalConfig.client_id) {
-    setPurchaseStatus("PayPal checkout is being configured. Use the contact form if you already paid.");
-    return false;
-  }
-
-  const params = new URLSearchParams({
-    "client-id": paypalConfig.client_id,
-    currency: paypalConfig.currency || "USD",
-    intent: "capture",
-    components: "buttons"
-  });
-  await loadScript(`https://www.paypal.com/sdk/js?${params.toString()}`);
-  if (!window.paypal?.Buttons) throw new Error("PayPal SDK did not load");
-
-  window.paypal.Buttons({
-    style: { layout: "vertical", label: "pay", height: 44 },
-    createOrder: async () => {
-      setPurchaseStatus("Opening PayPal checkout...");
-      void recordActivity("paypal.buy.clicked", {
-        item_name: paypalConfig.item_name || "AIFRED Plugin (download)",
-        amount: paypalConfig.amount || "5.00",
-        currency: paypalConfig.currency || "USD"
-      });
-      const response = await fetch(apiUrl("/api/v1/paypal/create-order"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ custom_id: `aifred-${Date.now()}-${Math.random().toString(36).slice(2, 10)}` })
-      });
-      const result = await response.json();
-      if (!response.ok || !result.ok) throw new Error(result.error || "PayPal order create failed");
-      void recordActivity("paypal.order.created", {
-        order_id: result.id || "",
-        item_name: paypalConfig.item_name || "AIFRED Plugin (download)",
-        amount: paypalConfig.amount || "5.00",
-        currency: paypalConfig.currency || "USD"
-      });
-      return result.id;
-    },
-    onApprove: async (data) => {
-      setPurchaseStatus("Capturing payment and preparing download...");
-      void recordActivity("paypal.order.capture.started", {
-        order_id: data.orderID || ""
-      });
-      const response = await fetch(apiUrl("/api/v1/paypal/capture-order"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order_id: data.orderID })
-      });
-      const result = await response.json();
-      if (!response.ok || !result.ok) throw new Error(result.error || "PayPal capture failed");
-      renderUnlockedDownloads(result.downloads);
-      void recordActivity("paypal.order.captured", {
-        order_id: data.orderID || "",
-        download_setup: Boolean(result.downloads?.setup),
-        download_zip: Boolean(result.downloads?.zip)
-      });
-      setPurchaseStatus("Payment complete. Download links are ready and have been emailed when PayPal provided an email.");
-    },
-    onCancel: () => {
-      void recordActivity("paypal.checkout.cancelled", { item_name: paypalConfig.item_name || "AIFRED Plugin (download)" });
-      setPurchaseStatus("PayPal checkout was cancelled.");
-    },
-    onError: (error) => {
-      void recordActivity("paypal.checkout.error", { message: error.message || "try again shortly" });
-      setPurchaseStatus(`PayPal checkout unavailable: ${error.message || "try again shortly"}`);
-    }
-  }).render("#aifred-paypal-buttons");
-  return true;
-}
-
-async function renderReleaseActions() {
+function renderReleaseActions() {
   const releaseNotes = String(DOWNLOAD_URLS.releaseNotes || "assets/docs/aifred-release-notes.txt").trim();
 
   if (!aifredDownloads) {
     return;
   }
 
-  const downloads = [["Release notes", releaseNotes]];
-
-  aifredDownloads.innerHTML = downloads
-    .map(([label, url]) => `<a href="${url}" target="_blank" rel="noreferrer">${label}</a>`)
-    .join("");
-
-  try {
-    await renderPayPalButtons();
-  } catch (error) {
-    setPurchaseStatus(`PayPal checkout unavailable: ${error.message || "try again shortly"}`);
-  }
+  renderUnlockedDownloads({
+    setup: DOWNLOAD_URLS.windowsInstaller,
+    zip: DOWNLOAD_URLS.windowsZip,
+    releaseNotes
+  });
+  setDistributionStatus("AIFRED beta is free while this download window is open. No payment or account is required.");
 }
 
 function clamp(value, min, max) {
@@ -583,7 +494,6 @@ function setupForms() {
 }
 
 year.textContent = new Date().getFullYear();
-audioPlayer.setAttribute("controlsList", "nodownload noplaybackrate");
 audioPlayer.addEventListener("contextmenu", (event) => event.preventDefault());
 audioPlayer.addEventListener("play", startCatalogVisualizer);
 catalogRefresh.addEventListener("click", loadCatalog);
@@ -597,5 +507,5 @@ loadCatalog();
 void recordActivity("website.page.view", {
   title: document.title || "AIFRED",
   path: window.location.pathname,
-  purchase: new URLSearchParams(window.location.search).get("purchase") || ""
+  distribution: "free"
 });

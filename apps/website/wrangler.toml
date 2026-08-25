@@ -1,15 +1,11 @@
-name = "north3rnlight3r"
+name = "aifred-site"
 pages_build_output_dir = "."
-compatibility_date = "2026-04-22"
+compatibility_date = "2026-08-25"
+compatibility_flags = ["nodejs_compat"]
 
 [observability]
 enabled = true
 head_sampling_rate = 1
-
-[[services]]
-binding = "MAILER"
-service = "aifred-mailer"
-environment = "production"
 
 [[kv_namespaces]]
 binding = "AIFRED_REFERENCE_POOL"
@@ -22,10 +18,6 @@ id = "2c66da7795b54135a4d67e514b97491f"
 [[r2_buckets]]
 binding = "AIFRED_DOWNLOADS"
 bucket_name = "aifred-downloads"
-
-[[r2_buckets]]
-binding = "AIFRED_WEBSITE_ASSETS"
-bucket_name = "aifred-website-assets"
 
 [[r2_buckets]]
 binding = "AIFRED_REFERENCE_BUCKET"

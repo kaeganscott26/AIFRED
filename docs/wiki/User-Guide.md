@@ -7,9 +7,9 @@ The public site lives at:
 - https://www.north3rnlight3r.com
 - https://north3rnlight3r.com
 
-The site contains the AIFRED VST3 beta purchase flow, North3rnLight3r beat catalog, free browser mix analyzer, contact form, release information, and download delivery.
+The site contains free AIFRED VST3 beta downloads, free North3rnLight3r catalog MP3 downloads, a browser mix analyzer, contact form, release information, and download delivery.
 
-The current website presents AIFRED as a **$5 one-time beta purchase** with free lifetime updates, no subscription, and no recurring charge.
+The current website presents AIFRED as a **free beta download** with no checkout or account requirement.
 
 ## Beat Catalog
 
@@ -25,9 +25,9 @@ Audio streams use:
 /api/v1/assets/audio/catalog/<file>
 ```
 
-The backend reads catalog audio from the `AIFRED_WEBSITE_ASSETS` Cloudflare R2 binding first and falls back to local static files during development when needed.
+The backend reads catalog audio from the `AIFRED_DOWNLOADS` Cloudflare R2 binding first and falls back to local static files during development when needed.
 
-Each catalog entry can include title, genre, BPM, price, and stream URL or asset filename. The public player disables normal browser download controls, but this is a UI convenience rather than DRM.
+Each catalog entry can include title, genre, BPM, and stream URL or asset filename. Every card includes an explicit free MP3 download action.
 
 While catalog audio plays, the analyzer canvas runs as a live visualizer. Uploaded-track analysis draws a diagnostic view after the browser decodes the selected audio file.
 
@@ -163,19 +163,19 @@ The LaunchAgent starts the engine at login. Double-click `AIFRED Engine Control.
 
 The macOS package is not yet signed or notarized; that remains a release-hardening task.
 
-## Downloads And Payment
+## Free Downloads
 
-The current website flow uses PayPal order creation/capture through the Cloudflare backend. Successful purchases can receive tokenized download access backed by the `AIFRED_DOWNLOADS` R2 binding when configured.
+The current website flow serves versioned release objects through the `AIFRED_DOWNLOADS` R2 binding. The bucket stays private; the Pages Worker provides the public download response and attachment headers.
 
 Current backend routes include:
 
 ```text
-POST /api/v1/paypal/create-order
-POST /api/v1/paypal/capture-order
-GET  /api/v1/sales/download
+GET /api/v1/downloads/plugin?asset=setup
+GET /api/v1/downloads/plugin?asset=zip
+GET /api/v1/assets/audio/catalog/<file>?download=1
 ```
 
-Do not bypass the backend token route for paid delivery unless a release is intentionally made public/free.
+The PayPal create, capture, IPN, and tokenized sale-download routes are not exposed while free distribution is active.
 
 ## Android Admin App
 

@@ -17,11 +17,10 @@ Key features:
 - Default local AI through AIFRED Engine and Ollama model aifred:latest.
 - Optional OpenAI route using gpt-5.6-luna when configured.
 
-Current beta purchase:
-- $5 one-time purchase.
-- Free lifetime updates.
-- No subscription.
-- No recurring charge.
+Current beta distribution:
+- Free Windows installer and VST3 ZIP downloads.
+- No checkout or account required.
+- Catalog MP3 downloads are free; contact North3rnLight3r for commercial licensing.
 
 Current release targets:
 - Windows installer.

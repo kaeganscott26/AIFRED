@@ -120,8 +120,8 @@ do
   require_file "$path"
 done
 
-require_reference '"directory": "apps/website"' wrangler.jsonc
-forbid_reference '"directory": "website"' wrangler.jsonc
+require_reference '"pages_build_output_dir": "apps/website"' wrangler.jsonc
+forbid_reference '"pages_build_output_dir": "website"' wrangler.jsonc
 require_reference 'apps/admin-android/' .gitignore
 forbid_reference 'android_admin/' .gitignore
 
@@ -159,12 +159,14 @@ else
 fi
 
 section "Website R2 And Backend Routing"
-require_reference "AIFRED_WEBSITE_ASSETS" apps/website infra/cloudflare docs README.md
 require_reference "/api/v1/assets/audio/catalog" apps/website apps/admin-android docs README.md
+require_reference "/api/v1/downloads/plugin" apps/website docs README.md
 require_reference "AIFRED_DOWNLOADS" apps/website infra/cloudflare docs README.md
 require_reference "AIFRED_REFERENCE_BUCKET" apps/website infra/cloudflare docs README.md
 require_reference "kaeganscott26/AIFRED" apps/website apps/admin-android docs README.md
 forbid_reference "kaeganscott26/aifred-site" apps/website apps/admin-android .github README.md docs/wiki infra/cloudflare/docs
+require_reference 'name = "aifred-site"' apps/website/wrangler.toml infra/cloudflare/wrangler.toml
+forbid_reference "project-name=north3rnlight3r" apps/website .github README.md docs/wiki infra/cloudflare
 
 section "Current Documentation Truth"
 for path in \
@@ -177,7 +179,7 @@ for path in \
   docs/wiki/Developer-Guide.md \
   docs/wiki/Backend-Map.md \
   docs/wiki/Function-Map.md \
-  docs/wiki/PayPal-Cloudflare-R2-Setup-Guide.md \
+  docs/wiki/Cloudflare-R2-Setup-Guide.md \
   docs/wiki/Security-And-Distribution.md
   do
   require_file "$path"
@@ -236,24 +238,13 @@ if find apps infra -type d -name .git -print -quit | grep -q .; then
 fi
 pass "no nested .git directories under apps/ or infra/"
 
-excluded_found="$(find apps infra \( \
-  -name node_modules -o \
-  -name .wrangler -o \
-  -name .gradle -o \
-  -name .kotlin -o \
-  -name build -o \
-  -name dist -o \
-  -name cache -o \
-  -name local.properties -o \
-  -name .env -o \
-  -name '.env.*' \
-\) -print)"
+excluded_found="$(git ls-files apps infra | grep -E '(^|/)(node_modules|\.wrangler|\.gradle|\.kotlin|build|dist|cache)(/|$)|(^|/)(local\.properties|\.env(\..*)?)$' || true)"
 if [ -n "$excluded_found" ]; then
   echo "Unexpected excluded paths found under apps/ or infra/:" >&2
   printf '%s\n' "$excluded_found" >&2
   exit 1
 fi
-pass "no excluded folders/files found under apps/ or infra/"
+pass "no excluded folders/files are tracked under apps/ or infra/"
 
 section "Workflow Path Checks"
 require_file .github/workflows/build.yml

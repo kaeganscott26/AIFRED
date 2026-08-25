@@ -1,10 +1,13 @@
 # Historical operations mirror. Do not deploy this file independently; use
 # apps/website/wrangler.toml and verify the Pages project before promotion.
-name = "north3rnlight3r"
+name = "aifred-site"
 pages_build_output_dir = "../../apps/website"
-compatibility_date = "2026-08-23"
+compatibility_date = "2026-08-25"
+compatibility_flags = ["nodejs_compat"]
 
-
+[observability]
+enabled = true
+head_sampling_rate = 1
 
 [[kv_namespaces]]
 binding = "AIFRED_REFERENCE_POOL"
@@ -19,37 +22,5 @@ binding = "AIFRED_DOWNLOADS"
 bucket_name = "aifred-downloads"
 
 [[r2_buckets]]
-binding = "AIFRED_WEBSITE_ASSETS"
-bucket_name = "aifred-website-assets"
-
-[[r2_buckets]]
-binding = "AIFRED_REFERENCE_BUCKET"
-bucket_name = "aifred-reference-pool"
-
-[env.production]
-compatibility_date = "2026-08-23"
-
-[[env.production.services]]
-binding = "MAILER"
-service = "aifred-mailer"
-environment = "production"
-
-[[env.production.kv_namespaces]]
-binding = "AIFRED_REFERENCE_POOL"
-id = "8a120701767e474f928d1af7037cd68a"
-
-[[env.production.kv_namespaces]]
-binding = "AIFRED_SALES_LOG"
-id = "2c66da7795b54135a4d67e514b97491f"
-
-[[env.production.r2_buckets]]
-binding = "AIFRED_DOWNLOADS"
-bucket_name = "aifred-downloads"
-
-[[env.production.r2_buckets]]
-binding = "AIFRED_WEBSITE_ASSETS"
-bucket_name = "aifred-website-assets"
-
-[[env.production.r2_buckets]]
 binding = "AIFRED_REFERENCE_BUCKET"
 bucket_name = "aifred-reference-pool"

@@ -112,7 +112,6 @@ Cloudflare configuration roles:
 
 Storage bindings in the current repo include:
 
-- `AIFRED_WEBSITE_ASSETS`
 - `AIFRED_DOWNLOADS`
 - `AIFRED_REFERENCE_BUCKET`
 - `AIFRED_REFERENCE_POOL`

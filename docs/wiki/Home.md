@@ -20,21 +20,21 @@ This wiki documents the current consolidated AIFRED monorepo: VST3 plugin, local
 
 | Page | Purpose |
 | --- | --- |
-| [User Guide](User-Guide.md) | Website, analyzer, VST, AI routing, installation, payment/download flow |
+| [User Guide](User-Guide.md) | Website, analyzer, VST, AI routing, installation, and free downloads |
 | [Admin App Guide](Admin-App-Guide.md) | Owner-only Android app operation and command/file/upload behavior |
 | [Developer Guide](Developer-Guide.md) | Local setup, builds, packages, CI, validation, and deployment |
 | [Backend Map](Backend-Map.md) | Cloudflare Worker routes, storage bindings, and data flow |
 | [Function Map](Function-Map.md) | Active module and responsibility map across the monorepo |
-| [PayPal / Cloudflare R2 Setup Guide](PayPal-Cloudflare-R2-Setup-Guide.md) | Current payment, storage, release-object, and deployment configuration |
+| [Cloudflare / R2 Setup Guide](Cloudflare-R2-Setup-Guide.md) | Current storage, release-object, asset-upload, and deployment configuration |
 | [Troubleshooting](Troubleshooting.md) | Common failures and recovery steps |
-| [Security And Distribution](Security-And-Distribution.md) | Privacy, release boundaries, admin app rules, and paid delivery |
+| [Security And Distribution](Security-And-Distribution.md) | Privacy, release boundaries, admin app rules, and public delivery |
 
 ## Current Product Truth
 
 - Plugin version: `0.3.6`
 - Default local model: `aifred:latest`
 - Default OpenAI model when configured: `gpt-5.6-luna`
-- Current public beta price shown by the website: `$5 one-time purchase`
+- Current public beta distribution: free Windows plugin and catalog MP3 downloads
 - Current CI release targets: Windows installer/uninstaller/zip and macOS pkg
 - Android admin app: private owner-only, not a public release artifact
 

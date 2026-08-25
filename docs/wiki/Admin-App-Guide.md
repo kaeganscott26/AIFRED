@@ -56,7 +56,7 @@ Do not publish credentials in documentation, screenshots, release notes, or issu
 - Keep catalog metadata and uploaded audio aligned.
 - Surface activity from buys, sales, uploads, inquiries, downloads, and other backend events.
 
-Catalog audio is served from the `AIFRED_WEBSITE_ASSETS` R2 binding first when configured. The repository catalog JSON remains under `apps/website/assets/data/beat_catalog.json`.
+Catalog audio is served from the `AIFRED_DOWNLOADS` R2 binding first when configured. The repository catalog JSON remains under `apps/website/assets/data/beat_catalog.json`.
 
 ### Command
 

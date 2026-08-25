@@ -12,9 +12,9 @@ Current build:
 - Default local AI route through AIFRED Engine -> Ollama -> aifred:latest.
 - Optional OpenAI route through https://api.openai.com/v1/responses using gpt-5.6-luna when configured.
 - Windows installer, Windows uninstaller, Windows VST3 zip, and macOS pkg release targets.
-- Public website currently presents AIFRED as a $5 one-time beta purchase with no subscription or recurring charge.
-- Tokenized download delivery can use the AIFRED_DOWNLOADS Cloudflare R2 binding.
-- Catalog audio uses AIFRED_WEBSITE_ASSETS R2 first with local development fallback.
+- Public website currently offers free Windows plugin and catalog MP3 downloads with no checkout or account requirement.
+- Public plugin downloads stream versioned objects through the AIFRED_DOWNLOADS Cloudflare R2 binding.
+- Catalog audio uses AIFRED_DOWNLOADS R2 first with local development fallback and byte-range support.
 - Android admin app remains owner-only and is not a public release artifact.
 
 Current release metadata example:

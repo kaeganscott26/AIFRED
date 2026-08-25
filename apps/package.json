@@ -1,9 +1,14 @@
 {
   "type": "module",
+  "scripts": {
+    "website:check": "node --check website/app.js && node --check website/_worker.js && node --check 'website/functions/api/v1/[[path]].js' && node --check 'website/functions/api/[[path]].js' && node --check website/functions/ws/chat.js && node --check website/config.js && node --test ../tests/aifred-api.test.mjs",
+    "website:dev": "wrangler pages dev . --cwd website",
+    "website:deploy": "wrangler pages deploy . --cwd website --project-name=aifred-site --branch=main"
+  },
   "dependencies": {
     "esbuild": "^0.28.2",
     "workerd": "^1.20260824.1",
-    "wrangler": "^4.125.0"
+    "wrangler": "4.125.0"
   },
   "allowScripts": {
     "esbuild@0.28.2": true,

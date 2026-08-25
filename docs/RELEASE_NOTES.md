@@ -71,7 +71,7 @@ The macOS package is not yet signed or notarized.
 
 ## Website And Delivery
 
-The public website currently presents AIFRED as a **$5 one-time beta purchase** with no subscription or recurring charge.
+The public website currently provides **free Windows plugin and catalog MP3 downloads** with no checkout or account requirement.
 
 Current release metadata examples use:
 
@@ -81,9 +81,9 @@ AIFRED_PLUGIN_RELEASE_TAG=v0.3.6-installer-ai-alias
 AIFRED_RELEASE_VERSION=v0.3.6-installer-ai-alias
 ```
 
-The current payment/download flow uses PayPal create/capture routes and tokenized delivery through `AIFRED_DOWNLOADS` R2 when configured.
+The current plugin download flow uses allowlisted public Worker routes backed by versioned `AIFRED_DOWNLOADS` R2 objects. The payment pipeline is disabled.
 
-Catalog audio uses `AIFRED_WEBSITE_ASSETS` R2 first and local files as a development fallback.
+Catalog audio uses `AIFRED_DOWNLOADS` R2 first and local files as a development fallback.
 
 ## Current CI Release Targets
 

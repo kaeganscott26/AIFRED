@@ -26,8 +26,10 @@ Expected JSON:
 If `/api/v1/health` returns HTML, the Pages Worker did not deploy. Confirm `apps/website/_worker.js` exists and redeploy:
 
 ```powershell
-npx wrangler pages deploy apps/website --project-name=north3rnlight3r --branch=main
+npm --prefix apps run website:deploy
 ```
+
+The active Pages project is `aifred-site`. A `Project not found` error for `north3rnlight3r` means an obsolete deploy command is still being used.
 
 ## GitHub Actions Cloudflare Deploy Warning
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-08-25 — Free distribution and Cloudflare pipeline cleanup
+
+- Standardized local and CI deployment on the existing Cloudflare Pages project `aifred-site` and canonical source path `apps/website`.
+- Removed the active PayPal checkout, capture, IPN, and payment-token download pipeline.
+- Added free R2-backed plugin and catalog downloads with attachment and byte-range support.
+- Consolidated release and website asset delivery on the existing `aifred-downloads` bucket and removed the nonexistent `aifred-website-assets` binding.
+- Moved public activity and inquiry writes to KV only so normal website use cannot commit to GitHub or trigger deployment.
+
 ## Unreleased - 2026-07-11 repository cleanup
 
 - Reconciled current docs with the consolidated monorepo authorities: `plugin-aifred/`, `tools/AifredEngine/`, `apps/website/`, `apps/admin-android/`, and `infra/cloudflare/`.

@@ -27,26 +27,26 @@ The current app `release` build type still uses debug signing and has minificati
 
 ## Private Configuration
 
-Do not commit private runtime values such as provider keys, deployment credentials, payment secrets, owner passwords, or private tokens.
+Do not commit private runtime values such as provider keys, deployment credentials, owner passwords, or private tokens.
 
 Use deployment environment configuration and repository secret storage for private values.
 
 The repository should contain examples and variable names only, never live secret values.
 
-## Paid Beta Delivery
+## Free Beta Delivery
 
-The current public website presents AIFRED as a **$5 one-time beta purchase** with no subscription or recurring charge.
+The current public website provides free plugin and catalog downloads. PayPal credentials and payment handlers are not part of the active website pipeline.
 
 Current payment/download flow:
 
 ```text
-Buyer
-  -> POST /api/v1/paypal/create-order
-  -> PayPal approval
-  -> POST /api/v1/paypal/capture-order
-  -> short-lived download token
-  -> GET /api/v1/sales/download
-  -> AIFRED_DOWNLOADS R2 object or configured fallback
+Visitor
+  -> GET /api/v1/downloads/plugin?asset=setup|zip
+  -> AIFRED_DOWNLOADS R2 release object
+
+Visitor
+  -> GET /api/v1/assets/audio/catalog/<file>?download=1
+  -> AIFRED_DOWNLOADS R2 catalog object
 ```
 
 Current release metadata examples point to:
@@ -70,11 +70,10 @@ Do not advertise Linux or Arch packages as current release outputs unless those 
 
 Current storage bindings include:
 
-- `AIFRED_DOWNLOADS` — paid installer/download storage.
-- `AIFRED_WEBSITE_ASSETS` — catalog audio and website assets.
+- `AIFRED_DOWNLOADS` — versioned plugin releases plus catalog and website assets.
 - `AIFRED_REFERENCE_BUCKET` — reference audio storage.
 - `AIFRED_REFERENCE_POOL` — reference metadata persistence.
-- `AIFRED_SALES_LOG` — sale/activity persistence.
+- `AIFRED_SALES_LOG` — historical sales plus current activity/download logging.
 
 Keep private buckets private unless a specific asset is intentionally designed for public access.
 

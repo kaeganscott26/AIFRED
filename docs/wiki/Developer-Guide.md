@@ -205,7 +205,6 @@ The legacy `apps/website/functions/api/[[path]].js` compatibility shim is intent
 
 Current configured storage resources include:
 
-- `AIFRED_WEBSITE_ASSETS`
 - `AIFRED_DOWNLOADS`
 - `AIFRED_REFERENCE_BUCKET`
 - `AIFRED_REFERENCE_POOL`
@@ -214,7 +213,9 @@ Current configured storage resources include:
 ## Website Deploy
 
 ```powershell
-npx wrangler pages deploy apps/website --project-name=north3rnlight3r --branch=main
+npm ci --prefix apps
+npm --prefix apps run website:check
+npm --prefix apps run website:deploy
 ```
 
 Production domains:
@@ -222,7 +223,7 @@ Production domains:
 - `www.north3rnlight3r.com`
 - `north3rnlight3r.com`
 
-GitHub Actions also attempts deployment from `main` when the repository's Cloudflare configuration is available and accepted.
+Pushes validate and package the repository. Production deploys are explicit through the repository npm command or a manual workflow dispatch, preventing Cloudflare native Git and GitHub Actions from racing to deploy the same commit.
 
 ## GitHub Actions
 

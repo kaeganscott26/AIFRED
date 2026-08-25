@@ -1,15 +1,34 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
+  // Root convenience config. apps/website/wrangler.toml is authoritative.
+  "$schema": "apps/node_modules/wrangler/config-schema.json",
   "name": "aifred-site",
-  "compatibility_date": "2026-05-06",
+  "pages_build_output_dir": "apps/website",
+  "compatibility_date": "2026-08-25",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1
   },
-  "assets": {
-    "directory": "apps/website"
-  },
-  "compatibility_flags": [
-    "nodejs_compat"
+  "kv_namespaces": [
+    {
+      "binding": "AIFRED_REFERENCE_POOL",
+      "id": "8a120701767e474f928d1af7037cd68a"
+    },
+    {
+      "binding": "AIFRED_SALES_LOG",
+      "id": "2c66da7795b54135a4d67e514b97491f"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "AIFRED_DOWNLOADS",
+      "bucket_name": "aifred-downloads"
+    },
+    {
+      "binding": "AIFRED_REFERENCE_BUCKET",
+      "bucket_name": "aifred-reference-pool"
+    }
   ]
 }

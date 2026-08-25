@@ -84,16 +84,11 @@ jobs:
         with:
           node-version: 22
 
+      - name: Install website tooling
+        run: npm ci --prefix apps
+
       - name: JavaScript syntax
-        run: |
-          node --check apps/website/app.js
-          node --check apps/website/_worker.js
-          node --check 'apps/website/functions/api/v1/[[path]].js'
-          node --check 'apps/website/functions/api/[[path]].js'
-          node --check apps/website/functions/ws/chat.js
-          node --check apps/website/config.js
-          node --test tests/aifred-api.test.mjs
-          node --check tools/serve-website.mjs
+        run: npm --prefix apps run website:check
 
       - name: Guard active paths and product names
         shell: pwsh
@@ -133,7 +128,7 @@ jobs:
 
   deploy-website:
     name: Deploy Cloudflare Pages
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     needs: [website]
     env:
@@ -150,10 +145,13 @@ jobs:
         with:
           node-version: 22
 
+      - name: Install pinned Wrangler
+        if: env.CLOUDFLARE_CREDENTIALS_PRESENT == 'true'
+        run: npm ci --prefix apps
+
       - name: Deploy to Cloudflare Pages
         if: env.CLOUDFLARE_CREDENTIALS_PRESENT == 'true'
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: |
-          npx wrangler@latest pages deploy apps/website --project-name=north3rnlight3r --branch=main
+        run: npm --prefix apps run website:deploy
