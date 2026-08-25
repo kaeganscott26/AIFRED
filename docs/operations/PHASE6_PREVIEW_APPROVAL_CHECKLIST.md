@@ -1,5 +1,7 @@
 # Phase 6 Preview Approval Checklist
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 This checklist is for human approval before any future non-production Cloudflare preview run for `apps/website`.
 
 Do not treat this document as deployment approval. Approval owner and date fields are intentionally blank for human completion.

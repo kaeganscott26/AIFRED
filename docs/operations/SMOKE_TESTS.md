@@ -1,6 +1,6 @@
 # Smoke Tests
 
-These checks validate the final AIFRED monorepo shape. They do not deploy, push, publish releases, upload APKs, or delete GitHub repositories.
+These checks validate the final AIFRED monorepo shape. Deployment, R2 mutation, push, APK installation, and repository deletion remain separate authorized operations.
 
 ## Final Monorepo Validation
 
@@ -34,10 +34,12 @@ node --check apps/website/functions/ws/chat.js
 Required routing checks:
 
 ```sh
-rg -n "AIFRED_WEBSITE_ASSETS|/api/v1/assets/audio/catalog|AIFRED_DOWNLOADS|AIFRED_REFERENCE_BUCKET" apps/website infra/cloudflare
+rg -n "/api/v1/downloads/plugin|/api/v1/assets/audio/catalog|AIFRED_DOWNLOADS|AIFRED_REFERENCE_BUCKET" apps/website infra/cloudflare
+npm ci --prefix apps
+npm --prefix apps run website:check
 ```
 
-Do not run Wrangler deploy commands from this smoke-test checklist.
+For an authorized production verification, test HEAD and byte ranges against the public domain after the separately controlled deploy.
 
 ## Plugin And Local Engine
 
@@ -74,6 +76,7 @@ Only build a debug APK when intentionally testing the Android app locally:
 ```sh
 cd apps/admin-android
 ./gradlew :app:assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 Do not run `assembleRelease`, sign APKs, upload APKs, or attach Android artifacts to public releases from this checklist.
@@ -90,13 +93,13 @@ git diff --check
 
 ## Prohibited From Smoke Tests
 
-- No deployment.
-- No push.
+- No deployment unless the operator separately authorizes production promotion.
+- No push unless the operator separately authorizes repository publication.
 - No merge.
 - No Cloudflare command.
 - No release publishing.
 - No release artifact upload.
-- No APK signing.
+- No public APK signing/publication; the owner-only debug-signed APK may be sideloaded when explicitly requested.
 - No deletion of GitHub repositories without an explicit reviewed repository-name list.
 - No fake preview evidence.
 - No secrets in Git.

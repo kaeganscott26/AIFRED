@@ -1,5 +1,7 @@
 # Phase 9 Final Non-Approval Statement
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 Phase 9 only prepares the human review package.
 
 Phase 9 does not approve deployment.

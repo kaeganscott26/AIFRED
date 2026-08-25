@@ -1,5 +1,7 @@
 # Phase 3 Workflow Safety
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 Phase 3 makes workflow and deployment risk visible before any live path migration.
 
 ## Safety Rules

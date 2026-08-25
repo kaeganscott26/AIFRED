@@ -1,5 +1,7 @@
 # Phase 10 Go/No-Go Criteria
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 These criteria apply only to a future human-approved non-production preview. They do not approve production deployment, merge to `main`, release publishing, plugin movement, engine movement, old-folder removal, media deletion, Git LFS conversion, or secret changes.
 
 ## GO Criteria For Future Non-Production Preview

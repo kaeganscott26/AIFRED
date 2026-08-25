@@ -61,17 +61,17 @@ The installer packages the VST3 and local engine, writes default local Ollama co
 
 ## macOS Packaging
 
-Current macOS artifact:
+Current published macOS artifact:
 
-- `AIFRED-VST3-macOS.pkg`
+- `AIFRED-VST3-macos.zip`
 
-The package installs the VST3, cross-platform engine, default local configuration, LaunchAgent, setup/repair script, and `AIFRED Engine Control.command`.
+This published ZIP is a manual VST3 install and does not contain the packaged engine binary. Copy `Aifred.vst3` to `~/Library/Audio/Plug-Ins/VST3/`.
 
-The macOS package is not yet signed or notarized.
+The CI packaging path can build `AIFRED-VST3-macOS.pkg`, but that pkg is not part of the published `v0.3.6-installer-ai-alias` asset set. Signing and notarization remain release-hardening work.
 
 ## Website And Delivery
 
-The public website currently provides **free Windows plugin and catalog MP3 downloads** with no checkout or account requirement.
+The public website currently provides **free Windows/macOS plugin and catalog MP3 downloads** with no checkout or account requirement.
 
 Current release metadata examples use:
 

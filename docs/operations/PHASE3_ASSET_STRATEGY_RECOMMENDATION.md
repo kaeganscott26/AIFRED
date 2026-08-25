@@ -1,5 +1,7 @@
 # Phase 3 Asset Strategy Recommendation
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 Phase 2 inventory shows large media in both `apps/website` and `website`.
 
 This duplication is expected after Phase 1 because the imported `apps/website` copy preserved production website fidelity from `aifred-site`, while the old in-repo `website` folder remains untouched as evidence and fallback.

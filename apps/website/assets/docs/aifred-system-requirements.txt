@@ -29,4 +29,4 @@ Optional OpenAI routing uses:
 
 Website Backend
 ---------------
-The public website/backend runs on Cloudflare Pages/Workers infrastructure and uses configured KV/R2/service bindings where available.
+The public website/backend runs on Cloudflare Pages/Workers infrastructure with the configured KV and R2 bindings. No service binding is part of the current production contract.

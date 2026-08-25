@@ -1,5 +1,7 @@
 # Phase 6 Preview Runbook Draft
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 This is a draft only. It does not contain real secrets and does not contain live commands that deploy.
 
 ## Purpose

@@ -1,5 +1,7 @@
 # Phase 1 Consolidation Log
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 Date/time: 2026-06-27 03:13:41 CDT
 
 Branch:

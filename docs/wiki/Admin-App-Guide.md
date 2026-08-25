@@ -5,8 +5,8 @@ The Android admin app is private, owner-only operational software under `apps/ad
 ## Current App State
 
 - Application ID: `com.aifred.admin`
-- App version: `2.4.2`
-- Version code: `241`
+- App version: `2.3.0`
+- Version code: `243`
 - `compileSdk = 35`
 - `targetSdk = 35`
 - Minimum SDK: 29
@@ -18,6 +18,14 @@ The Android admin app is private, owner-only operational software under `apps/ad
 ## Build And Install
 
 Build the debug APK locally:
+
+```sh
+cd apps/admin-android
+./gradlew :app:assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+Windows PowerShell:
 
 ```powershell
 cd apps/admin-android
@@ -54,14 +62,14 @@ Do not publish credentials in documentation, screenshots, release notes, or issu
 - Upload licensed reference tracks.
 - Upload website assets.
 - Keep catalog metadata and uploaded audio aligned.
-- Surface activity from buys, sales, uploads, inquiries, downloads, and other backend events.
+- Surface current download/upload/inquiry activity plus read-only historical sale/payment events.
 
 Catalog audio is served from the `AIFRED_DOWNLOADS` R2 binding first when configured. The repository catalog JSON remains under `apps/website/assets/data/beat_catalog.json`.
 
 ### Command
 
 - Runs registered backend commands through `/api/v1/command/run`.
-- Runs local Android sandbox shell commands when local admin access is active.
+- Merges those with local-only read-only/non-root Linux/Termux/Android actions.
 - Shows output in the app terminal panel.
 
 ## Registered Backend Commands
@@ -73,22 +81,33 @@ Catalog audio is served from the `AIFRED_DOWNLOADS` R2 binding first when config
 | `models:list` | Show configured model routes |
 | `reference:stats` | Show reference-pool persistence status |
 | `deploy:status` | Confirm production domain status |
-| `deploy:site` | Dispatch deployment when configured |
-| `sales:list` | Show sale/activity storage status |
+| `sales:list` | Show historical sale records |
+| `inquiries:list` | Show contact inquiries |
 
 ## Local Android Shell
 
-These commands run inside the Android app sandbox unless the device grants broader access:
+Version 2.3.0 registers these command families inside the Android app sandbox:
 
 ```sh
 pwd
-ls
-id
-getprop ro.build.version.release
+ls -la
 df -h
+du -sh .
+id
+uname -a
+ps -A
+ip addr
+ip route
+printenv | sort
+pkg list-installed
+termux-info
+getprop ro.build.version.release
+pm list packages -3
+logcat -d -t 100
+curl -fsS https://www.north3rnlight3r.com/api/v1/health
 ```
 
-The app cannot bypass Android sandboxing or grant root. Use ADB from the workstation for broader device shell access.
+Unavailable Termux commands return a clear message. The registry does not request root or bypass Android sandboxing. Use ADB from the workstation for broader device shell access.
 
 ## Website File Access
 

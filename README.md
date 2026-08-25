@@ -42,11 +42,11 @@ Do not merge the local engine and Cloudflare backend. They have separate runtime
 
 - Catalog audio URLs route through `/api/v1/assets/audio/catalog/<file>`.
 - The Worker reads release and catalog objects from the existing `AIFRED_DOWNLOADS` R2 binding first.
-- Local static files under `apps/website/assets/` remain a development fallback until R2 parity is verified.
-- Public plugin downloads use `/api/v1/downloads/plugin`; beat downloads use `/api/v1/assets/audio/catalog/<file>?download=1`.
+- Local static files under `apps/website/assets/` remain a development/resilience fallback; production R2 parity was verified on 2026-08-25.
+- Public plugin downloads use `/api/v1/downloads/plugin?asset=setup|zip|macos`; beat downloads use `/api/v1/assets/audio/catalog/<file>?download=1`.
 - Reference material can use `AIFRED_REFERENCE_POOL` KV and `AIFRED_REFERENCE_BUCKET` R2.
 
-The public website currently offers the AIFRED Windows beta and catalog MP3s as **free downloads**. The PayPal pipeline is disabled.
+The public website currently offers the AIFRED Windows and macOS beta packages plus catalog MP3s as **free downloads**. The PayPal pipeline is disabled.
 
 ## Products
 
@@ -96,6 +96,8 @@ The active release workflow builds and packages:
 - `AIFRED-Uninstall.exe` for Windows.
 - `AIFRED-VST3-windows.zip`.
 - `AIFRED-VST3-macOS.pkg`.
+
+The currently published `v0.3.6-installer-ai-alias` release predates that pkg output and provides `AIFRED-VST3-macos.zip` as the verified macOS download. The website labels it as a manual-install ZIP; no signed/notarized macOS installer is currently published.
 
 Linux and Arch packaging references may still exist in historical records or generic CPack configuration, but they are **not current GitHub Actions release targets** and were intentionally left untouched pending explicit verification.
 
@@ -171,7 +173,7 @@ These items were intentionally preserved because removal requires explicit verif
 - Local engine `/v1/restart` route.
 - Generic UNIX CPack configuration.
 - `packages/plugin-juce/` and `packages/local-engine/` placeholder directories.
-- Local MP3 website fallback files until R2 parity is verified.
+- Local MP3 website fallback files, retained for development/resilience after production R2 parity verification.
 - Separate sibling GitHub repositories pending individual archive/delete review.
 
 ## Documentation

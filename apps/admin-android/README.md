@@ -15,15 +15,15 @@ apps/admin-android/
 - Catalog audio and metadata uploads.
 - Licensed reference uploads.
 - Website/repository file operations through approved backend routes.
-- Registered backend commands.
-- Sales, inquiries, activity, downloads, and upload visibility.
-- Local Android sandbox shell tools.
+- Registered backend commands plus a separate local-only registry of non-root Linux/Termux/Android diagnostics.
+- Historical sales, inquiries, activity, downloads, and upload visibility.
+- Free catalog-distribution metadata; commercial licensing remains inquiry-based.
 
 ## Current Technical State
 
 - Backend: `https://www.north3rnlight3r.com`
-- App version: `2.4.2`
-- Version code: `241`
+- App version: `2.3.0`
+- Version code: `243` (kept above 241 so Android accepts it as an upgrade)
 - `compileSdk = 35`
 - `targetSdk = 35`
 - Minimum SDK: 29
@@ -41,6 +41,16 @@ Current model routes can include:
 
 ## Local Build
 
+Linux/Termux-style host shell:
+
+```sh
+cd apps/admin-android
+./gradlew :app:assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+Windows PowerShell:
+
 ```powershell
 cd apps/admin-android
 .\gradlew.bat assembleDebug
@@ -52,6 +62,8 @@ Install locally with ADB:
 $adb=Join-Path $env:LOCALAPPDATA 'Android\Sdk\platform-tools\adb.exe'
 & $adb install -r app\build\outputs\apk\debug\app-debug.apk
 ```
+
+The in-app local registry includes read-only/non-root commands for working directory, file listing, disk usage, identity, kernel details, visible processes, network state, environment, Termux package/info queries, Android version/packages/logs, and production API health. Local actions run on the phone; backend actions remain server allowlisted.
 
 ## Distribution
 

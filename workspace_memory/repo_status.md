@@ -1,5 +1,7 @@
 ## AIFRED workspace status
 
+> Superseded workspace snapshot. Current source/deployment/app state is documented in `README.md`, `aifred_state.md`, and `docs/operations/website-cloudflare-production-2026-08-25.md`.
+
 ### Git state
 
 - **Branch:** `main`

@@ -1,5 +1,7 @@
 # AIFRED Flagship Build Plan (Audit Memory)
 
+> Historical planning baseline. PayPal, `AIFRED_WEBSITE_ASSETS`, and payment-gated milestones in this plan are not active. The 2026-08-25 production contract uses free Worker-mediated downloads from `aifred-downloads`; see `../operations/website-cloudflare-production-2026-08-25.md`.
+
 *All statements are classified as **OBSERVED**, **INFERRED**, **UNVERIFIED**, or **KNOWN ISSUE** according to the evidence gathered from the repository.  No code or configuration has been modified; this document is the sole write‑authorized artifact for the audit.*
 
 ---

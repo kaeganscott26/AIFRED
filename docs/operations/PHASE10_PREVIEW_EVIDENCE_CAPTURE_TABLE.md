@@ -1,5 +1,7 @@
 # Phase 10 Preview Evidence Capture Table
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 Leave actual evidence blank until a real preview exists. Do not invent evidence. Do not record secrets.
 
 | Area | Expected evidence | Actual evidence | Pass/Fail/Needs Review | Notes |

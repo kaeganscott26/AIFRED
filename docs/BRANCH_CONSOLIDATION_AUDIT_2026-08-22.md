@@ -1,5 +1,7 @@
 # Branch Consolidation Audit — 2026-08-22
 
+> Historical pre-production snapshot. Branch/path observations remain evidence; current deployment and app state is in `operations/website-cloudflare-production-2026-08-25.md`.
+
 ## Outcome
 
 The repository has been consolidated to `main`. All branch heads audited at
@@ -25,4 +27,3 @@ were merged into local `main` before deletion.
   environment after the merge.
 - No plug-in installation or update action was performed or required for this
   Git branch consolidation.
-

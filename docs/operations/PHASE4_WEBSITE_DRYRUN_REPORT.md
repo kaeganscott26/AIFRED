@@ -1,5 +1,7 @@
 # Phase 4 Website Dry-Run Report
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 Timestamp: 2026-06-27T16:17:51-05:00
 
 Git branch: `aifred-consolidation-phase4-deploy-dryrun`

@@ -1,5 +1,7 @@
 # AIFRED Cloud Architecture and Implementation Log
 
+> Historical implementation snapshot. Its PayPal, mailer, and separate website-assets assumptions were removed from the active runtime on 2026-08-25. See `website-cloudflare-production-2026-08-25.md`.
+
 Status: controlled migration in progress. No Cloudflare deployment or resource deletion was performed by this change.
 
 ## Scope

@@ -34,8 +34,9 @@ This wiki documents the current consolidated AIFRED monorepo: VST3 plugin, local
 - Plugin version: `0.3.6`
 - Default local model: `aifred:latest`
 - Default OpenAI model when configured: `gpt-5.6-luna`
-- Current public beta distribution: free Windows plugin and catalog MP3 downloads
-- Current CI release targets: Windows installer/uninstaller/zip and macOS pkg
+- Current public beta distribution: free Windows installer/ZIP, macOS VST3 ZIP, and catalog MP3 downloads
+- Current published tag: Windows installer/uninstaller/ZIP plus manual-install macOS ZIP
+- Current CI build target for future tags: Windows installer/uninstaller/ZIP and macOS pkg
 - Android admin app: private owner-only, not a public release artifact
 
 ## Product Principles

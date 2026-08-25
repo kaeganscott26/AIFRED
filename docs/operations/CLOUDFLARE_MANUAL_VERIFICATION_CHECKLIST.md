@@ -1,22 +1,21 @@
 # Cloudflare Manual Verification Checklist
 
-Do not record secret values in this document or in Git.
+Do not record secret values in this document or in Git. The 2026-08-25 production pass completed this checklist; repeat it for later promotions.
 
 Before any deployment migration, manually confirm:
 
-- [ ] Cloudflare account is the expected account.
-- [ ] Pages project name is confirmed.
-- [ ] GitHub repo binding is confirmed.
-- [ ] Production branch is confirmed.
-- [ ] Build root is confirmed.
-- [ ] Output directory is confirmed.
-- [ ] Worker route handling is confirmed for `/api`, `/api/v1`, and `/ws/chat`.
-- [ ] Environment variables and bindings are present without exposing values.
-- [ ] R2 bucket bindings are present.
-- [ ] PayPal-related environment variables exist without exposing values.
-- [ ] Admin auth environment variables exist without exposing values.
-- [ ] Domain binding for `www.north3rnlight3r.com` is present.
-- [ ] Apex redirect behavior is confirmed if used.
-- [ ] Preview deployments are available before production migration.
+- [x] Cloudflare account is the expected account.
+- [x] Pages project is `aifred-site`.
+- [x] GitHub repository is `kaeganscott26/AIFRED`; automatic Git deployment is disabled.
+- [x] Production branch is `main`.
+- [x] Canonical source/output is `apps/website`.
+- [x] Worker route handling is confirmed for `/api`, `/api/v1`, `/v1`, and `/ws/chat`.
+- [x] Environment-variable names and bindings were inspected without recording values.
+- [x] R2 bindings are `AIFRED_DOWNLOADS` and `AIFRED_REFERENCE_BUCKET`.
+- [x] Payment secrets/routes are absent from the active contract.
+- [x] Admin auth remains server-enforced.
+- [x] `aifred-site.pages.dev`, `north3rnlight3r.com`, and `www.north3rnlight3r.com` serve the production deployment.
+- [x] The generated deployment hostname is protected by Cloudflare Access; public aliases were verified directly.
+- [x] Production promotion uses `npm --prefix apps run website:deploy` after the commit is pushed.
 
-Phase 4 does not run Wrangler or Cloudflare deploy commands. This checklist is manual verification guidance only.
+See `website-cloudflare-production-2026-08-25.md` for command output, deployment identifiers, differences, and blockers.

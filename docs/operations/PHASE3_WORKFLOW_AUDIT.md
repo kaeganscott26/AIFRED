@@ -1,5 +1,7 @@
 # Phase 3 Workflow Audit
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 Timestamp: 2026-07-01T00:37:46-05:00
 
 Git branch: `main`

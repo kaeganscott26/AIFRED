@@ -44,4 +44,4 @@ Website And Catalog
 The canonical website/backend source lives under apps/website.
 Catalog metadata lives at apps/website/assets/data/beat_catalog.json.
 Catalog audio is served through /api/v1/assets/audio/catalog/<file>.
-The backend reads catalog and release objects from the AIFRED_DOWNLOADS R2 binding first and keeps local static files as a development fallback until R2 parity is verified.
+The backend reads catalog and release objects from the AIFRED_DOWNLOADS R2 binding first. Production R2 parity was verified on 2026-08-25; local static files remain a development/resilience fallback.

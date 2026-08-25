@@ -1,5 +1,7 @@
 # Phase 9 Blocker Closure Checklist
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 This checklist is for human closure review before any future non-production preview. It does not authorize deployment, production promotion, merge to `main`, old-folder removal, plugin movement, engine movement, release publishing, secret edits, or media deletion.
 
 ## Asset Blocker

@@ -1,5 +1,7 @@
 # Operation Log - 2026-05-01
 
+> Historical snapshot. Its blocked JDK/ADB/R2 observations were superseded on 2026-08-25: the Android toolchain builds version 2.3.0, R2 release/catalog parity is verified, and the connected device is tracked in the current production audit.
+
 ## Completed
 
 - Added offline-friendly Android admin behavior for log, sales, dashboard, inquiry, and reference-pool views.

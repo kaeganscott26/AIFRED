@@ -1,5 +1,7 @@
 # Phase 11 Approval Blocker Summary
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 The following blockers remain open because no explicit human approval was provided in the Phase 11 prompt:
 
 - Human approval not recorded.

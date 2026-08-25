@@ -1,5 +1,7 @@
 # Phase 5 Asset Decision Record
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 ## Current Issue
 
 Large media exists in both `website/` and `apps/website`.

@@ -1,5 +1,7 @@
 # Phase 7 Production Promotion Blocker
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 Phase 7 does not permit production promotion.
 
 Production promotion requires a later explicit phase with separate approval, validation, and rollback evidence.

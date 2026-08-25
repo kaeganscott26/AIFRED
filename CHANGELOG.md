@@ -7,6 +7,9 @@
 - Added free R2-backed plugin and catalog downloads with attachment and byte-range support.
 - Consolidated release and website asset delivery on the existing `aifred-downloads` bucket and removed the nonexistent `aifred-website-assets` binding.
 - Moved public activity and inquiry writes to KV only so normal website use cannot commit to GitHub or trigger deployment.
+- Added the verified published macOS VST3 ZIP to the free download module and documented its manual-install boundary.
+- Fixed production R2 HEAD/range semantics for plugin and MP3 downloads.
+- Updated the private Android admin app to version 2.3.0 with free-distribution status and local-only non-root Linux/Termux/Android command actions.
 
 ## Unreleased - 2026-07-11 repository cleanup
 

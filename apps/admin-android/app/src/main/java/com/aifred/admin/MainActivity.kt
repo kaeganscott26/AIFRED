@@ -126,7 +126,27 @@ data class ModelCatalog(
 
 data class RegisteredAction(
     val id: String,
-    val description: String
+    val description: String,
+    val command: String = id,
+    val localOnly: Boolean = false
+)
+
+private val LocalShellActions = listOf(
+    RegisteredAction("local:pwd", "Local — show current directory", "pwd", true),
+    RegisteredAction("local:files", "Local — list files", "ls -la", true),
+    RegisteredAction("local:storage", "Local — show filesystem usage", "df -h", true),
+    RegisteredAction("local:usage", "Local — show current directory size", "du -sh .", true),
+    RegisteredAction("local:identity", "Local — show app-shell identity", "id", true),
+    RegisteredAction("local:system", "Local — show kernel/system details", "uname -a", true),
+    RegisteredAction("local:processes", "Local — list visible processes", "ps -A", true),
+    RegisteredAction("local:network", "Local — show addresses and routes", "ip addr; ip route", true),
+    RegisteredAction("local:environment", "Local — list environment variables", "printenv | sort", true),
+    RegisteredAction("termux:packages", "Termux — list installed packages", "if command -v pkg >/dev/null 2>&1; then pkg list-installed; else echo 'Termux pkg is not available'; fi", true),
+    RegisteredAction("termux:info", "Termux — show environment information", "if command -v termux-info >/dev/null 2>&1; then termux-info; else echo 'termux-info is not available'; fi", true),
+    RegisteredAction("android:version", "Android — show OS version", "getprop ro.build.version.release", true),
+    RegisteredAction("android:packages", "Android — list third-party packages", "pm list packages -3", true),
+    RegisteredAction("android:logs", "Android — show recent accessible logs", "logcat -d -t 100", true),
+    RegisteredAction("site:health", "Local — check production API health", "curl -fsS https://www.north3rnlight3r.com/api/v1/health", true)
 )
 
 data class SiteActivityEvent(
@@ -197,11 +217,8 @@ data class SoundPackMeta(
     val price: String
 )
 
-fun defaultPackPrice(packType: String): String {
-    return when (packType.trim().lowercase()) {
-        "single", "soundpack", "midipack", "drumpack", "samplepack" -> "$100"
-        else -> "$100"
-    }
+fun defaultPackPrice(@Suppress("UNUSED_PARAMETER") packType: String): String {
+    return "Free MP3 download; commercial licensing by inquiry"
 }
 
 data class AdminLoginResult(
@@ -579,7 +596,7 @@ private fun renderDashboardSummary(raw: String): String {
     lines += "Audio plays: ${traffic?.optInt("media_streams", 0) ?: 0}"
     lines += "Downloads: ${traffic?.optInt("downloads", 0) ?: 0}"
     lines += "Open inquiries: ${inquiries?.optInt("count", 0) ?: 0}"
-    lines += "Recorded sales: ${sales?.optInt("count", 0) ?: 0}"
+    lines += "Historical sales records: ${sales?.optInt("count", 0) ?: 0}"
     val latestTrafficLine = recentTraffic?.optJSONObject(0)?.let { item ->
         val kind = item.optString("event_type", item.optString("kind", "event"))
         "Latest traffic: ${kind.replace('_', ' ').replace('.', ' ')} on ${item.optString("path", item.optString("page", "/"))}"
@@ -594,7 +611,7 @@ private fun renderDashboardSummary(raw: String): String {
         "Latest inquiry: ${item.optString("name", "Someone")} asked about ${item.optString("message", "a message").take(90)}"
     }
     val latestSaleLine = latestSale?.let { item ->
-        "Latest sale: ${item.optString("item_name", "item")} for ${item.optString("amount", "0.00")} ${item.optString("currency", "USD")}"
+        "Latest historical sale: ${item.optString("item_name", "item")} for ${item.optString("amount", "0.00")} ${item.optString("currency", "USD")}"
     }
     if (!latestTrafficLine.isNullOrBlank()) {
         lines += latestTrafficLine
@@ -657,6 +674,10 @@ private fun activityNotificationText(event: SiteActivityEvent): String {
             "Sale completed: ${event.title.ifBlank { "AIFRED download" }} ${event.message}".trim()
         kind.contains("paypal.buy.clicked") || kind.contains("paypal.order.create.requested") ->
             "Buy button clicked: ${event.title.ifBlank { "AIFRED download" }}"
+        kind.contains("plugin.download") ->
+            "Plugin download: ${event.title.ifBlank { "AIFRED release" }}"
+        kind.contains("catalog.download") ->
+            "Catalog download: ${event.title.ifBlank { "track" }}"
         kind.contains("catalog.play.clicked") ->
             "Catalog play: ${event.title.ifBlank { "track" }}"
         kind.contains("website.inquiry") ->
@@ -677,6 +698,8 @@ private fun isImportantActivity(eventType: String): Boolean {
     return kind.contains("paypal.buy.clicked") ||
         kind.contains("paypal.order.captured") ||
         kind.contains("paypal.sale.completed") ||
+        kind.contains("plugin.download") ||
+        kind.contains("catalog.download") ||
         kind.contains("website.inquiry") ||
         kind.contains("website.analysis") ||
         kind.contains("catalog.play.clicked") ||
@@ -731,7 +754,11 @@ private fun postAdminNotification(context: Context, title: String, text: String)
         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
         .setAutoCancel(true)
         .build()
-    NotificationManagerCompat.from(context).notify(ADMIN_NOTIFICATION_ID, notification)
+    try {
+        NotificationManagerCompat.from(context).notify(ADMIN_NOTIFICATION_ID, notification)
+    } catch (_: SecurityException) {
+        // Permission can be revoked between the explicit check and notification dispatch.
+    }
 }
 
 private fun openFullFileAccessSettings(context: Context) {
@@ -826,9 +853,6 @@ fun AIFREDAdminApp() {
     var websiteFilePath by remember { mutableStateOf("apps/website/index.html") }
     var websiteFileContent by remember { mutableStateOf("") }
     var websiteAdminOutput by remember { mutableStateOf("") }
-    var saleItemName by remember { mutableStateOf("AIFRED VST3 Plugin") }
-    var saleAmount by remember { mutableStateOf("29.99") }
-    var saleCustomerEmail by remember { mutableStateOf("") }
     var siteDashboardSummary by remember { mutableStateOf("Admin login required for live site data.") }
     var lastActivityEventId by remember { mutableStateOf("") }
     var catalogTracks by remember { mutableStateOf(listOf<CatalogTrack>()) }
@@ -1447,14 +1471,8 @@ fun AIFREDAdminApp() {
                             websiteFileContent = websiteFileContent,
                             websiteOutput = websiteAdminOutput,
                             siteDashboardSummary = siteDashboardSummary,
-                            saleItemName = saleItemName,
-                            saleAmount = saleAmount,
-                            saleCustomerEmail = saleCustomerEmail,
                             onWebsiteFilePath = { websiteFilePath = it },
                             onWebsiteFileContent = { websiteFileContent = it },
-                            onSaleItemName = { saleItemName = it },
-                            onSaleAmount = { saleAmount = it },
-                            onSaleCustomerEmail = { saleCustomerEmail = it },
                             onRun = {
                                 val cmd = commandInput.trim()
                                 if (cmd.isNotEmpty()) {
@@ -1644,11 +1662,11 @@ fun AIFREDAdminApp() {
                                     return@CommandScreen
                                 }
                                 scope.launch {
-                                    status = "loading sales"
+                                    status = "loading historical sales"
                                     websiteAdminOutput = withContext(Dispatchers.IO) {
                                         client.adminSalesList(adminSessionToken)
                                     }
-                                    status = "sales loaded"
+                                    status = "historical sales loaded"
                                 }
                             },
                             onLoadReferences = {
@@ -1663,25 +1681,6 @@ fun AIFREDAdminApp() {
                                         client.adminReferenceLog(adminSessionToken)
                                     }
                                     status = "reference pool loaded"
-                                }
-                            },
-                            onRecordSale = {
-                                if (adminSessionToken.isBlank()) {
-                                    status = "admin login required"
-                                    websiteAdminOutput = "admin login required"
-                                    return@CommandScreen
-                                }
-                                scope.launch {
-                                    status = "recording sale"
-                                    websiteAdminOutput = withContext(Dispatchers.IO) {
-                                        client.adminRecordSale(
-                                            adminSessionToken,
-                                            saleItemName.trim(),
-                                            saleAmount.trim(),
-                                            saleCustomerEmail.trim()
-                                        )
-                                    }
-                                    status = "sale recorded"
                                 }
                             },
                             onRefreshDashboard = {
@@ -2317,7 +2316,7 @@ fun UploadScreen(
                 OutlinedTextField(
                     value = soundPackPrice,
                     onValueChange = onSoundPackPrice,
-                    label = { Text("Price") },
+                    label = { Text("Distribution / licensing") },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -2397,14 +2396,8 @@ fun CommandScreen(
     websiteFileContent: String,
     websiteOutput: String,
     siteDashboardSummary: String,
-    saleItemName: String,
-    saleAmount: String,
-    saleCustomerEmail: String,
     onWebsiteFilePath: (String) -> Unit,
     onWebsiteFileContent: (String) -> Unit,
-    onSaleItemName: (String) -> Unit,
-    onSaleAmount: (String) -> Unit,
-    onSaleCustomerEmail: (String) -> Unit,
     onRun: () -> Unit,
     onQuick: (String) -> Unit,
     onLoadFile: () -> Unit,
@@ -2418,7 +2411,6 @@ fun CommandScreen(
     onLoadLogs: () -> Unit,
     onLoadSales: () -> Unit,
     onLoadReferences: () -> Unit,
-    onRecordSale: () -> Unit,
     onRefreshDashboard: () -> Unit
 ) {
     Column(
@@ -2456,7 +2448,7 @@ fun CommandScreen(
         }
 
         Text(
-            text = "Local shell works after offline admin login. Useful commands: pwd, ls, ls /sdcard, id, getprop ro.build.version.release, df -h, pm list packages, input keyevent 3.",
+            text = "Local registry actions are read-only, non-root Linux/Termux/Android commands and run on this phone. Backend actions remain server allowlisted.",
             color = Color(0xFF8DB0C8)
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -2539,34 +2531,10 @@ fun CommandScreen(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             Button(onClick = onLoadInquiries, modifier = Modifier.weight(1f)) { Text("Inquiries") }
             Button(onClick = onLoadLogs, modifier = Modifier.weight(1f)) { Text("ADMINLOG") }
-            Button(onClick = onLoadSales, modifier = Modifier.weight(1f)) { Text("Sales") }
+            Button(onClick = onLoadSales, modifier = Modifier.weight(1f)) { Text("Historical Sales") }
         }
         Button(onClick = onLoadReferences, modifier = Modifier.fillMaxWidth()) {
             Text("Reference Pool Log")
-        }
-
-        OutlinedTextField(
-            value = saleItemName,
-            onValueChange = onSaleItemName,
-            label = { Text("Sale Item") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            OutlinedTextField(
-                value = saleAmount,
-                onValueChange = onSaleAmount,
-                label = { Text("Amount") },
-                modifier = Modifier.weight(1f)
-            )
-            OutlinedTextField(
-                value = saleCustomerEmail,
-                onValueChange = onSaleCustomerEmail,
-                label = { Text("Customer Email") },
-                modifier = Modifier.weight(1f)
-            )
-        }
-        Button(onClick = onRecordSale, modifier = Modifier.fillMaxWidth()) {
-            Text("Record Sale + Receipt")
         }
 
         Text(
@@ -2897,7 +2865,7 @@ class ApiClient(private val baseUrl: String, private val token: String) {
                 if (response.isSuccessful && models.isNotEmpty()) {
                     ModelCatalog(
                         models = models,
-                        activeModel = payload.optString("active_model", models.first())
+                        activeModel = payload?.optString("active_model", models.first()) ?: models.first()
                     )
                 } else {
                     ModelCatalog(listOf("aifred:latest", "gpt-5.6-luna"), "aifred:latest")
@@ -3041,7 +3009,7 @@ class ApiClient(private val baseUrl: String, private val token: String) {
     }
 
     fun listActions(): List<RegisteredAction> {
-        return try {
+        val remoteActions = try {
             val request = Request.Builder()
                 .url(endpoint("/api/v1/registry/actions"))
                 .build()
@@ -3057,8 +3025,9 @@ class ApiClient(private val baseUrl: String, private val token: String) {
                             val item = items.optJSONObject(index) ?: continue
                             val id = item.optString("id").trim()
                             val description = item.optString("description").trim()
+                            val command = item.optString("command", id).trim().ifBlank { id }
                             if (id.isNotEmpty()) {
-                                add(RegisteredAction(id, description))
+                                add(RegisteredAction(id, description, command))
                             }
                         }
                     }
@@ -3067,11 +3036,23 @@ class ApiClient(private val baseUrl: String, private val token: String) {
         } catch (_error: Exception) {
             emptyList()
         }
+        return (remoteActions + LocalShellActions).distinctBy { it.id }
     }
 
     fun runCommand(adminSessionToken: String, command: String): String {
+        val normalized = command.trim()
+        if (normalized.startsWith("action:")) {
+            val actionId = normalized.removePrefix("action:").trim()
+            val localAction = LocalShellActions.firstOrNull { it.id == actionId }
+            if (localAction != null) {
+                return runLocalShellCommand(localAction.command)
+            }
+            if (adminSessionToken.startsWith("local-admin-")) {
+                return "backend action requires an online admin session"
+            }
+        }
         if (adminSessionToken.startsWith("local-admin-")) {
-            return runLocalShellCommand(command)
+            return runLocalShellCommand(normalized)
         }
 
         return try {
@@ -3362,22 +3343,6 @@ class ApiClient(private val baseUrl: String, private val token: String) {
             .put("items", JSONArray())
             .put("message", "Offline admin access is active. $name sync requires internet and an online admin session.")
             .toString(2)
-    }
-
-    fun adminRecordSale(
-        adminSessionToken: String,
-        itemName: String,
-        amount: String,
-        customerEmail: String
-    ): String {
-        val body = JSONObject()
-            .put("item_name", itemName)
-            .put("amount", amount)
-            .put("currency", "USD")
-            .put("payment_provider", "paypal")
-            .put("customer_email", customerEmail)
-        val (_ok, rendered) = adminJsonPost(adminSessionToken, "/api/v1/admin/sales/record", body)
-        return rendered
     }
 
     private fun copyUriToTempFile(

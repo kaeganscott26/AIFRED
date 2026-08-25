@@ -1,4 +1,6 @@
 
+> Superseded audit snapshot. This file records the pre-promotion state observed before 2026-08-25. Current production evidence is in `docs/operations/website-cloudflare-production-2026-08-25.md`; do not treat PayPal, old deployment, version, or blocker statements below as active truth.
+
 • The audit is complete. The authoritative repository product is main at bfb06047, with no branch combination or cherry-pick needed. I made no destructive
   changes and did not modify product source. The only intentional write was adding the requested persistent cleanup tasks/checkpoints to the existing local
   FORGE database.

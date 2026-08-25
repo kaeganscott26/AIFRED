@@ -1,5 +1,7 @@
 # Phase 9 Preview Evidence Readiness Checklist
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 This is a pre-preview checklist to confirm the future evidence template is ready. Do not fill this with fake evidence. Do not invent preview URLs. Do not record secrets.
 
 - [ ] Evidence template exists.

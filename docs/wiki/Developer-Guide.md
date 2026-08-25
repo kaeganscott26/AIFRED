@@ -154,12 +154,20 @@ The plugin currently uses `/health`, `/chat`, and `/v1/settings`. `/analyze` and
 
 Current app configuration:
 
-- App version: `2.4.2`
+- App version: `2.3.0` (`versionCode = 243`)
 - `compileSdk = 35`
 - `targetSdk = 35`
 - JVM target: 17
 
 Build:
+
+```sh
+cd apps/admin-android
+./gradlew :app:assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+Windows PowerShell:
 
 ```powershell
 $env:JAVA_HOME='C:\Program Files\Microsoft\jdk-17.0.18.8-hotspot'

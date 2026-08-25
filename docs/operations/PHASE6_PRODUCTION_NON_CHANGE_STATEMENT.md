@@ -1,5 +1,7 @@
 # Phase 6 Production Non-Change Statement
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 Phase 6 is a gate and review phase only.
 
 Phase 6 does not:

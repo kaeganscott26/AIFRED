@@ -1,5 +1,7 @@
 # Phase 11 Human Approval Intake Form
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 Phase 11 does not approve preview automatically.
 
 No explicit human approval was provided in the Phase 11 prompt. All approval fields remain blank or pending. This form is for a future human to complete before any non-production preview.

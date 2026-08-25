@@ -1,5 +1,7 @@
 # Phase 5 Rollback Plan
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 ## Git Rollback
 
 - Branches remain unmerged.

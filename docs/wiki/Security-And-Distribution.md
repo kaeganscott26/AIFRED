@@ -62,7 +62,9 @@ Current Windows/macOS release artifacts are:
 - `AIFRED-VST3-Setup.exe`
 - `AIFRED-Uninstall.exe`
 - `AIFRED-VST3-windows.zip`
-- `AIFRED-VST3-macOS.pkg`
+- `AIFRED-VST3-macos.zip` (published manual-install package)
+
+The workflow can build `AIFRED-VST3-macOS.pkg` for a future tag, but no signed/notarized pkg or dmg is present in the current published release.
 
 Do not advertise Linux or Arch packages as current release outputs unless those targets are restored to CI and verified.
 
@@ -119,7 +121,7 @@ Never embed a private provider key into public website JavaScript, committed plu
 Current public release targets:
 
 - Windows VST3 zip/installer/uninstaller.
-- macOS VST3 pkg.
+- macOS VST3 ZIP for the current published tag; pkg remains a CI build target for future release publication.
 
 Not current public release targets:
 

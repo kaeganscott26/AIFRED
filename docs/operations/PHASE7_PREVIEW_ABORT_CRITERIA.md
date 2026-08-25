@@ -1,5 +1,7 @@
 # Phase 7 Preview Abort Criteria
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 A future preview must be aborted or not promoted if any of these conditions occur:
 
 - Production domain changes unexpectedly.

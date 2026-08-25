@@ -1,5 +1,7 @@
 # Phase 10 Preview Execution Checklist Draft
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 This is a draft checklist only. Phase 10 does not execute the preview. Phase 10 does not authorize production. Phase 10 does not authorize merge to `main`.
 
 A future preview requires explicit human approval outside this phase.

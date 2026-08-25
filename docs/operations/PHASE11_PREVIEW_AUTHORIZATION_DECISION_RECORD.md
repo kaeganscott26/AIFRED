@@ -1,5 +1,7 @@
 # Phase 11 Preview Authorization Decision Record
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 Decision: NOT APPROVED / PENDING HUMAN REVIEW
 
 No explicit approval is included in the Phase 11 prompt, so preview authorization remains blocked.

@@ -1,5 +1,7 @@
 # Phase 6 Merge Blocker Report
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 This report documents current blockers before any merge to `main`.
 
 ## Blocker 1: Asset Strategy

@@ -1,5 +1,7 @@
 # Phase 8 Android Admin Parity Manifest
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 Timestamp: 2026-06-27T23:41:20-05:00
 
 Git branch: `aifred-consolidation-phase8-local-preview-harness`

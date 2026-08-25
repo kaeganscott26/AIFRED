@@ -1,5 +1,7 @@
 # Phase 7 Preview Authorization Package
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 Phase 7 does not authorize deployment by itself.
 
 This package defines what a human must approve before a future non-production Cloudflare preview. Production remains unchanged, `website/` remains the fallback production root, `apps/website` remains a preview candidate only, and `main` remains unmerged.

@@ -117,13 +117,13 @@ Storage bindings in the current repo include:
 - `AIFRED_REFERENCE_POOL`
 - `AIFRED_SALES_LOG`
 
-Catalog audio uses R2 first and local static files as a development fallback. The local MP3 fallback is preserved until R2 parity is verified.
+Catalog audio uses R2 first and local static files as a development/resilience fallback. All 63 meaningful website assets matched R2 by key and size on 2026-08-25.
 
 ## Android Admin State
 
 The private Android app is under `apps/admin-android/` and currently uses:
 
-- App version `2.4.2`
+- App version `2.3.0` (`versionCode = 243`)
 - `compileSdk = 35`
 - `targetSdk = 35`
 - Java/Kotlin JVM target 17
@@ -132,6 +132,8 @@ The private Android app is under `apps/admin-android/` and currently uses:
 - Coroutines
 
 The admin app is owner-only. It is built locally or validated by CI and is not a public release artifact.
+
+Version 2.3.0 reflects free website distribution, keeps sales data read-only/historical, and includes local-only non-root Linux/Termux/Android command registry actions.
 
 ## Current Validation
 

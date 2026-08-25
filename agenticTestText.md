@@ -47,13 +47,13 @@ A portable Windows artifact, `AIFRED-VST3-windows.zip`, may also be provided, bu
 
 ### macOS
 
-1. Obtain `AIFRED-VST3-macOS.pkg` from the authorized AIFRED release/download location.
-2. Open the package and follow the installer prompts.
+1. Obtain `AIFRED-VST3-macos.zip` from the authorized AIFRED release/download location.
+2. Extract it and copy `Aifred.vst3` to `~/Library/Audio/Plug-Ins/VST3/`.
 3. Restart or rescan plugins in your DAW, then load AIFRED as a VST3 effect.
-4. If needed, use the installed `AIFRED Engine Control.command` utility to start, restart, stop, or check the engine.
+4. Configure the local AIFRED Engine separately if AI/chat is required; the published ZIP does not contain a packaged engine binary.
 5. If using the default local AI route, ensure Ollama and the `aifred:latest` model are available.
 
-The current macOS package is not signed or notarized, so macOS may require explicit approval in Privacy & Security before it can be opened. Only bypass warnings when the package came from a trusted AIFRED source.
+The current published macOS ZIP is not notarized. The repository can build a pkg, but no signed/notarized pkg or dmg is published for this tag.
 
 ## Building and installing from source
 

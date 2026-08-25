@@ -1,5 +1,7 @@
 # Phase 9 Human Preview Review Packet
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 Phase 9 does not authorize deployment.
 Phase 9 does not authorize production.
 Phase 9 summarizes readiness for human review only.

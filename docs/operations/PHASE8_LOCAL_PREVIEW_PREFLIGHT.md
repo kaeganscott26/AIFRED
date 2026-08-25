@@ -1,5 +1,7 @@
 # Phase 8 Local Preview Preflight
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 ## Purpose
 
 Phase 8 provides local and pre-CI checks before any future non-production preview is requested. It compares preserved fallback paths with imported monorepo candidates, checks preview workflow safety, and records whether the repo is shaped for human review.

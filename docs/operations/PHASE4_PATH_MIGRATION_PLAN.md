@@ -1,5 +1,7 @@
 # Phase 4 Path Migration Plan
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 Phase 4 does not switch live paths. It proves readiness for a later, explicitly approved migration.
 
 ## Current Live Behavior

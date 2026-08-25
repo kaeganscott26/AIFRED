@@ -1,5 +1,7 @@
 # Phase 10 Rollback Observation Plan
 
+> Historical migration record captured before the 2026-08-25 production promotion. Preserve as evidence; current authority is `website-cloudflare-production-2026-08-25.md`.
+
 Phase 10 does not trigger rollback because no production change occurs.
 
 Future preview rollback means do not promote, do not merge, and keep the old `website/` path.

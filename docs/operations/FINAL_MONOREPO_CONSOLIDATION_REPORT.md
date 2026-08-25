@@ -2,6 +2,10 @@
 
 Date: 2026-06-28
 
+## 2026-08-25 Production Correction
+
+The path consolidation remains valid, but its external-infrastructure assumptions are superseded. Production is now verified on Pages project `aifred-site` from `apps/website`. `AIFRED_DOWNLOADS` (`aifred-downloads`) stores both versioned release packages and `assets/`; the proposed `AIFRED_WEBSITE_ASSETS` binding/bucket does not exist and is not required. PayPal and `MAILER` are removed from the active distribution contract. See `website-cloudflare-production-2026-08-25.md` for evidence.
+
 ## Active Authorities
 
 | System | Active path |
@@ -23,7 +27,7 @@ Date: 2026-06-28
 ## Website Assets
 
 - Catalog stream URLs now route through `/api/v1/assets/audio/catalog/<file>`.
-- The Worker first reads those objects from the `AIFRED_WEBSITE_ASSETS` R2 binding.
+- The Worker first reads those objects from the `AIFRED_DOWNLOADS` R2 binding.
 - Local static files remain as a development fallback when the R2 binding or object is not available.
 - Release downloads continue to use `AIFRED_DOWNLOADS`.
 - Reference-pool storage continues to use `AIFRED_REFERENCE_BUCKET`.
@@ -51,7 +55,6 @@ Deletion is intentionally not automated here because it is destructive and requi
 
 ## Remaining External Requirements
 
-- Cloudflare must bind `AIFRED_WEBSITE_ASSETS` to the `aifred-website-assets` R2 bucket.
-- Catalog audio objects should be uploaded to R2 under `assets/audio/catalog/<file>`.
+- Catalog audio objects are verified in `aifred-downloads` under `assets/audio/catalog/<file>`.
 - Existing Cloudflare secrets must be reviewed and rotated outside Git if any old sibling repo docs exposed values.
 - Stale GitHub repos should be archived or deleted only after explicit owner confirmation.

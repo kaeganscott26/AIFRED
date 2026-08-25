@@ -141,27 +141,21 @@ The installer configures the default Ollama route, registers engine startup, sta
 
 ## macOS Installation
 
-Current macOS release artifact:
+Current published macOS release artifact:
 
 ```text
-AIFRED-VST3-macOS.pkg
+AIFRED-VST3-macos.zip
 ```
 
-Primary install paths:
+Extract the ZIP and copy the VST3 bundle to:
 
 ```text
-/Library/Audio/Plug-Ins/VST3/Aifred.vst3
-/Library/Application Support/Aifred/bin/AifredEngine
-/Library/Application Support/Aifred/config/config.json
-/Library/Application Support/Aifred/setup-aifred-local-ai.sh
-/Library/Application Support/Aifred/AIFRED Engine Control.command
-/Library/LaunchAgents/com.aifred.engine.plist
-~/Library/Application Support/Aifred/user_settings.json
+~/Library/Audio/Plug-Ins/VST3/Aifred.vst3
 ```
 
-The LaunchAgent starts the engine at login. Double-click `AIFRED Engine Control.command` to start or repair local AI, restart the engine, stop it for the current login session, or show gateway health.
+Create the parent directory when needed, restart the DAW, and rescan VST3 plugins. The published ZIP does not contain the packaged AIFRED Engine binary, so local AI setup is separate for this tag.
 
-The macOS package is not yet signed or notarized; that remains a release-hardening task.
+The current macOS ZIP is not notarized. A signed/notarized pkg or dmg remains release-hardening work.
 
 ## Free Downloads
 
@@ -172,6 +166,7 @@ Current backend routes include:
 ```text
 GET /api/v1/downloads/plugin?asset=setup
 GET /api/v1/downloads/plugin?asset=zip
+GET /api/v1/downloads/plugin?asset=macos
 GET /api/v1/assets/audio/catalog/<file>?download=1
 ```
 
@@ -179,6 +174,6 @@ The PayPal create, capture, IPN, and tokenized sale-download routes are not expo
 
 ## Android Admin App
 
-The Android admin app is owner-only operational software. It can manage chat, catalog uploads, website/repository files, activity, sales, inquiries, references, and registered backend commands.
+The Android admin app is owner-only operational software. Version 2.3.0 can manage chat, catalog uploads, website/repository files, activity, historical sales, inquiries, references, registered backend commands, and local-only non-root Linux/Termux/Android actions.
 
 It is not a public release artifact.
