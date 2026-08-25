@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { onRequest } from "../apps/website/functions/api/v1/[[path]].js";
 
@@ -60,6 +62,17 @@ test("active content contract advertises free distribution", async () => {
   assert.equal(payload.content.products[0].price, "Free beta download");
   assert.match(payload.content.services[1].price, /Free MP3/);
   assert.doesNotMatch(JSON.stringify(payload), /\$5|\$100|\$200/);
+});
+
+test("every catalog track resolves to a checked-in distribution asset", () => {
+  const catalog = JSON.parse(readFileSync(new URL("../apps/website/assets/data/beat_catalog.json", import.meta.url), "utf8"));
+  assert.equal(catalog.length, 54);
+  for (const track of catalog) {
+    const fileName = decodeURIComponent(new URL(track.stream_url, "https://aifred.test").pathname.split("/").pop());
+    const asset = fileURLToPath(new URL(`../apps/website/assets/audio/catalog/${encodeURIComponent(fileName)}`, import.meta.url));
+    assert.equal(existsSync(asset), true, `${track.title}: ${fileName}`);
+    assert.match(track.price, /Free MP3 download/);
+  }
 });
 
 test("authorized admin can read operations status", async () => {
