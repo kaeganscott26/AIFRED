@@ -310,6 +310,7 @@ Commands and results:
 | Plugin and MP3 range requests | 206, exact 1,024-byte bodies and correct `Content-Range` |
 | Invalid MP3 range | 416 |
 | GitHub `Website checks` on final source commit | passed |
+| GitHub Actions run `32831238756` for source `68fc41c` | passed: Website checks, VST3 macOS, and VST3 Windows; deployment/release jobs skipped by policy |
 | GitHub automatic `Dependency Graph` after filename fix | passed |
 | APK `adb install -r`, package/version inspection, launch, fatal-log scan | passed |
 
@@ -336,6 +337,8 @@ dfad5d4 fix Android catalog playback and add API profiles
 `HEAD` and `origin/main` matched `68fc41c72e7fbc513bd5505d24d0bd9b4a58e5dd` before final production deployment. Pushes succeeded except for one normal non-fast-forward rejection caused by a concurrent owner commit; that commit was fetched/rebased without force-pushing or discarding it.
 
 The concurrent commit `d135c1e` placed operator credential values in tracked `.dev.vars.example`. Commit `d46d6bf` immediately restored empty example values and the correct password-hash key. The values remain recoverable from Git history and therefore require rotation; this report does not reproduce them.
+
+The completed audit was committed and pushed after production verification as `43545a0 document website and Cloudflare production audit`; `HEAD` and `origin/main` matched after that push. This documentation-only commit did not change `apps/website` and therefore did not require another production deployment.
 
 ## Deployment
 
@@ -444,6 +447,7 @@ Contact smoke inquiry ID: `49904531-2a1c-4f55-89b8-e154823d3356`. This is an int
 - Split full VST plugin builds from documentation-only pushes to reduce CI time; website checks already complete quickly and deployment is manual.
 - Keep explicit authenticated admin GitHub writes constrained to approved low-frequency file/catalog operations.
 - If preview deployments return, normalize the inactive preview environment before enabling them.
+- Upgrade GitHub Actions from Node 20-based `actions/checkout@v4`, `actions/setup-node@v4`, and related action versions before GitHub removes forced Node 24 compatibility; current runs pass with deprecation warnings.
 
 ## Final State
 
