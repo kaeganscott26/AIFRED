@@ -868,7 +868,38 @@ function releaseAssetObjectKey(env, assetName) {
   return `releases/${version}/${assetName}`;
 }
 
-function r2Response(object, { contentType, fileName = "", cacheControl = "public, max-age=3600", includeBody = true } = {}) {
+function parseByteRange(value, size) {
+  const match = String(value || "").trim().match(/^bytes=(\d*)-(\d*)$/i);
+  if (!match || (!match[1] && !match[2]) || !Number.isSafeInteger(size) || size < 1) return null;
+  let start;
+  let end;
+  if (!match[1]) {
+    const suffixLength = Number(match[2]);
+    if (!Number.isSafeInteger(suffixLength) || suffixLength < 1) return null;
+    const length = Math.min(suffixLength, size);
+    start = size - length;
+    end = size - 1;
+  } else {
+    start = Number(match[1]);
+    end = match[2] ? Number(match[2]) : size - 1;
+    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || start >= size || end < start) return null;
+    end = Math.min(end, size - 1);
+  }
+  return { offset: start, length: end - start + 1 };
+}
+
+function rangeNotSatisfiable(size) {
+  return new Response(null, {
+    status: 416,
+    headers: {
+      "accept-ranges": "bytes",
+      "cache-control": "no-store",
+      "content-range": `bytes */${size}`
+    }
+  });
+}
+
+function r2Response(object, { contentType, fileName = "", cacheControl = "public, max-age=3600", includeBody = true, responseRange = null, totalSize = object.size } = {}) {
   const headers = new Headers();
   if (typeof object.writeHttpMetadata === "function") object.writeHttpMetadata(headers);
   headers.set("accept-ranges", "bytes");
@@ -880,14 +911,14 @@ function r2Response(object, { contentType, fileName = "", cacheControl = "public
   if (fileName) headers.set("content-disposition", `attachment; filename="${fileName.replace(/["\\]/g, "_")}"`);
 
   let status = 200;
-  if (object.range && Number.isFinite(object.range.offset) && Number.isFinite(object.range.length)) {
-    const start = object.range.offset;
-    const end = start + object.range.length - 1;
-    headers.set("content-range", `bytes ${start}-${end}/${object.size}`);
-    headers.set("content-length", String(object.range.length));
+  if (responseRange) {
+    const start = responseRange.offset;
+    const end = start + responseRange.length - 1;
+    headers.set("content-range", `bytes ${start}-${end}/${totalSize}`);
+    headers.set("content-length", String(responseRange.length));
     status = 206;
   } else {
-    headers.set("content-length", String(object.size));
+    headers.set("content-length", String(totalSize));
   }
   return new Response(includeBody ? object.body : null, { status, headers });
 }
@@ -899,17 +930,29 @@ async function fetchReleaseAssetResponse(request, env, assetName) {
 
   const objectKey = releaseAssetObjectKey(env, assetName);
   const isHead = request.method === "HEAD";
-  const object = isHead && typeof env.AIFRED_DOWNLOADS.head === "function"
-    ? await env.AIFRED_DOWNLOADS.head(objectKey)
-    : await env.AIFRED_DOWNLOADS.get(
-        objectKey,
-        request.headers.has("range") ? { range: request.headers } : undefined
-      );
+  let object;
+  let responseRange = null;
+  let totalSize;
+  if (isHead && typeof env.AIFRED_DOWNLOADS.head === "function") {
+    object = await env.AIFRED_DOWNLOADS.head(objectKey);
+  } else if (request.headers.has("range") && typeof env.AIFRED_DOWNLOADS.head === "function") {
+    const metadata = await env.AIFRED_DOWNLOADS.head(objectKey);
+    if (metadata) {
+      totalSize = metadata.size;
+      responseRange = parseByteRange(request.headers.get("range"), totalSize);
+      if (!responseRange) return rangeNotSatisfiable(totalSize);
+      object = await env.AIFRED_DOWNLOADS.get(objectKey, { range: responseRange });
+    }
+  } else {
+    object = await env.AIFRED_DOWNLOADS.get(objectKey);
+  }
   if (object) {
     return r2Response(object, {
       contentType: object.httpMetadata?.contentType || "application/octet-stream",
       fileName: assetName,
-      includeBody: !isHead
+      includeBody: !isHead,
+      responseRange,
+      totalSize: totalSize ?? object.size
     });
   }
 
@@ -959,17 +1002,29 @@ async function fetchWebsiteAssetResponse(request, env, relPath) {
   const isHead = request.method === "HEAD";
   const wantsDownload = new URL(request.url).searchParams.get("download") === "1";
   if (bucket && typeof bucket.get === "function") {
-    const object = isHead && typeof bucket.head === "function"
-      ? await bucket.head(objectKey)
-      : await bucket.get(
-          objectKey,
-          request.headers.has("range") ? { range: request.headers } : undefined
-        );
+    let object;
+    let responseRange = null;
+    let totalSize;
+    if (isHead && typeof bucket.head === "function") {
+      object = await bucket.head(objectKey);
+    } else if (request.headers.has("range") && typeof bucket.head === "function") {
+      const metadata = await bucket.head(objectKey);
+      if (metadata) {
+        totalSize = metadata.size;
+        responseRange = parseByteRange(request.headers.get("range"), totalSize);
+        if (!responseRange) return rangeNotSatisfiable(totalSize);
+        object = await bucket.get(objectKey, { range: responseRange });
+      }
+    } else {
+      object = await bucket.get(objectKey);
+    }
     if (object) {
       const response = r2Response(object, {
         contentType: object.httpMetadata?.contentType || contentTypeForPath(safePath),
         fileName: wantsDownload ? safePath.split("/").pop() : "",
-        includeBody: !isHead
+        includeBody: !isHead,
+        responseRange,
+        totalSize: totalSize ?? object.size
       });
       response.headers.set("x-aifred-asset-source", "r2");
       return response;

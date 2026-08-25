@@ -215,13 +215,16 @@ test("beat streaming supports byte ranges", async () => {
     env: {
       ...env,
       AIFRED_DOWNLOADS: {
+        async head(key) {
+          assert.equal(key, "assets/audio/catalog/Test.mp3");
+          return { size: 10, httpMetadata: { contentType: "audio/mpeg" } };
+        },
         async get(key, options) {
           assert.equal(key, "assets/audio/catalog/Test.mp3");
-          assert.equal(options.range.get("range"), "bytes=0-3");
+          assert.deepEqual(options.range, { offset: 0, length: 4 });
           return {
             body: new TextEncoder().encode("beat"),
             size: 10,
-            range: { offset: 0, length: 4 },
             httpMetadata: { contentType: "audio/mpeg" }
           };
         }
@@ -233,6 +236,22 @@ test("beat streaming supports byte ranges", async () => {
   assert.equal(response.headers.get("content-range"), "bytes 0-3/10");
   assert.equal(response.headers.get("accept-ranges"), "bytes");
   assert.equal(await response.text(), "beat");
+});
+
+test("invalid byte ranges return 416 without reading the object", async () => {
+  const response = await onRequest({
+    request: request("/api/v1/assets/audio/catalog/Test.mp3", { headers: { range: "bytes=20-30" } }),
+    env: {
+      ...env,
+      AIFRED_DOWNLOADS: {
+        async head() { return { size: 10 }; },
+        async get() { throw new Error("invalid ranges must not read R2"); }
+      }
+    },
+    params: { path: ["assets", "audio", "catalog", "Test.mp3"] }
+  });
+  assert.equal(response.status, 416);
+  assert.equal(response.headers.get("content-range"), "bytes */10");
 });
 
 test("catalog asset paths reject traversal", async () => {
