@@ -287,6 +287,11 @@ private const val DEFAULT_ADMIN_PASSWORD_SHA256 = "c5c5188f8c698dfa5f956f4883f87
 private const val ADMIN_PREFS_NAME = "AIFRED_admin_local_config"
 private const val ADMIN_PREF_USERNAME = "admin_username"
 private const val ADMIN_PREF_PASSWORD = "admin_password"
+private const val API_PREFS_NAME = "AIFRED_api_local_config"
+private const val API_PREF_PROVIDER = "provider"
+private const val API_PREF_BASE_URL = "base_url"
+private const val API_PREF_KEY = "api_key"
+private const val API_PREF_MODEL = "model"
 private val ChatTransportModes = listOf("websocket", "http")
 private val ChatTonePresets = listOf("direct", "calm", "technical", "executive", "creative")
 private val ChatReasoningEfforts = listOf("minimal", "low", "medium", "high")
@@ -317,6 +322,27 @@ private fun saveConfiguredAdminCredentials(context: Context, username: String, p
         .edit()
         .putString(ADMIN_PREF_USERNAME, username.trim())
         .putString(ADMIN_PREF_PASSWORD, password.trim())
+        .apply()
+}
+
+private fun loadApiConfiguration(context: Context): ApiConfiguration {
+    val prefs = context.getSharedPreferences(API_PREFS_NAME, Context.MODE_PRIVATE)
+    val provider = prefs.getString(API_PREF_PROVIDER, "website").orEmpty().ifBlank { "website" }
+    val defaults = apiProviderDefaults(provider, BuildConfig.AIFRED_BASE_URL)
+    return defaults.copy(
+        baseUrl = prefs.getString(API_PREF_BASE_URL, defaults.baseUrl).orEmpty().ifBlank { defaults.baseUrl },
+        apiKey = prefs.getString(API_PREF_KEY, defaults.apiKey).orEmpty(),
+        model = prefs.getString(API_PREF_MODEL, defaults.model).orEmpty().ifBlank { defaults.model }
+    )
+}
+
+private fun saveApiConfiguration(context: Context, configuration: ApiConfiguration) {
+    context.getSharedPreferences(API_PREFS_NAME, Context.MODE_PRIVATE)
+        .edit()
+        .putString(API_PREF_PROVIDER, configuration.provider)
+        .putString(API_PREF_BASE_URL, configuration.baseUrl.trimEnd('/'))
+        .putString(API_PREF_KEY, configuration.apiKey)
+        .putString(API_PREF_MODEL, configuration.model)
         .apply()
 }
 
@@ -791,10 +817,17 @@ private val aifredBrandColors = darkColorScheme(
 fun AIFREDAdminApp() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val client = remember { ApiClient(BuildConfig.AIFRED_BASE_URL, BuildConfig.AIFRED_API_TOKEN) }
     val mainExecutor = remember { ContextCompat.getMainExecutor(context) }
     val configuredAdminUser = remember(context) { loadConfiguredAdminUsername(context) }
     val configuredAdminPassword = remember(context) { loadConfiguredAdminPassword(context) }
+    val initialApiConfiguration = remember(context) { loadApiConfiguration(context) }
+    var apiConfiguration by remember { mutableStateOf(initialApiConfiguration) }
+    var activeApiConfiguration by remember { mutableStateOf(initialApiConfiguration) }
+    var apiConfigurationStatus by remember { mutableStateOf("API profile ready") }
+    val client = remember { ApiClient(BuildConfig.AIFRED_BASE_URL, BuildConfig.AIFRED_API_TOKEN) }
+    val chatClient = remember(activeApiConfiguration.baseUrl, activeApiConfiguration.apiKey) {
+        ApiClient(activeApiConfiguration.baseUrl, activeApiConfiguration.apiKey)
+    }
     val mediaPlayer = remember {
         MediaPlayer().apply {
             setAudioAttributes(
@@ -823,7 +856,7 @@ fun AIFREDAdminApp() {
             )
         )
     }
-    var selectedChatModel by remember { mutableStateOf(chatModels.first()) }
+    var selectedChatModel by remember { mutableStateOf(initialApiConfiguration.model) }
     var chatSettings by remember { mutableStateOf(ChatSettings()) }
     var chatSettingsExpanded by remember { mutableStateOf(false) }
     var chatWebsocketUrl by remember { mutableStateOf("") }
@@ -913,15 +946,6 @@ fun AIFREDAdminApp() {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
 
-        val catalog = withContext(Dispatchers.IO) { client.listModels() }
-        if (catalog.models.isNotEmpty()) {
-            chatModels = catalog.models
-            selectedChatModel = if (catalog.activeModel.isNotBlank()) {
-                catalog.activeModel
-            } else {
-                catalog.models.first()
-            }
-        }
         val chatSettingsResult = withContext(Dispatchers.IO) { client.getChatSettings() }
         if (chatSettingsResult.ok) {
             chatSettings = chatSettingsResult.settings
@@ -950,7 +974,17 @@ fun AIFREDAdminApp() {
             }
         }
 
-        client.connectChat(
+    }
+
+    LaunchedEffect(chatClient) {
+        val catalog = withContext(Dispatchers.IO) { chatClient.listModels() }
+        if (catalog.models.isNotEmpty()) {
+            chatModels = catalog.models
+            selectedChatModel = activeApiConfiguration.model.takeIf { it in catalog.models }
+                ?: catalog.activeModel.takeIf { it.isNotBlank() }
+                ?: catalog.models.first()
+        }
+        chatClient.connectChat(
             sessionId = chatSessionId,
             onReady = { provider ->
                 chatMessages.appendSessionChatMessage(ChatMessage("system", "connected: $provider"))
@@ -969,6 +1003,12 @@ fun AIFREDAdminApp() {
         )
     }
 
+    DisposableEffect(chatClient) {
+        onDispose {
+            chatClient.closeChat(chatSessionId)
+        }
+    }
+
     DisposableEffect(Unit) {
         mediaPlayer.setOnCompletionListener {
             isPlaying = false
@@ -977,7 +1017,6 @@ fun AIFREDAdminApp() {
         }
         onDispose {
             visualizer?.release()
-            client.closeChat(chatSessionId)
             chatMessages.clear()
             mediaPlayer.release()
         }
@@ -1266,7 +1305,50 @@ fun AIFREDAdminApp() {
                             messages = chatMessages,
                             availableModels = chatModels,
                             selectedModel = selectedChatModel,
-                            onModelSelect = { selectedChatModel = it },
+                            onModelSelect = {
+                                val updated = activeApiConfiguration.copy(model = it)
+                                selectedChatModel = it
+                                apiConfiguration = apiConfiguration.copy(model = it)
+                                activeApiConfiguration = updated
+                                saveApiConfiguration(context, updated)
+                            },
+                            apiConfiguration = apiConfiguration,
+                            apiConfigurationStatus = apiConfigurationStatus,
+                            websiteBaseUrl = BuildConfig.AIFRED_BASE_URL,
+                            onApiConfigurationChange = { apiConfiguration = it },
+                            onApplyApiConfiguration = {
+                                val normalized = apiConfiguration.copy(
+                                    baseUrl = apiConfiguration.baseUrl.trim().trimEnd('/'),
+                                    model = apiConfiguration.model.trim()
+                                )
+                                if (normalized.baseUrl.isBlank() || normalized.model.isBlank()) {
+                                    apiConfigurationStatus = "Endpoint and model are required"
+                                } else if (!normalized.baseUrl.startsWith("https://") && !normalized.baseUrl.startsWith("http://")) {
+                                    apiConfigurationStatus = "Endpoint must use http:// or https://"
+                                } else {
+                                    saveApiConfiguration(context, normalized)
+                                    apiConfiguration = normalized
+                                    activeApiConfiguration = normalized
+                                    selectedChatModel = normalized.model
+                                    apiConfigurationStatus = "${normalized.provider} profile applied"
+                                }
+                            },
+                            onTestApiConfiguration = {
+                                val draft = apiConfiguration.copy(
+                                    baseUrl = apiConfiguration.baseUrl.trim().trimEnd('/'),
+                                    model = apiConfiguration.model.trim()
+                                )
+                                scope.launch {
+                                    apiConfigurationStatus = "testing ${draft.provider}"
+                                    val result = withContext(Dispatchers.IO) {
+                                        ApiClient(draft.baseUrl, draft.apiKey).testApiConnection()
+                                    }
+                                    apiConfigurationStatus = result.message
+                                    if (result.ok && result.models.isNotEmpty()) {
+                                        chatModels = result.models
+                                    }
+                                }
+                            },
                             chatSettings = chatSettings,
                             chatWebsocketUrl = chatWebsocketUrl,
                             chatSettingsPersistence = chatSettingsPersistence,
@@ -1307,11 +1389,11 @@ fun AIFREDAdminApp() {
                                     chatMessages.appendSessionChatMessage(ChatMessage("user", prompt))
                                     chatInput = ""
                                     val shouldUseWebSocket = chatSettings.transportMode == "websocket"
-                                    val sent = shouldUseWebSocket && client.sendChat(prompt, chatSessionId, selectedChatModel)
+                                    val sent = shouldUseWebSocket && chatClient.sendChat(prompt, chatSessionId, selectedChatModel)
                                     if (!sent) {
                                         scope.launch {
                                             val directReply = withContext(Dispatchers.IO) {
-                                                client.askChat(prompt, chatSessionId, selectedChatModel)
+                                                chatClient.askChat(prompt, chatSessionId, selectedChatModel)
                                             }
                                             chatMessages.appendSessionChatMessage(ChatMessage("assistant", directReply))
                                         }
@@ -1787,6 +1869,12 @@ fun ChatScreen(
     availableModels: List<String>,
     selectedModel: String,
     onModelSelect: (String) -> Unit,
+    apiConfiguration: ApiConfiguration,
+    apiConfigurationStatus: String,
+    websiteBaseUrl: String,
+    onApiConfigurationChange: (ApiConfiguration) -> Unit,
+    onApplyApiConfiguration: () -> Unit,
+    onTestApiConfiguration: () -> Unit,
     chatSettings: ChatSettings,
     chatWebsocketUrl: String,
     chatSettingsPersistence: String,
@@ -1885,7 +1973,54 @@ fun ChatScreen(
             }
         }
 
-        Text(text = "Model", color = Color(0xFF9CD0EF))
+        Text(text = "API Configuration", color = Color(0xFFE8F3FF), fontWeight = FontWeight.Bold)
+        ChoiceButtonGroup(
+            label = "Provider",
+            options = ApiProviders,
+            selected = apiConfiguration.provider,
+            onSelect = { provider ->
+                onApiConfigurationChange(
+                    apiProviderDefaults(
+                        provider = provider,
+                        websiteBaseUrl = websiteBaseUrl,
+                        existingApiKey = if (provider == "openai") apiConfiguration.apiKey else ""
+                    )
+                )
+            }
+        )
+        OutlinedTextField(
+            value = apiConfiguration.baseUrl,
+            onValueChange = { onApiConfigurationChange(apiConfiguration.copy(baseUrl = it)) },
+            label = { Text("API Endpoint") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        OutlinedTextField(
+            value = apiConfiguration.model,
+            onValueChange = { onApiConfigurationChange(apiConfiguration.copy(model = it)) },
+            label = { Text("Model") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        OutlinedTextField(
+            value = apiConfiguration.apiKey,
+            onValueChange = { onApiConfigurationChange(apiConfiguration.copy(apiKey = it)) },
+            label = { Text("API Key / Bearer Token") },
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth()
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(onClick = onTestApiConfiguration, modifier = Modifier.weight(1f)) { Text("Test API") }
+            Button(onClick = onApplyApiConfiguration, modifier = Modifier.weight(1f)) { Text("Apply + Save") }
+        }
+        Text(text = apiConfigurationStatus, color = Color(0xFF8DB0C8))
+        Text(
+            text = "Profiles are stored only in this app's private, non-backed-up storage. For Ollama on another device, replace 127.0.0.1 with that host's reachable LAN address.",
+            color = Color(0xFF8DB0C8)
+        )
+
+        Text(text = "Discovered Models", color = Color(0xFF9CD0EF))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -2799,6 +2934,49 @@ class ApiClient(private val baseUrl: String, private val token: String) {
         return parts.joinToString("").trim()
     }
 
+    fun testApiConnection(): ApiConnectionResult {
+        if (baseUrl.isBlank()) {
+            return ApiConnectionResult(false, "API endpoint is required")
+        }
+        if (isDirectOpenAI() && token.isBlank()) {
+            return ApiConnectionResult(false, "OpenAI API key is required")
+        }
+        return try {
+            val requestUrl = when {
+                isDirectOllama() -> "${baseUrl.trimEnd('/')}/api/tags"
+                isDirectOpenAI() -> "${baseUrl.trimEnd('/')}/models"
+                else -> v1Endpoint("/models")
+            }
+            val request = Request.Builder()
+                .url(requestUrl)
+                .apply {
+                    if (token.isNotBlank()) {
+                        addHeader("Authorization", "Bearer $token")
+                    }
+                }
+                .build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    return@use ApiConnectionResult(false, "API test failed with HTTP ${response.code}")
+                }
+                val payload = runCatching { JSONObject(response.body?.string().orEmpty()) }.getOrNull()
+                val models = buildList {
+                    val items = payload?.optJSONArray(if (isDirectOllama()) "models" else "data")
+                    if (items != null) {
+                        for (index in 0 until items.length()) {
+                            val item = items.optJSONObject(index) ?: continue
+                            val model = item.optString(if (isDirectOllama()) "name" else "id").trim()
+                            if (model.isNotBlank()) add(model)
+                        }
+                    }
+                }
+                ApiConnectionResult(true, "API connected; ${models.size} model(s) discovered", models)
+            }
+        } catch (error: Exception) {
+            ApiConnectionResult(false, "API test failed: ${error.message ?: "network error"}")
+        }
+    }
+
     fun listModels(): ModelCatalog {
         if (isDirectOllama()) {
             return try {
@@ -2994,8 +3172,8 @@ class ApiClient(private val baseUrl: String, private val token: String) {
                                     bpm = bpm,
                                     genre = item.optString("genre").trim(),
                                     durationLabel = item.optString("duration_label").trim(),
-                                    streamUrl = streamUrl,
-                                    artworkUrl = item.optString("artwork_url").trim(),
+                                    streamUrl = resolveCatalogAssetUrl(baseUrl, streamUrl),
+                                    artworkUrl = resolveCatalogAssetUrl(baseUrl, item.optString("artwork_url").trim()),
                                     analysisMetrics = parseTrackAnalysisMetrics(item, bpm)
                                 )
                             )

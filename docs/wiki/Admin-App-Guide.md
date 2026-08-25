@@ -109,6 +109,20 @@ curl -fsS https://www.north3rnlight3r.com/api/v1/health
 
 Unavailable Termux commands return a clear message. The registry does not request root or bypass Android sandboxing. Use ADB from the workstation for broader device shell access.
 
+Catalog playback uses the same `/api/v1/assets/audio/catalog/...` streaming URLs returned to the website. Relative API paths are resolved against the configured production base URL before Android opens them; they are never treated as local filesystem paths.
+
+## API Configuration
+
+The Chat tab provides three switchable profiles:
+
+- `website`: the production AIFRED API and its configured local/OpenAI routing.
+- `ollama`: direct Ollama access, defaulting to `http://127.0.0.1:11434` and `aifred:latest`.
+- `openai`: direct OpenAI access, defaulting to `https://api.openai.com/v1` and `gpt-5.6-luna`.
+
+Edit the endpoint/model, provide a key when the selected provider requires one, use **Test API**, then use **Apply + Save**. The profile is stored only in the app's private preferences and Android backup is disabled. No API key belongs in Gradle files, tracked examples, documentation, screenshots, or Git history.
+
+On Android, `127.0.0.1` means the phone. To use Ollama on a workstation or Termux host, enter an HTTP endpoint reachable from the phone on the same trusted network and configure that service's bind/firewall controls deliberately.
+
 ## Website File Access
 
 The app can call:

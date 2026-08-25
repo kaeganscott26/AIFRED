@@ -462,28 +462,6 @@
     "stream_url": "/api/v1/assets/audio/catalog/Lullaby.mp3"
   },
   {
-    "key": "389c0ecaf6fc9639",
-    "file_name": "Lullaby.wav",
-    "title": "Lullaby",
-    "description": "North3rnLight3r Beat",
-    "bpm": "144",
-    "key_signature": "C minor",
-    "tempo": "144",
-    "genre": "Electronic Hip-Hop",
-    "price": "Free MP3 download; licensing by inquiry",
-    "size": 54432184,
-    "uploaded_at": "2025-08-10T08:26:24Z",
-    "public_url": "/api/v1/assets/audio/catalog/Lullaby.mp3",
-    "artwork_url": "",
-    "full_song": true,
-    "catalog_label": "Beat Catalog",
-    "duration_seconds": 205.71,
-    "duration_label": "03:26",
-    "full_song_url": "/api/v1/assets/audio/catalog/Lullaby.mp3",
-    "asset_file_name": "Lullaby.mp3",
-    "stream_url": "/api/v1/assets/audio/catalog/Lullaby.mp3"
-  },
-  {
     "key": "1039cde3246aa21f",
     "file_name": "Mongolia Throat Beat.wav",
     "title": "Mongolia Throat Beat",

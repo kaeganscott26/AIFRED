@@ -135,6 +135,8 @@ The admin app is owner-only. It is built locally or validated by CI and is not a
 
 Version 2.3.0 reflects free website distribution, keeps sales data read-only/historical, and includes local-only non-root Linux/Termux/Android command registry actions.
 
+The Chat tab also provides app-private Website/Ollama/OpenAI API profiles with endpoint/model/key testing. Catalog playback resolves relative website stream paths against the production base URL, so Android and browser playback use the same R2-backed API route.
+
 ## Current Validation
 
 Primary validation command:

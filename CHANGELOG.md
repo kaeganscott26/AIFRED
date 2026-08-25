@@ -10,6 +10,8 @@
 - Added the verified published macOS VST3 ZIP to the free download module and documented its manual-install boundary.
 - Fixed production R2 HEAD/range semantics for plugin and MP3 downloads.
 - Updated the private Android admin app to version 2.3.0 with free-distribution status and local-only non-root Linux/Termux/Android command actions.
+- Fixed Android beat playback by resolving website-relative catalog routes to production HTTPS URLs and added switchable Website/Ollama/OpenAI API profiles.
+- Removed a duplicate catalog card and repointed the remaining historical WAV entry to its verified R2 MP3.
 
 ## Unreleased - 2026-07-11 repository cleanup
 

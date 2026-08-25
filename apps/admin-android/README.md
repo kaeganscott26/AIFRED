@@ -65,6 +65,10 @@ $adb=Join-Path $env:LOCALAPPDATA 'Android\Sdk\platform-tools\adb.exe'
 
 The in-app local registry includes read-only/non-root commands for working directory, file listing, disk usage, identity, kernel details, visible processes, network state, environment, Termux package/info queries, Android version/packages/logs, and production API health. Local actions run on the phone; backend actions remain server allowlisted.
 
+Catalog playback resolves the website API's relative `/api/v1/assets/audio/catalog/...` paths against `AIFRED_BASE_URL` before passing them to Android `MediaPlayer`. This keeps mobile playback on the same controlled R2-backed streaming routes as the website.
+
+The Chat tab includes an API Configuration module with Website, Local Ollama, and OpenAI profiles. Operators can edit the endpoint and model, enter an API key when required, test discovery, and apply the profile without rebuilding the APK. The selected profile is stored in app-private storage with Android backup disabled; API keys are never written to the repository. A phone cannot reach a workstation's Ollama service through `127.0.0.1`, so use the workstation's reachable LAN address when Ollama is not running on the phone itself.
+
 ## Distribution
 
 The app is private and owner-only.

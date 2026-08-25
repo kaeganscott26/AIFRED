@@ -66,7 +66,8 @@ test("active content contract advertises free distribution", async () => {
 
 test("every catalog track resolves to a checked-in distribution asset", () => {
   const catalog = JSON.parse(readFileSync(new URL("../apps/website/assets/data/beat_catalog.json", import.meta.url), "utf8"));
-  assert.equal(catalog.length, 54);
+  assert.equal(catalog.length, 53);
+  assert.equal(new Set(catalog.map((track) => track.asset_file_name)).size, catalog.length);
   for (const track of catalog) {
     const fileName = decodeURIComponent(new URL(track.stream_url, "https://aifred.test").pathname.split("/").pop());
     const asset = fileURLToPath(new URL(`../apps/website/assets/audio/catalog/${encodeURIComponent(fileName)}`, import.meta.url));
