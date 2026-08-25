@@ -4,10 +4,7 @@ name = "north3rnlight3r"
 pages_build_output_dir = "../../apps/website"
 compatibility_date = "2026-08-23"
 
-[[services]]
-binding = "MAILER"
-service = "aifred-mailer"
-environment = "production"
+
 
 [[kv_namespaces]]
 binding = "AIFRED_REFERENCE_POOL"
