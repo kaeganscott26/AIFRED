@@ -119,7 +119,7 @@ The full inquiry remains under its existing `inquiry:<id>` record for the admin 
 - `smart-env/Aifred_Site_Activity.jsonl` is the canonical key-preserving snapshot. Each `kv_entry` line includes the original key, Cloudflare expiration/metadata when exposed, HTTP status, byte length, exact base64 bytes, and exact UTF-8 text when round-trip safe.
 - `smart-env/Aifred_Site_Activity.md` retains the earlier human-oriented values and now contains every value from the same snapshot.
 
-The final 2026-08-27 snapshot contains 263 KV entries. Cloudflare did not expose created/modified timestamps for the historical keys; timestamps embedded in stored values remain verbatim. Historical flat events prove only what their original event names and fields state.
+The final 2026-08-27 snapshot contains 265 KV entries, including two intentional post-deploy correlation smoke-test events. Cloudflare did not expose created/modified timestamps for the historical keys; timestamps embedded in stored values remain verbatim. Historical flat events prove only what their original event names and fields state.
 
 ## Export again
 
