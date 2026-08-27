@@ -120,7 +120,7 @@ Current Cloudflare config includes:
 | `AIFRED_DOWNLOADS` | Versioned plugin releases plus catalog/website assets |
 | `AIFRED_REFERENCE_BUCKET` | Accepted reference material |
 | `AIFRED_REFERENCE_POOL` | Reference metadata persistence |
-| `AIFRED_SALES_LOG` | Current activity/inquiry logging plus historical sales compatibility |
+| `AIFRED_SALES_LOG` | Physical binding for the conceptual AIFRED activity ledger, inquiries, runtime config, and historical sales compatibility |
 
 Catalog audio uses R2 first and local files as a development fallback.
 

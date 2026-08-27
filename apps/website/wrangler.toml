@@ -8,6 +8,7 @@ binding = "AIFRED_REFERENCE_POOL"
 id = "8a120701767e474f928d1af7037cd68a"
 
 [[kv_namespaces]]
+# Historical physical name; application semantics are AIFRED_ACTIVITY_LOG.
 binding = "AIFRED_SALES_LOG"
 id = "2c66da7795b54135a4d67e514b97491f"
 

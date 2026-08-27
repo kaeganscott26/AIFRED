@@ -31,7 +31,7 @@ The npm script uses the repository-pinned Wrangler version and runs from `apps/w
 | `AIFRED_DOWNLOADS` | R2 `aifred-downloads` | Versioned plugin releases and `assets/` catalog/site objects |
 | `AIFRED_REFERENCE_BUCKET` | R2 `aifred-reference-pool` | Accepted reference material |
 | `AIFRED_REFERENCE_POOL` | KV | Reference metadata |
-| `AIFRED_SALES_LOG` | KV | Current activity/inquiry records and historical sales compatibility |
+| `AIFRED_SALES_LOG` | KV | Physical binding for the conceptual AIFRED activity ledger, inquiry records, runtime config, and historical sales compatibility |
 
 There is no active `MAILER` service binding and no `AIFRED_WEBSITE_ASSETS` binding. The previously referenced `aifred-website-assets` bucket does not exist in the production account.
 
@@ -74,7 +74,7 @@ distribution.mode = free
 payment_pipeline = disabled
 ```
 
-Public activity and inquiry writes use `AIFRED_SALES_LOG` KV. Repository activity, inquiry, and sales files are read-only historical compatibility; public requests never write them. Authorized admin file-management routes may still write approved repository paths.
+Public activity and inquiry writes use the physically named `AIFRED_SALES_LOG` KV as the conceptual `AIFRED_ACTIVITY_LOG` ledger. New event envelopes, correlation semantics, chronological keys, and the FORGE-consumable export procedure are documented in `docs/operations/AIFRED_ACTIVITY_LOG.md`. Repository activity, inquiry, and sales files are read-only historical compatibility; public requests never write them. Authorized admin file-management routes may still write approved repository paths.
 
 ## Verification
 

@@ -4,9 +4,33 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { onRequest } from "../apps/website/functions/api/v1/[[path]].js";
+import { activityKey, normalizeActivityEvent } from "../apps/website/lib/activity-log.js";
 
 const request = (url, init = {}) => new Request(`https://aifred.test${url}`, init);
 const env = { AIFRED_ADMIN_USERNAME: "operator", AIFRED_ADMIN_PASSWORD_SHA256: "", AIFRED_ADMIN_SESSION_SECRET: "test-secret" };
+
+test("activity events use the compact v1 envelope and strip secret fields", () => {
+  const event = normalizeActivityEvent({
+    event_type: "Download Completed",
+    session_id: "anonymous-session",
+    request_id: "request-123",
+    actor: { type: "anonymous", id: "anonymous-session" },
+    source: { surface: "website", route: "/downloads/windows" },
+    subject: { type: "download", id: "setup", name: "Windows installer" },
+    operation: { action: "download", status: "success", result: "response_resolved" },
+    metadata: { artifact: "setup", authorization: "Bearer must-not-survive", nested: { api_key: "must-not-survive", safe: true } }
+  }, {
+    now: new Date("2026-08-27T12:00:00.000Z"),
+    randomUUID: () => "event-123"
+  });
+  assert.equal(event.event_id, "event-123");
+  assert.equal(event.event_type, "download.completed");
+  assert.equal(event.timestamp, "2026-08-27T12:00:00.000Z");
+  assert.equal(event.metadata.artifact, "setup");
+  assert.equal(event.metadata.authorization, undefined);
+  assert.deepEqual(event.metadata.nested, { safe: true });
+  assert.equal(activityKey(event), "activity:v1:2026-08-27T12:00:00.000Z:download.completed:event-123");
+});
 
 test("health is outside the v1 contract", async () => {
   const response = await onRequest({ request: request("/health"), env, params: { path: ["health"] } });
@@ -183,7 +207,7 @@ test("plugin downloads are public and served from the downloads bucket", async (
     }
   };
   const response = await onRequest({
-    request: request("/api/v1/downloads/plugin?asset=zip"),
+    request: request("/api/v1/downloads/plugin?asset=zip&sid=session-123&rid=request-123&surface=website.downloads"),
     env: downloadEnv,
     params: { path: ["downloads", "plugin"] }
   });
@@ -191,7 +215,51 @@ test("plugin downloads are public and served from the downloads bucket", async (
   assert.equal(response.headers.get("x-aifred-download-source"), "r2");
   assert.equal(response.headers.get("content-disposition"), 'attachment; filename="AIFRED-VST3-windows.zip"');
   assert.equal(await response.text(), "plugin-zip");
-  assert.equal(stored.length, 1);
+  assert.equal(response.headers.get("x-aifred-request-id"), "request-123");
+  assert.equal(stored.length, 2);
+  assert.match(stored[0][0], /^activity:v1:/);
+  const events = stored.map(([, value]) => JSON.parse(value));
+  assert.deepEqual(events.map((event) => event.event_type), ["download.requested", "download.completed"]);
+  assert.deepEqual(events.map((event) => event.request_id), ["request-123", "request-123"]);
+  assert.deepEqual(events.map((event) => event.session_id), ["session-123", "session-123"]);
+  assert.equal(events[1].operation.result, "response_resolved");
+  assert.equal(events[1].metadata.object_key, "releases/v0.3.6-installer-ai-alias/AIFRED-VST3-windows.zip");
+});
+
+test("activity logging failure never breaks a successful plugin download", async () => {
+  const response = await onRequest({
+    request: request("/api/v1/downloads/plugin?asset=zip"),
+    env: {
+      ...env,
+      AIFRED_RELEASE_VERSION: "v0.3.6-installer-ai-alias",
+      AIFRED_SALES_LOG: { async put() { throw new Error("KV unavailable"); } },
+      AIFRED_DOWNLOADS: {
+        async get() {
+          return { body: new TextEncoder().encode("plugin-zip"), size: 10, httpMetadata: { contentType: "application/zip" } };
+        }
+      }
+    },
+    params: { path: ["downloads", "plugin"] }
+  });
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "plugin-zip");
+});
+
+test("failed plugin resolution emits requested and failed events with one correlation id", async () => {
+  const stored = [];
+  const response = await onRequest({
+    request: request("/api/v1/downloads/plugin?asset=macos&rid=failed-request&sid=failed-session"),
+    env: {
+      ...env,
+      AIFRED_SALES_LOG: { async put(_key, value) { stored.push(JSON.parse(value)); } },
+      AIFRED_DOWNLOADS: { async get() { return null; } }
+    },
+    params: { path: ["downloads", "plugin"] }
+  });
+  assert.equal(response.status, 404);
+  assert.deepEqual(stored.map((event) => event.event_type), ["download.requested", "download.failed"]);
+  assert.deepEqual(stored.map((event) => event.request_id), ["failed-request", "failed-request"]);
+  assert.equal(stored[1].operation.result, "http_404");
 });
 
 test("setup downloads resolve the installer object without a token", async () => {
@@ -270,10 +338,12 @@ test("plugin download distinguishes missing objects and missing R2 binding", asy
 });
 
 test("beat download requests use attachment headers", async () => {
+  const activity = [];
   const response = await onRequest({
-    request: request("/api/v1/assets/audio/catalog/Test%20Beat.mp3?download=1"),
+    request: request("/api/v1/assets/audio/catalog/Test%20Beat.mp3?download=1&sid=catalog-session&rid=catalog-request&surface=catalog"),
     env: {
       ...env,
+      AIFRED_SALES_LOG: { async put(key, value) { activity.push([key, JSON.parse(value)]); } },
       AIFRED_DOWNLOADS: {
         async get(key) {
           assert.equal(key, "assets/audio/catalog/Test Beat.mp3");
@@ -290,6 +360,10 @@ test("beat download requests use attachment headers", async () => {
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("content-disposition"), 'attachment; filename="Test Beat.mp3"');
   assert.equal(response.headers.get("content-type"), "audio/mpeg");
+  assert.equal(response.headers.get("x-aifred-request-id"), "catalog-request");
+  assert.deepEqual(activity.map(([, event]) => event.event_type), ["download.requested", "download.completed"]);
+  assert.equal(activity[1][1].subject.type, "track");
+  assert.equal(activity[1][1].metadata.response_source, "r2");
 });
 
 test("beat streaming supports byte ranges", async () => {
@@ -369,7 +443,7 @@ test("contact inquiries prefer KV and do not write to GitHub", async () => {
   const response = await onRequest({
     request: request("/api/v1/inquiries/submit", {
       method: "POST",
-      body: JSON.stringify({ name: "Tester", email: "test@example.com", message: "Hello" })
+      body: JSON.stringify({ name: "Tester", email: "test@example.com", message: "Hello", session_id: "inquiry-session", request_id: "inquiry-request" })
     }),
     env: {
       ...env,
@@ -381,8 +455,56 @@ test("contact inquiries prefer KV and do not write to GitHub", async () => {
   const payload = await response.json();
   assert.equal(response.status, 200);
   assert.equal(payload.storage, "kv");
-  assert.equal(stored.length, 1);
+  assert.equal(stored.length, 2);
   assert.match(stored[0][0], /^inquiry:/);
+  assert.match(stored[1][0], /^activity:v1:/);
+  const inquiryEvent = JSON.parse(stored[1][1]);
+  assert.equal(inquiryEvent.event_type, "inquiry.submitted");
+  assert.equal(inquiryEvent.request_id, "inquiry-request");
+  assert.equal(inquiryEvent.subject.id, payload.inquiry_id);
+  assert.doesNotMatch(JSON.stringify(inquiryEvent), /test@example\.com|Hello/);
+});
+
+test("public activity cannot forge server-confirmed or admin events", async () => {
+  for (const event_type of ["download.completed", "inquiry.submitted", "admin.catalog.updated"]) {
+    const response = await onRequest({
+      request: request("/api/v1/activity/record", { method: "POST", body: JSON.stringify({ event_type }) }),
+      env,
+      params: { path: ["activity", "record"] }
+    });
+    assert.equal(response.status, 400, event_type);
+  }
+});
+
+test("admin commands log resolved allowlist operations without raw command bodies", async () => {
+  const password = "test-password";
+  const stored = [];
+  const configuredEnv = {
+    AIFRED_ADMIN_USERNAME: "operator",
+    AIFRED_ADMIN_PASSWORD_SHA256: createHash("sha256").update(password).digest("hex"),
+    AIFRED_ADMIN_SESSION_SECRET: "test-secret",
+    AIFRED_SALES_LOG: { async put(_key, value) { stored.push(JSON.parse(value)); } }
+  };
+  const login = await onRequest({
+    request: request("/api/v1/admin/login", { method: "POST", body: JSON.stringify({ username: "operator", password }) }),
+    env: configuredEnv,
+    params: { path: ["admin", "login"] }
+  });
+  const session = (await login.json()).session_token;
+  const response = await onRequest({
+    request: request("/api/v1/command/run", {
+      method: "POST",
+      headers: { authorization: `Bearer ${session}`, "content-type": "application/json" },
+      body: JSON.stringify({ command: "action:health" })
+    }),
+    env: configuredEnv,
+    params: { path: ["command", "run"] }
+  });
+  assert.equal(response.status, 200);
+  const event = stored.find((entry) => entry.event_type === "admin.operation.completed");
+  assert.equal(event.actor.id, "operator");
+  assert.equal(event.operation.result, "allowlist_action_completed");
+  assert.doesNotMatch(JSON.stringify(event), /command_line|action:health|authorization|password/i);
 });
 
 test("removed PayPal routes are not exposed", async () => {

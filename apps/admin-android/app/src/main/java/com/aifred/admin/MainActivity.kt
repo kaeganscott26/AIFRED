@@ -680,8 +680,8 @@ private fun parseActivityEvents(raw: String): List<SiteActivityEvent> {
 
     return records.map { item ->
         SiteActivityEvent(
-            id = item.optString("id", item.optString("txn_id", item.optString("order_id", item.optString("created_at", "")))).ifBlank { "${item.optString("event_type", "event")}-${item.optString("created_at", UUID.randomUUID().toString())}" },
-            createdAt = item.optString("created_at", ""),
+            id = item.optString("event_id", item.optString("id", item.optString("txn_id", item.optString("order_id", item.optString("timestamp", item.optString("created_at", "")))))).ifBlank { "${item.optString("event_type", "event")}-${item.optString("timestamp", item.optString("created_at", UUID.randomUUID().toString()))}" },
+            createdAt = item.optString("timestamp", item.optString("created_at", "")),
             eventType = item.optString("event_type", item.optString("kind", "site.event")),
             title = item.optString("title", item.optString("item_name", item.optString("path", ""))),
             path = item.optString("path", item.optString("page", "")),

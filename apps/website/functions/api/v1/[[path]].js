@@ -1,3 +1,10 @@
+import {
+  activityEventId,
+  activityTimestamp,
+  normalizeActivityType,
+  recordActivity
+} from "../../../lib/activity-log.js";
+
 const json = (body, init = {}) =>
   new Response(JSON.stringify(body), {
     ...init,
@@ -247,21 +254,21 @@ async function handleAnalysisSubmit(request, env) {
   } else if (gate.accepted) {
     persistence = "accepted-no-binding";
   }
-  await persistActivityRecord(env, {
-    event_type: "website.analysis.submit",
-    source: "website",
-    path: "/api/v1/analysis/submit",
-    page: String(body.page || body.path || "").trim(),
-    title: String(body.file_name || "browser-analysis").trim(),
-    status: gate.accepted ? "accepted" : "rejected",
-    message: gate.summary || gate.classification || "analysis submitted",
-    details: {
+  await recordActivity(env, {
+    event_type: "analysis.submitted",
+    session_id: String(body.session_id || "").trim(),
+    request_id: String(body.request_id || "").trim(),
+    actor: { type: "anonymous", id: String(body.session_id || "").trim() },
+    source: { surface: "website.analysis", route: "/api/v1/analysis/submit" },
+    subject: { type: "analysis", id: analysisId, name: String(body.file_name || "browser-analysis").trim() },
+    operation: { action: "analyze", status: "success", result: gate.accepted ? "accepted" : "rejected" },
+    metadata: {
       accepted: gate.accepted,
       score: gate.score,
       classification: gate.classification,
       persistence
     }
-  }, `Record analysis ${analysisId}`);
+  }, { request });
 
   return json({
     ok: true,
@@ -283,30 +290,51 @@ async function handleAnalysisSubmit(request, env) {
 
 async function handleActivityRecord(request, env) {
   const body = await readJson(request);
+  const requestedType = normalizeActivityType(body.event_type || body.type || body.kind || "site.event");
+  const publicTypes = new Set([
+    "website.page.view",
+    "website.resource.clicked",
+    "catalog.loaded",
+    "catalog.playback.started",
+    "catalog.playback.failed",
+    "download.clicked",
+    "analysis.failed",
+    "inquiry.fallback.opened",
+    "website.catalog.loaded",
+    "catalog.play.clicked",
+    "catalog.download.clicked",
+    "plugin.download.clicked",
+    "website.download.clicked",
+    "website.analysis.submitted",
+    "website.analysis.failed",
+    "website.inquiry.submit",
+    "website.inquiry.completed",
+    "website.inquiry.fallback"
+  ]);
+  if (!publicTypes.has(requestedType)) {
+    return json({ ok: false, error: "event type is not accepted from the public activity endpoint" }, { status: 400 });
+  }
+  const suppliedSurface = String(body.source?.surface || body.source || "website").trim();
   const record = {
-    event_type: body.event_type || body.type || body.kind || "site.event",
-    source: String(body.source || "website").trim(),
-    path: String(body.path || "").trim(),
-    page: String(body.page || "").trim(),
-    title: String(body.title || "").trim(),
-    message: String(body.message || "").trim(),
+    event_type: requestedType,
     session_id: String(body.session_id || body.client_session_id || "").trim(),
-    referrer: String(body.referrer || "").trim(),
-    status: String(body.status || "").trim(),
-    item_name: String(body.item_name || "").trim(),
-    amount: String(body.amount || "").trim(),
-    currency: String(body.currency || "").trim(),
-    order_id: String(body.order_id || "").trim(),
-    txn_id: String(body.txn_id || "").trim(),
-    custom_id: String(body.custom_id || "").trim(),
-    download_token: String(body.download_token || "").trim(),
-    actor: String(body.actor || "").trim(),
-    details: body.details || {}
+    request_id: String(body.request_id || "").trim(),
+    actor: { type: "anonymous", id: String(body.session_id || body.client_session_id || "").trim() },
+    source: {
+      surface: suppliedSurface.toLowerCase().startsWith("admin") ? "website" : suppliedSurface,
+      route: String(body.source?.route || body.path || "").trim(),
+      referrer: String(body.source?.referrer || body.referrer || "").trim()
+    },
+    subject: body.subject || {},
+    operation: body.operation || {},
+    metadata: body.metadata || body.details || {}
   };
-  const stored = await persistActivityRecord(env, record, `Record ${normalizeActivityType(record.event_type)}`);
+  const stored = await recordActivity(env, record, { request });
   return json({
     ok: true,
     event_type: normalizeActivityType(record.event_type),
+    event_id: stored.event.event_id,
+    request_id: stored.event.request_id,
     storage: stored.storage,
     configured: Boolean(env.AIFRED_SALES_LOG)
   });
@@ -473,6 +501,14 @@ async function handleAdminApiConfig(request, env) {
     return json({ ok: false, error: "Ollama and OpenAI model names are required" }, { status: 400 });
   }
   await env.AIFRED_SALES_LOG.put(API_RUNTIME_CONFIG_KEY, JSON.stringify(next));
+  await recordActivity(env, {
+    event_type: "admin.api_configuration.updated",
+    actor: { type: "admin", id: adminActorId(request) },
+    source: { surface: "admin", route: "/api/v1/admin/api/config" },
+    subject: { type: "admin_operation", id: "api-runtime", name: "Runtime API configuration" },
+    operation: { action: "update", status: "success", result: "configuration_saved" },
+    metadata: { provider: next.provider, ollama_model: next.ollama_model, openai_model: next.openai_model }
+  }, { request });
   return json({ ok: true, config: safeRuntimeApiPayload(next, env), message: "API configuration saved to KV; provider secrets remain Cloudflare-managed" });
 }
 
@@ -848,76 +884,37 @@ function activityRepoPath() {
   return "ops/activity/site-activity.json";
 }
 
-function normalizeActivityType(value) {
-  const text = String(value || "site.event").trim().toLowerCase();
-  const normalized = text
-    .replace(/[^a-z0-9._-]+/g, ".")
-    .replace(/\.{2,}/g, ".")
-    .replace(/^\.+|\.+$/g, "");
-  return normalized || "site.event";
-}
-
-function activityCategory(type) {
-  const head = String(type || "").split(".")[0];
-  switch (head) {
-    case "admin":
-      return "admin";
-    case "website":
-      return "website";
-    case "analysis":
-      return "analysis";
-    case "inquiry":
-      return "inquiry";
-    case "catalog":
-      return "catalog";
-    case "sale":
-      return "sale";
-    case "download":
-      return "download";
-    default:
-      return "site";
-  }
-}
-
-async function persistActivityRecord(env, record, message) {
-  const normalizedType = normalizeActivityType(record.event_type || record.type || record.kind);
-  const normalized = {
-    id: String(record.id || crypto.randomUUID()).trim(),
-    created_at: String(record.created_at || new Date().toISOString()).trim(),
-    event_type: normalizedType,
-    category: String(record.category || activityCategory(normalizedType)).trim(),
-    source: String(record.source || "website").trim(),
-    path: String(record.path || "").trim(),
-    page: String(record.page || "").trim(),
-    title: String(record.title || "").trim(),
-    message: String(record.message || "").trim(),
-    session_id: String(record.session_id || record.client_session_id || "").trim(),
-    referrer: String(record.referrer || "").trim(),
-    user_agent: String(record.user_agent || "").trim(),
-    item_name: String(record.item_name || "").trim(),
-    amount: String(record.amount || "").trim(),
-    currency: String(record.currency || "").trim(),
-    order_id: String(record.order_id || "").trim(),
-    txn_id: String(record.txn_id || "").trim(),
-    custom_id: String(record.custom_id || "").trim(),
-    download_token: String(record.download_token || "").trim(),
-    status: String(record.status || "").trim(),
-    actor: String(record.actor || "").trim(),
-    details: record.details || {}
+function requestCorrelation(request, defaultSurface) {
+  const url = new URL(request.url);
+  return {
+    session_id: String(url.searchParams.get("sid") || "").trim(),
+    request_id: String(url.searchParams.get("rid") || "").trim(),
+    surface: String(url.searchParams.get("surface") || defaultSurface || "website").trim()
   };
+}
 
-  if (env.AIFRED_SALES_LOG && typeof env.AIFRED_SALES_LOG.put === "function") {
-    await env.AIFRED_SALES_LOG.put(`activity:${normalized.id}`, JSON.stringify(normalized));
-    return { commit: "", records: [normalized], storage: "kv" };
+function adminActorId(request) {
+  const auth = request.headers.get("authorization") || "";
+  const token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
+  if (!token) return "";
+  try {
+    return String(atob(token.replace(/-/g, "+").replace(/_/g, "/")).split("|")[0] || "").trim();
+  } catch (_) {
+    return "";
   }
-  return { commit: "", records: [normalized], storage: "unconfigured" };
 }
 
 async function listActivityRecords(env, limit = 300) {
   const records = [];
   if (env.AIFRED_SALES_LOG && typeof env.AIFRED_SALES_LOG.list === "function") {
-    const listed = await env.AIFRED_SALES_LOG.list({ prefix: "activity:", limit });
-    for (const key of listed.keys || []) {
+    const keys = [];
+    let cursor;
+    do {
+      const listed = await env.AIFRED_SALES_LOG.list({ prefix: "activity:", limit: 1000, ...(cursor ? { cursor } : {}) });
+      keys.push(...(listed.keys || []));
+      cursor = listed.list_complete === false ? listed.cursor : undefined;
+    } while (cursor && keys.length < 5000);
+    for (const key of keys) {
       const raw = await env.AIFRED_SALES_LOG.get(key.name);
       if (!raw) continue;
       try {
@@ -929,13 +926,13 @@ async function listActivityRecords(env, limit = 300) {
   const seen = new Set();
   const merged = [];
   for (const record of records) {
-    const id = String(record?.id || record?.txn_id || record?.order_id || record?.created_at || "").trim();
+    const id = activityEventId(record);
     const key = id || JSON.stringify(record);
     if (seen.has(key)) continue;
     seen.add(key);
     merged.push(record);
   }
-  return merged.sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""))).slice(0, limit);
+  return merged.sort((a, b) => activityTimestamp(b).localeCompare(activityTimestamp(a))).slice(0, limit);
 }
 
 async function listSaleRecords(env) {
@@ -1141,6 +1138,7 @@ async function fetchReleaseAssetResponse(request, env, assetName) {
   if (contentLength) headers.set("content-length", contentLength);
   const contentRange = response.headers.get("content-range");
   if (contentRange) headers.set("content-range", contentRange);
+  headers.set("x-aifred-download-source", "github-release");
   return new Response(isHead ? null : response.body, { status: response.status, headers });
 }
 
@@ -1217,19 +1215,116 @@ async function handlePluginDownload(request, env) {
   const assetKey = String(url.searchParams.get("asset") || "").trim();
   const assetName = assetNameForKey(assetKey);
   if (!assetName) return json({ ok: false, error: "asset must be setup, zip, or macos" }, { status: 400 });
+  if (request.method !== "GET") return fetchReleaseAssetResponse(request, env, assetName);
 
-  const response = await fetchReleaseAssetResponse(request, env, assetName);
-  if (request.method === "GET" && response.ok) {
-    await persistActivityRecord(env, {
-      event_type: "plugin.download.requested",
-      source: "website",
-      path: "/api/v1/downloads/plugin",
-      item_name: assetName,
-      status: "served",
-      details: { asset: assetKey, release: pluginReleaseConfig(env).tag }
-    }, `Record free plugin download ${assetKey}`);
+  const correlation = requestCorrelation(request, "website.downloads");
+  const release = pluginReleaseConfig(env).tag;
+  const objectKey = releaseAssetObjectKey(env, assetName);
+  const baseEvent = {
+    session_id: correlation.session_id,
+    request_id: correlation.request_id,
+    actor: { type: "anonymous", id: correlation.session_id },
+    source: { surface: correlation.surface, route: "/api/v1/downloads/plugin" },
+    subject: { type: "download", id: assetKey, name: assetName }
+  };
+  const requested = await recordActivity(env, {
+    ...baseEvent,
+    event_type: "download.requested",
+    operation: { action: "download", status: "started", result: "worker_received" },
+    metadata: { artifact: assetKey, release, object_key: objectKey }
+  }, { request });
+  baseEvent.request_id = requested.event.request_id;
+
+  let response;
+  try {
+    response = await fetchReleaseAssetResponse(request, env, assetName);
+  } catch (error) {
+    await recordActivity(env, {
+      ...baseEvent,
+      event_type: "download.failed",
+      operation: { action: "download", status: "failure", result: "resolution_exception" },
+      metadata: { artifact: assetKey, release, object_key: objectKey, error_type: error?.name || "Error" }
+    }, { request });
+    throw error;
   }
 
+  const responseSource = response.headers.get("x-aifred-download-source") || "unresolved";
+  await recordActivity(env, {
+    ...baseEvent,
+    event_type: response.ok ? "download.completed" : "download.failed",
+    operation: {
+      action: "download",
+      status: response.ok ? "success" : "failure",
+      result: response.ok ? "response_resolved" : `http_${response.status}`
+    },
+    metadata: {
+      artifact: assetKey,
+      release,
+      object_key: objectKey,
+      response_source: responseSource,
+      http_status: response.status,
+      content_length: response.headers.get("content-length") || ""
+    }
+  }, { request });
+  response.headers.set("x-aifred-request-id", requested.event.request_id);
+  return response;
+}
+
+async function handleWebsiteAssetRequest(request, env, relPath) {
+  const url = new URL(request.url);
+  if (request.method !== "GET" || url.searchParams.get("download") !== "1") {
+    return fetchWebsiteAssetResponse(request, env, relPath);
+  }
+
+  const correlation = requestCorrelation(request, "catalog");
+  let decodedPath = String(relPath || "");
+  try { decodedPath = safeRepoPath(decodeURIComponent(decodedPath)); } catch (_) {}
+  const fileName = decodedPath.replace(/\\/g, "/").split("/").pop() || decodedPath;
+  const baseEvent = {
+    session_id: correlation.session_id,
+    request_id: correlation.request_id,
+    actor: { type: "anonymous", id: correlation.session_id },
+    source: { surface: correlation.surface, route: `/api/v1/assets/${decodedPath}` },
+    subject: { type: decodedPath.startsWith("audio/catalog/") ? "track" : "download", id: decodedPath, name: fileName }
+  };
+  const requested = await recordActivity(env, {
+    ...baseEvent,
+    event_type: "download.requested",
+    operation: { action: "download", status: "started", result: "worker_received" },
+    metadata: { object_key: `assets/${decodedPath}`, artifact: "catalog_mp3" }
+  }, { request });
+  baseEvent.request_id = requested.event.request_id;
+
+  let response;
+  try {
+    response = await fetchWebsiteAssetResponse(request, env, relPath);
+  } catch (error) {
+    await recordActivity(env, {
+      ...baseEvent,
+      event_type: "download.failed",
+      operation: { action: "download", status: "failure", result: "resolution_exception" },
+      metadata: { object_key: `assets/${decodedPath}`, artifact: "catalog_mp3", error_type: error?.name || "Error" }
+    }, { request });
+    throw error;
+  }
+
+  await recordActivity(env, {
+    ...baseEvent,
+    event_type: response.ok ? "download.completed" : "download.failed",
+    operation: {
+      action: "download",
+      status: response.ok ? "success" : "failure",
+      result: response.ok ? "response_resolved" : `http_${response.status}`
+    },
+    metadata: {
+      object_key: `assets/${decodedPath}`,
+      artifact: "catalog_mp3",
+      response_source: response.headers.get("x-aifred-asset-source") || "unresolved",
+      http_status: response.status,
+      content_length: response.headers.get("content-length") || ""
+    }
+  }, { request });
+  response.headers.set("x-aifred-request-id", requested.event.request_id);
   return response;
 }
 
@@ -1281,14 +1376,14 @@ async function handleAdminFileWrite(request, env) {
   } catch (error) {
     return json({ ok: false, error: `GitHub write failed: ${error.message || "unknown error"}` }, { status: 502 });
   }
-  await persistActivityRecord(env, {
-    event_type: "admin.file.write",
-    source: "admin",
-    path: relPath,
-    title: relPath,
-    status: "saved",
-    details: { deploy: Boolean(shouldDeploy), length: content.length }
-  }, `Write ${relPath}`);
+    await recordActivity(env, {
+      event_type: "admin.file.updated",
+      actor: { type: "admin", id: adminActorId(request) },
+      source: { surface: "admin", route: "/api/v1/admin/files/write" },
+      subject: { type: "admin_operation", id: relPath, name: relPath },
+      operation: { action: "update", status: "success", result: "github_committed" },
+      metadata: { deploy_requested: Boolean(shouldDeploy), length: content.length, commit: payload.commit?.sha || "" }
+    }, { request });
   return json({
     ok: true,
     path: relPath,
@@ -1335,14 +1430,14 @@ async function handleAdminFileDelete(request, env) {
       sha: existing.sha
     })
   });
-  await persistActivityRecord(env, {
-    event_type: "admin.file.delete",
-    source: "admin",
-    path: relPath,
-    title: relPath,
-    status: "deleted",
-    details: { sha: existing.sha || "" }
-  }, `Delete ${relPath}`);
+  await recordActivity(env, {
+    event_type: "admin.file.deleted",
+    actor: { type: "admin", id: adminActorId(request) },
+    source: { surface: "admin", route: "/api/v1/admin/files/delete" },
+    subject: { type: "admin_operation", id: relPath, name: relPath },
+    operation: { action: "delete", status: "success", result: "github_committed" },
+    metadata: { source_sha: existing.sha || "", commit: payload.commit?.sha || "" }
+  }, { request });
   return json({ ok: true, path: relPath, commit: payload.commit?.sha || "" });
 }
 
@@ -1391,14 +1486,14 @@ async function handleAdminFileUpload(request, env) {
   if (!file || typeof file === "string") return json({ ok: false, error: "file is required" }, { status: 400 });
   const targetPath = safeRepoPath(form.get("path") || `apps/website/assets/uploads/${safeUploadName(file.name)}`);
   const written = await writeBinaryRepoFile(env, targetPath, file, `Upload ${targetPath} from AIFRED admin`);
-  await persistActivityRecord(env, {
-    event_type: "admin.file.upload",
-    source: "admin",
-    path: targetPath,
-    title: file.name,
-    status: "uploaded",
-    details: { size: file.size || 0, content_type: file.type || "" }
-  }, `Upload ${targetPath}`);
+  await recordActivity(env, {
+    event_type: "admin.file.uploaded",
+    actor: { type: "admin", id: adminActorId(request) },
+    source: { surface: "admin", route: "/api/v1/admin/files/upload" },
+    subject: { type: "admin_operation", id: targetPath, name: file.name },
+    operation: { action: "upload", status: "success", result: "github_committed" },
+    metadata: { size: file.size || 0, content_type: file.type || "", commit: written.commit }
+  }, { request });
   return json({ ok: true, stored_path: written.path, commit: written.commit });
 }
 
@@ -1410,14 +1505,14 @@ async function handleAdminReferenceUpload(request, env) {
   const genre = String(form.get("genre") || "reference").replace(/[^A-Za-z0-9._-]/g, "-").toLowerCase();
   const targetPath = `apps/website/assets/reference_pool/${genre}/${safeUploadName(file.name)}`;
   const written = await writeBinaryRepoFile(env, targetPath, file, `Upload reference ${targetPath} from AIFRED admin`);
-  await persistActivityRecord(env, {
-    event_type: "admin.reference.upload",
-    source: "admin",
-    path: targetPath,
-    title: file.name,
-    status: "uploaded",
-    details: { genre, size: file.size || 0 }
-  }, `Upload reference ${targetPath}`);
+  await recordActivity(env, {
+    event_type: "admin.reference.updated",
+    actor: { type: "admin", id: adminActorId(request) },
+    source: { surface: "admin", route: "/api/v1/admin/reference/upload" },
+    subject: { type: "admin_operation", id: targetPath, name: file.name },
+    operation: { action: "upload", status: "success", result: "reference_uploaded" },
+    metadata: { genre, size: file.size || 0, commit: written.commit }
+  }, { request });
   return json({ ok: true, stored_path: written.path, commit: written.commit });
 }
 
@@ -1462,15 +1557,14 @@ async function handleAdminCatalogUpload(request, env) {
       ...(sha ? { sha } : {})
     })
   });
-  await persistActivityRecord(env, {
-    event_type: "admin.catalog.upload",
-    source: "admin",
-    path: catalogPath,
-    title,
-    item_name: title,
-    status: "uploaded",
-    details: track
-  }, `Upload catalog item ${title}`);
+  await recordActivity(env, {
+    event_type: "admin.catalog.updated",
+    actor: { type: "admin", id: adminActorId(request) },
+    source: { surface: "admin", route: "/api/v1/admin/catalog/upload" },
+    subject: { type: "admin_operation", id: track.key, name: title },
+    operation: { action: "upload", status: "success", result: "catalog_item_added" },
+    metadata: { asset_file_name: fileName, genre: track.genre, bpm: track.bpm, commit: audioWrite.commit }
+  }, { request });
   return json({ ok: true, stored_path: audioWrite.path, track, commit: audioWrite.commit });
 }
 
@@ -1479,14 +1573,26 @@ async function handleCommand(request, env) {
   const body = await readJson(request);
   const command = String(body.command_line || body.command || "").trim();
   const normalized = command.startsWith("action:") ? command.slice(7).trim() : command;
-  await persistActivityRecord(env, {
-    event_type: "admin.command.run",
-    source: "admin",
-    path: "/api/v1/command/run",
-    title: normalized || command,
-    status: "executed",
-    details: { command: normalized || command }
-  }, `Run command ${normalized || command}`);
+  const resolvedActions = {
+    health: { event_type: "admin.operation.completed", subject: "health" },
+    "catalog:list": { event_type: "admin.catalog.reviewed", subject: "catalog" },
+    "models:list": { event_type: "admin.models.reviewed", subject: "models" },
+    "reference:stats": { event_type: "admin.reference.reviewed", subject: "reference-pool" },
+    "deploy:status": { event_type: "admin.deploy.reviewed", subject: "cloudflare-pages" },
+    "sales:list": { event_type: "admin.sales.reviewed", subject: "historical-sales" },
+    "inquiries:list": { event_type: "admin.inquiry.reviewed", subject: "inquiries" }
+  };
+  const resolved = resolvedActions[normalized];
+  if (!resolved) {
+    await recordActivity(env, {
+      event_type: "admin.operation.failed",
+      actor: { type: "admin", id: adminActorId(request) },
+      source: { surface: "admin", route: "/api/v1/command/run" },
+      subject: { type: "admin_operation", id: "unsupported", name: "Unsupported allowlist action" },
+      operation: { action: "run", status: "failure", result: "unsupported_action" }
+    }, { request });
+    return json({ ok: false, exit_code: 2, stderr: "Unsupported command. Use /api/v1/registry/actions for the allowlist." }, { status: 400 });
+  }
   let stdout = "";
   if (normalized === "health") stdout = JSON.stringify({ ok: true, service: "AIFRED website backend" }, null, 2);
   else if (normalized === "catalog:list") stdout = `tracks=${(await loadCatalog(request)).length}`;
@@ -1505,7 +1611,13 @@ async function handleCommand(request, env) {
   else if (normalized === "deploy:status") stdout = "Cloudflare Pages project: aifred-site. Production domains: north3rnlight3r.com and aifred-site.pages.dev.";
   else if (normalized === "sales:list") stdout = JSON.stringify(await listSaleRecords(env), null, 2);
   else if (normalized === "inquiries:list") stdout = JSON.stringify(await listInquiryRecords(env), null, 2);
-  else return json({ ok: false, exit_code: 2, stderr: "Unsupported command. Use /api/v1/registry/actions for the allowlist." }, { status: 400 });
+  await recordActivity(env, {
+    event_type: resolved.event_type,
+    actor: { type: "admin", id: adminActorId(request) },
+    source: { surface: "admin", route: "/api/v1/command/run" },
+    subject: { type: "admin_operation", id: resolved.subject, name: resolved.subject },
+    operation: { action: "run", status: "success", result: "allowlist_action_completed" }
+  }, { request });
   return json({ ok: true, exit_code: 0, stdout, stderr: "" });
 }
 
@@ -1518,14 +1630,13 @@ async function handleAdminLogin(request, env) {
   if (username !== expected.username || passwordHash !== expected.passwordHash) {
     return json({ ok: false, error: "invalid admin credentials" }, { status: 401 });
   }
-  await persistActivityRecord(env, {
-    event_type: "admin.login.success",
-    source: "admin",
-    path: "/api/v1/admin/login",
-    title: username,
-    actor: username,
-    status: "authenticated"
-  }, `Admin login ${username}`);
+  await recordActivity(env, {
+    event_type: "admin.login.succeeded",
+    actor: { type: "admin", id: username },
+    source: { surface: "admin", route: "/api/v1/admin/login" },
+    subject: { type: "admin_operation", id: "admin-session", name: "Admin session" },
+    operation: { action: "login", status: "success", result: "authenticated" }
+  }, { request });
   return json({ ok: true, username, session_token: await createAdminSession(username, env) });
 }
 
@@ -1547,7 +1658,7 @@ export async function onRequest({ request, env, params }) {
   if (path === "analyzer/submit" && request.method === "POST") return handleAnalysisSubmit(request, env);
   if (path === "chat/settings") return json(chatSettingsPayload(request, await runtimeChatEnv(env)));
   if (path === "downloads/plugin" && (request.method === "GET" || request.method === "HEAD")) return handlePluginDownload(request, env);
-  if (path.startsWith("assets/") && (request.method === "GET" || request.method === "HEAD")) return fetchWebsiteAssetResponse(request, env, path.slice("assets/".length));
+  if (path.startsWith("assets/") && (request.method === "GET" || request.method === "HEAD")) return handleWebsiteAssetRequest(request, env, path.slice("assets/".length));
   if (path === "admin/login" && request.method === "POST") return handleAdminLogin(request, env);
   if (path.startsWith("admin/") && !(await verifyAdmin(request, env))) {
     return json({ ok: false, error: "admin session required" }, { status: 401 });
@@ -1664,6 +1775,8 @@ export async function onRequest({ request, env, params }) {
   if (path === "chat/ask" && request.method === "POST") return canonicalChat(request, env);
   if (path === "inquiries/submit" && request.method === "POST") {
     const body = await readJson(request);
+    const sessionId = String(body.session_id || "").trim();
+    const requestId = String(body.request_id || "").trim();
     const inquiry = {
       id: crypto.randomUUID(),
       created_at: new Date().toISOString(),
@@ -1695,9 +1808,20 @@ export async function onRequest({ request, env, params }) {
       text,
       html
     });
+    const activity = await recordActivity(env, {
+      event_type: "inquiry.submitted",
+      session_id: sessionId,
+      request_id: requestId,
+      actor: { type: "anonymous", id: sessionId },
+      source: { surface: "website.inquiry", route: "/api/v1/inquiries/submit" },
+      subject: { type: "inquiry", id: inquiry.id },
+      operation: { action: "submit", status: "success", result: stored.storage === "kv" ? "stored" : "accepted_unconfigured" },
+      metadata: { storage: stored.storage, email_sent: emailResult.ok }
+    }, { request });
     const responseBody = {
       ok: true,
       inquiry_id: inquiry.id,
+      request_id: activity.event.request_id,
       target_email: contactEmail(env),
       stored: stored.storage === "kv",
       storage: stored.storage,
@@ -1708,6 +1832,16 @@ export async function onRequest({ request, env, params }) {
 
   return json({ ok: false, error: `unknown route: ${path}` }, { status: 404 });
   } catch (error) {
+    if (path.startsWith("admin/") || path === "command/run") {
+      await recordActivity(env, {
+        event_type: "admin.operation.failed",
+        actor: { type: "admin", id: adminActorId(request) },
+        source: { surface: "admin", route: `/api/v1/${path}` },
+        subject: { type: "admin_operation", id: path, name: path },
+        operation: { action: "execute", status: "failure", result: "operation_exception" },
+        metadata: { error_type: error?.name || "Error" }
+      }, { request });
+    }
     return json({ ok: false, error: error.message || "backend route failed", route: path }, { status: 500 });
   }
 }

@@ -7,6 +7,7 @@ Current production authority as of 2026-08-25:
 - `SMOKE_TESTS.md` — local validation commands.
 - `FINAL_MONOREPO_CONSOLIDATION_REPORT.md` — canonical source paths with the 2026-08-25 infrastructure correction.
 - `MEDIA_ASSET_POLICY.md` and `RELEASE_WORKFLOW_SAFETY_CHECKLIST.md` — current safety boundaries.
+- `AIFRED_ACTIVITY_LOG.md` — production activity-ledger schema, download correlation semantics, export format, and repeatable cursor export.
 
 Files beginning with `PHASE` and `AIFRED_CLOUD_ARCHITECTURE_IMPLEMENTATION_LOG.md` are dated migration evidence. Their observations about the old `website/` root, PayPal, `AIFRED_WEBSITE_ASSETS`, preview approval, or deployment blockers describe the state when captured and are not current instructions.
 
@@ -18,6 +19,6 @@ source: apps/website
 distribution.mode: free
 payment_pipeline: disabled
 release/assets bucket: aifred-downloads
-website activity/inquiries: AIFRED_SALES_LOG KV
+website activity/inquiries: AIFRED_SALES_LOG KV (conceptual AIFRED_ACTIVITY_LOG ledger)
 production promotion: explicit repository npm command after push
 ```

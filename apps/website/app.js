@@ -45,16 +45,33 @@ function activitySessionId() {
   }
 }
 
-function recordActivity(eventType, details = {}) {
+function activityRequestId() {
+  try { return crypto.randomUUID(); } catch (_) { return `request-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`; }
+}
+
+function correlatedDownloadUrl(value, requestId, surface) {
+  const url = new URL(value, window.location.href);
+  url.searchParams.set("rid", requestId);
+  url.searchParams.set("sid", activitySessionId());
+  url.searchParams.set("surface", surface);
+  return url.toString();
+}
+
+function recordActivity(eventType, metadata = {}, context = {}) {
+  const sessionId = activitySessionId();
   const payload = {
     event_type: eventType,
-    source: "website",
-    path: `${window.location.pathname}${window.location.hash || ""}`,
-    page: document.title || "AIFRED",
-    title: document.title || "AIFRED",
-    session_id: activitySessionId(),
-    referrer: document.referrer || "",
-    details
+    session_id: sessionId,
+    request_id: context.requestId || activityRequestId(),
+    actor: { type: "anonymous", id: sessionId },
+    source: {
+      surface: context.surface || "website",
+      route: `${window.location.pathname}${window.location.hash || ""}`,
+      referrer: document.referrer || ""
+    },
+    subject: context.subject || {},
+    operation: context.operation || {},
+    metadata
   };
   const body = JSON.stringify(payload);
   try {
@@ -109,7 +126,11 @@ async function loadCatalog() {
   const payload = await getJson("/api/v1/catalog/list", { ok: true, tracks: fallback });
   tracks = Array.isArray(payload.tracks) ? payload.tracks : fallback;
   renderCatalog();
-  void recordActivity("website.catalog.loaded", { track_count: tracks.length });
+  void recordActivity("catalog.loaded", { track_count: tracks.length }, {
+    surface: "catalog",
+    subject: { type: "page", id: "catalog", name: "AIFRED catalog" },
+    operation: { action: "load", status: "success", result: "catalog_rendered" }
+  });
 }
 
 function renderCatalog() {
@@ -136,18 +157,33 @@ function renderCatalog() {
     card.querySelector("button").addEventListener("click", () => {
       audioPlayer.crossOrigin = "anonymous";
       audioPlayer.src = trackUrl(track);
-      audioPlayer.play().then(startCatalogVisualizer).catch(() => {});
       nowTitle.textContent = title;
       nowMeta.textContent = `${bpm} · ${genre}`;
-      void recordActivity("catalog.play.clicked", {
-        title,
-        bpm,
-        genre,
-        stream_url: trackUrl(track)
+      audioPlayer.play().then(() => {
+        startCatalogVisualizer();
+        void recordActivity("catalog.playback.started", { bpm, genre }, {
+          surface: "catalog",
+          subject: { type: "track", id: track.key || track.asset_file_name || title, name: title },
+          operation: { action: "play", status: "success", result: "audio_started" }
+        });
+      }).catch(() => {
+        void recordActivity("catalog.playback.failed", { bpm, genre }, {
+          surface: "catalog",
+          subject: { type: "track", id: track.key || track.asset_file_name || title, name: title },
+          operation: { action: "play", status: "failure", result: "browser_playback_rejected" }
+        });
       });
     });
-    card.querySelector("a").addEventListener("click", () => {
-      void recordActivity("catalog.download.clicked", { title, bpm, genre, download_url: downloadUrl });
+    card.querySelector("a").addEventListener("click", (event) => {
+      const requestId = activityRequestId();
+      const correlatedUrl = correlatedDownloadUrl(downloadUrl, requestId, "catalog");
+      event.currentTarget.href = correlatedUrl;
+      void recordActivity("download.clicked", { bpm, genre, route: new URL(correlatedUrl).pathname }, {
+        requestId,
+        surface: "catalog",
+        subject: { type: "track", id: track.key || track.asset_file_name || title, name: title },
+        operation: { action: "download", status: "started", result: "link_activated" }
+      });
     });
     catalogList.appendChild(card);
   });
@@ -180,9 +216,21 @@ function renderUnlockedDownloads(downloads) {
     link.target = "_blank";
     link.rel = "noreferrer";
     link.textContent = label;
-    link.addEventListener("click", () => {
-      const eventType = label.startsWith("Windows") ? "plugin.download.clicked" : "website.download.clicked";
-      void recordActivity(eventType, { label, url });
+    link.addEventListener("click", (event) => {
+      const target = new URL(url, window.location.href);
+      const isArtifact = target.pathname.includes("/downloads/plugin");
+      const requestId = activityRequestId();
+      if (isArtifact) event.currentTarget.href = correlatedDownloadUrl(target, requestId, "website.downloads");
+      void recordActivity(isArtifact ? "download.clicked" : "website.resource.clicked", { route: target.pathname }, {
+        requestId,
+        surface: "website.downloads",
+        subject: {
+          type: isArtifact ? "download" : "page",
+          id: isArtifact ? target.searchParams.get("asset") || label : "release-notes",
+          name: label
+        },
+        operation: { action: isArtifact ? "download" : "open", status: "started", result: "link_activated" }
+      });
     });
     aifredDownloads.appendChild(link);
   });
@@ -428,13 +476,14 @@ async function handleAnalysisFile(file) {
 
 async function submitAnalysisGate() {
   if (!currentAnalysis) return;
+  const requestId = activityRequestId();
   analysisSubmit.disabled = true;
   analysisResult.textContent = "Submitting the quick direction check...";
   try {
     const response = await fetch(apiUrl("/api/v1/analysis/submit"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(currentAnalysis)
+      body: JSON.stringify({ ...currentAnalysis, session_id: activitySessionId(), request_id: requestId })
     });
     const payload = await response.json();
     if (!response.ok || !payload.ok) throw new Error(payload.error || "analysis unavailable");
@@ -449,17 +498,15 @@ async function submitAnalysisGate() {
       `Persistence: ${payload.persistence || "none"}`
     ];
     analysisResult.textContent = lines.join("\n");
-    void recordActivity("website.analysis.submitted", {
-      file_name: currentAnalysis.file_name || analysisTitle.textContent || "analysis",
-      accepted: Boolean(payload.accepted),
-      score: payload.score,
-      classification: payload.classification
-    });
   } catch (error) {
     analysisResult.textContent = `Analysis unavailable: ${error.message || "request failed"}`;
-    void recordActivity("website.analysis.failed", {
-      file_name: currentAnalysis.file_name || analysisTitle.textContent || "analysis",
-      error: error.message || "request failed"
+    void recordActivity("analysis.failed", {
+      error_type: error?.name || "Error"
+    }, {
+      requestId,
+      surface: "website.analysis",
+      subject: { type: "analysis", name: currentAnalysis.file_name || analysisTitle.textContent || "analysis" },
+      operation: { action: "analyze", status: "failure", result: "request_failed" }
     });
   } finally {
     analysisSubmit.disabled = false;
@@ -473,24 +520,28 @@ function setupForms() {
     const email = document.getElementById("contact-email").value.trim();
     const message = document.getElementById("contact-message").value.trim();
     contactStatus.textContent = "Sending...";
-    void recordActivity("website.inquiry.submit", { name, email });
+    const requestId = activityRequestId();
     try {
       const response = await fetch(apiUrl("/api/v1/inquiries/submit"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, message })
+        body: JSON.stringify({ name, email, message, session_id: activitySessionId(), request_id: requestId })
       });
       const payload = await response.json();
       if (!response.ok || !payload.ok) throw new Error(payload.error || "backend unavailable");
       contactStatus.textContent = "Inquiry received.";
-      void recordActivity("website.inquiry.completed", { name, email });
       contactForm.reset();
     } catch (_) {
       const subject = encodeURIComponent(`North3rnLight3r inquiry from ${name}`);
       const body = encodeURIComponent(`Name: ${name}\nEmail: ${email}\n\n${message}`);
       window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`;
       contactStatus.textContent = `Opening email fallback for ${CONTACT_EMAIL}.`;
-      void recordActivity("website.inquiry.fallback", { name, email });
+      void recordActivity("inquiry.fallback.opened", {}, {
+        requestId,
+        surface: "website.inquiry",
+        subject: { type: "inquiry", id: "email-fallback" },
+        operation: { action: "submit", status: "failure", result: "mailto_fallback_opened" }
+      });
     }
   });
 }
@@ -507,7 +558,9 @@ renderReleaseActions();
 setupForms();
 loadCatalog();
 void recordActivity("website.page.view", {
-  title: document.title || "AIFRED",
-  path: window.location.pathname,
   distribution: "free"
+}, {
+  surface: "website",
+  subject: { type: "page", id: window.location.pathname, name: document.title || "AIFRED" },
+  operation: { action: "view", status: "success", result: "page_loaded" }
 });
