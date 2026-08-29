@@ -45,9 +45,9 @@ Production origin: `https://www.north3rnlight3r.com`. Function responses use JSO
 
 ## Command API
 
-- `GET /api/v1/registry/actions` returns the structured backend allowlist.
-- `POST /api/v1/command/run` accepts `{ "command_line": "<exact command>" }` and returns `{ok, exit_code, stdout, stderr}`.
-- Both require an admin session. Exact commands are generated in [Administrator Command Reference](ADMIN_COMMAND_REFERENCE.md).
+- `GET /api/v1/registry/actions` returns non-secret structured allowlist metadata without authentication so Android can discover available actions.
+- `POST /api/v1/command/run` accepts `{ "command_line": "<exact command>" }` and returns `{ok, exit_code, stdout, stderr}`; execution requires an admin session and returns 401 without one.
+- Exact commands are generated in [Administrator Command Reference](ADMIN_COMMAND_REFERENCE.md).
 
 ## Local AifredEngine API
 
