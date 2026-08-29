@@ -110,6 +110,29 @@ test("authorized admin can read operations status", async () => {
   assert.equal((await response.json()).service, "AIFRED operations");
 });
 
+test("admin login remains available when optional KV throttling is quota-limited", async () => {
+  const password = "test-password";
+  const quotaEnv = {
+    AIFRED_ADMIN_USERNAME: "operator",
+    AIFRED_ADMIN_PASSWORD_SHA256: createHash("sha256").update(password).digest("hex"),
+    AIFRED_ADMIN_SESSION_SECRET: "test-secret",
+    AIFRED_SALES_LOG: {
+      async get() { throw new Error("KV get() limit exceeded for the day."); },
+      async put() { throw new Error("KV put() limit exceeded for the day."); },
+      async delete() { throw new Error("KV delete() limit exceeded for the day."); }
+    }
+  };
+  const response = await onRequest({
+    request: request("/api/v1/admin/login", { method: "POST", body: JSON.stringify({ username: "operator", password }) }),
+    env: quotaEnv,
+    params: { path: ["admin", "login"] }
+  });
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(body.ok, true);
+  assert.ok(body.session_token);
+});
+
 test("authorized API configuration is KV-backed, secret-safe, and testable", async () => {
   const password = "test-password";
   const records = new Map();

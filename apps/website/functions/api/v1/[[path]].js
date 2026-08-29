@@ -1695,16 +1695,29 @@ async function handleAdminLogin(request, env) {
     typeof env.AIFRED_SALES_LOG.put === "function"
     ? env.AIFRED_SALES_LOG
     : null;
-  const attempts = throttleStore ? Number(await throttleStore.get(throttleKey) || 0) : 0;
+  let attempts = 0;
+  if (throttleStore) {
+    try {
+      attempts = Number(await throttleStore.get(throttleKey) || 0);
+    } catch (_) {
+      // Authentication must remain available when the optional free-tier KV
+      // throttle store has exhausted its operation quota.
+      attempts = 0;
+    }
+  }
   if (attempts >= 5) {
     return json({ ok: false, error: "too many login attempts; try again later" }, { status: 429, headers: { "retry-after": "600" } });
   }
   const passwordHash = await sha256Hex(password);
   if (!constantTimeEqual(username, expected.username) || !constantTimeEqual(passwordHash, expected.passwordHash)) {
-    if (throttleStore) await throttleStore.put(throttleKey, String(attempts + 1), { expirationTtl: 600 });
+    if (throttleStore) {
+      try { await throttleStore.put(throttleKey, String(attempts + 1), { expirationTtl: 600 }); } catch (_) {}
+    }
     return json({ ok: false, error: "invalid admin credentials" }, { status: 401 });
   }
-  if (throttleStore && typeof throttleStore.delete === "function") await throttleStore.delete(throttleKey);
+  if (throttleStore && typeof throttleStore.delete === "function") {
+    try { await throttleStore.delete(throttleKey); } catch (_) {}
+  }
   await recordActivity(env, {
     event_type: "admin.login.succeeded",
     actor: { type: "admin", id: username },
