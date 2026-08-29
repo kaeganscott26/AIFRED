@@ -1,7 +1,7 @@
 {
   // Root convenience config. apps/website/wrangler.toml is authoritative.
   "$schema": "apps/node_modules/wrangler/config-schema.json",
-  "name": "aifred",
+  "name": "aifred-site",
   "pages_build_output_dir": "apps/website",
   "compatibility_date": "2026-08-25",
   "compatibility_flags": [

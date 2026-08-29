@@ -1,6 +1,7 @@
 const SECRET_FIELD = /^(?:authorization|cookie|password|passwd|secret|token|access_token|refresh_token|api[_-]?key|private[_-]?key|client[_-]?secret|download_token)$/i;
 const ACTOR_TYPES = new Set(["anonymous", "admin", "system"]);
 const OPERATION_STATUSES = new Set(["success", "failure", "started"]);
+const ACTIVITY_RETENTION_SECONDS = 90 * 24 * 60 * 60;
 
 function cleanText(value, maxLength = 500) {
   return String(value ?? "").trim().slice(0, maxLength);
@@ -151,6 +152,7 @@ export async function recordActivity(env, record, options = {}) {
 
   try {
     await binding.put(key, JSON.stringify(event), {
+      expirationTtl: ACTIVITY_RETENTION_SECONDS,
       metadata: compactObject({ schema: 1, type: event.event_type, ts: event.timestamp, request_id: event.request_id })
     });
     return { event, key, storage: "kv", stored: true };

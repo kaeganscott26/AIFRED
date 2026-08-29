@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0.0",
+  "backend": [
+    { "id": "help", "command": "help", "description": "List the current backend command allowlist", "eventType": "admin.operation.completed", "subject": "command-help", "output": "JSON array of registered backend commands" },
+    { "id": "health", "command": "health", "description": "Check live website API health", "eventType": "admin.operation.completed", "subject": "health", "output": "Website backend health JSON" },
+    { "id": "catalog:list", "command": "catalog:list", "description": "Count beat catalog tracks", "eventType": "admin.catalog.reviewed", "subject": "catalog", "output": "Track count" },
+    { "id": "models:list", "command": "models:list", "description": "Show configured OpenAI/Ollama model routes", "eventType": "admin.models.reviewed", "subject": "models", "output": "Provider configuration booleans and model names" },
+    { "id": "reference:stats", "command": "reference:stats", "description": "Show analyzer reference-pool status", "eventType": "admin.reference.reviewed", "subject": "reference-pool", "output": "Binding availability and accepted-upload storage status" },
+    { "id": "deploy:status", "command": "deploy:status", "description": "Show Cloudflare Pages deployment status", "eventType": "admin.deploy.reviewed", "subject": "cloudflare-pages", "output": "Pages project and production domains" },
+    { "id": "sales:list", "command": "sales:list", "description": "Show historical beta sales", "eventType": "admin.sales.reviewed", "subject": "historical-sales", "output": "Sanitized historical sales JSON" },
+    { "id": "inquiries:list", "command": "inquiries:list", "description": "Show recorded contact inquiries", "eventType": "admin.inquiry.reviewed", "subject": "inquiries", "output": "Inquiry records JSON" },
+    { "id": "export:site", "command": "export:site", "description": "Export sanitized site operations data", "eventType": "admin.export.completed", "subject": "site-data", "output": "Site export JSON on the command channel" },
+    { "id": "export:tracks", "command": "export:tracks", "description": "Export track and audio analysis data", "eventType": "admin.export.completed", "subject": "track-analysis", "output": "Track-analysis export JSON on the command channel" }
+  ],
+  "androidLocal": [
+    { "id": "local:pwd", "command": "action:local:pwd", "shell": "pwd", "description": "Show the app shell working directory" },
+    { "id": "local:files", "command": "action:local:files", "shell": "ls -la", "description": "List files in the app shell working directory" },
+    { "id": "local:storage", "command": "action:local:storage", "shell": "df -h", "description": "Show filesystem usage" },
+    { "id": "local:usage", "command": "action:local:usage", "shell": "du -sh .", "description": "Show the current directory size" },
+    { "id": "local:identity", "command": "action:local:identity", "shell": "id", "description": "Show the app-shell identity" },
+    { "id": "local:system", "command": "action:local:system", "shell": "uname -a", "description": "Show kernel and system details" },
+    { "id": "local:processes", "command": "action:local:processes", "shell": "ps -A", "description": "List processes visible to the app shell" },
+    { "id": "local:network", "command": "action:local:network", "shell": "ip addr; ip route", "description": "Show network addresses and routes" },
+    { "id": "local:environment", "command": "action:local:environment", "shell": "printenv | sort", "description": "List the local process environment" },
+    { "id": "termux:packages", "command": "action:termux:packages", "shell": "if command -v pkg >/dev/null 2>&1; then pkg list-installed; else echo 'Termux pkg is not available'; fi", "description": "List installed Termux packages when available" },
+    { "id": "termux:info", "command": "action:termux:info", "shell": "if command -v termux-info >/dev/null 2>&1; then termux-info; else echo 'termux-info is not available'; fi", "description": "Show Termux environment information when available" },
+    { "id": "android:version", "command": "action:android:version", "shell": "getprop ro.build.version.release", "description": "Show the Android OS version" },
+    { "id": "android:packages", "command": "action:android:packages", "shell": "pm list packages -3", "description": "List third-party Android packages visible to the app" },
+    { "id": "android:logs", "command": "action:android:logs", "shell": "logcat -d -t 100", "description": "Show recent logs accessible to the app" },
+    { "id": "site:health", "command": "action:site:health", "shell": "curl -fsS https://www.north3rnlight3r.com/api/v1/health", "description": "Check production API health from the device" }
+  ]
+}

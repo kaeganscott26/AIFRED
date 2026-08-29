@@ -49,7 +49,8 @@ The plugin's active runtime path uses `/health`, `/chat`, and `/v1/settings`.
 | `apps/website/functions/api/v1/[[path]].js` | Main website/backend/admin API |
 | `apps/website/functions/api/[[path]].js` | Legacy `/api/*` compatibility shim; preserved pending production-usage verification |
 | `apps/website/functions/ws/chat.js` | WebSocket chat bridge |
-| `apps/website/ops.html` | Authenticated status, runtime API routing, provider test, and admin chat console |
+| `apps/website/ops.html`, `ops.js`, `ops.css` | Authenticated ten-panel operations dashboard and exports |
+| `apps/website/lib/admin-command-registry.js` | Generated backend command metadata |
 | `apps/website/assets/data/beat_catalog.json` | Canonical beat catalog metadata |
 
 ## Cloudflare Backend
@@ -88,6 +89,7 @@ Major responsibilities:
 | `ChatScreen` | Chat UI, local API profiles, model selection, and authenticated Cloudflare route management |
 | `UploadScreen` | Catalog/reference/website asset upload UI |
 | `CommandScreen` | Backend action buttons and local Android sandbox terminal |
+| `GeneratedAdminCommands.kt` | Generated Android-local registered actions |
 | `ApiClient` | HTTP, WebSocket, admin file, upload, command, catalog, activity, and chat API calls |
 | Local login helpers | Offline-aware owner authentication |
 | Local shell helpers | Android sandbox command execution |

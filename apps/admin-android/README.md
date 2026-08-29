@@ -2,6 +2,12 @@
 
 The AIFRED Android admin app is owner-only operational software for the North3rnLight3r website/backend and catalog.
 
+The production API authority is `https://www.north3rnlight3r.com`. The app constructs canonical AI routes as `/v1/*` and existing administration routes as `/api/v1/admin/*` from the single `BuildConfig.AIFRED_BASE_URL`. Override it only for development with Gradle property `AIFRED_BASE_URL` or untracked `local.properties` key `aifredBaseUrl`.
+
+The Commands screen exposes authenticated live analytics, downloads, inquiries, logs, references, API/deployment status, **Export Site Data**, and **Export Track Analysis**. Exports are fetched off the UI thread from `/api/v1/admin/export/site` or `/api/v1/admin/export/tracks`, written to the app-private `files/exports` directory, and reported with their exact filename/location.
+
+The VST remains local-first: it calls AifredEngine at `http://127.0.0.1:8787`; AifredEngine selects local Ollama (`http://127.0.0.1:11434`) or a configured compatible provider. The plugin does not depend on Cloudflare.
+
 It lives at:
 
 ```text
@@ -64,6 +70,8 @@ $adb=Join-Path $env:LOCALAPPDATA 'Android\Sdk\platform-tools\adb.exe'
 ```
 
 The in-app local registry includes read-only/non-root commands for working directory, file listing, disk usage, identity, kernel details, visible processes, network state, environment, Termux package/info queries, Android version/packages/logs, and production API health. Local actions run on the phone; backend actions remain server allowlisted.
+
+The exact generated inventory is [Administrator Command Reference](../../docs/ADMIN_COMMAND_REFERENCE.md). `config/admin-commands.json` is authoritative; do not maintain another command table here.
 
 Catalog playback resolves the website API's relative `/api/v1/assets/audio/catalog/...` paths against `AIFRED_BASE_URL` before passing them to Android `MediaPlayer`. This keeps mobile playback on the same controlled R2-backed streaming routes as the website.
 

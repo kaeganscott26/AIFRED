@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://www.north3rnlight3r.com/schemas/forge-manifest.schema.json",
+  "type": "object",
+  "required": ["schemaVersion", "project", "productionApiBase", "developmentApiBase", "endpoints", "capabilities"],
+  "properties": {
+    "schemaVersion": { "const": "1.1.0" },
+    "project": { "const": "AIFRED" },
+    "productionApiBase": { "type": "string", "format": "uri" },
+    "developmentApiBase": { "type": "string", "format": "uri" },
+    "endpoints": { "type": "object", "additionalProperties": { "type": "string", "pattern": "^/" } },
+    "capabilities": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "archive": { "type": "object", "required": ["activeDataRoot", "defaultThresholdMb", "archiveRoot", "archiveManifest", "commands"] }
+  },
+  "additionalProperties": true
+}

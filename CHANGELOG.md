@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — 2026-08-29 runtime and documentation reconciliation
+
+- Normalized the production API around `/health`, `/v1/models`, and `/v1/chat/completions` while retaining the `/api/v1` website/admin surface.
+- Reconciled Pages project `aifred-site`, KV/R2 bindings, domains, CORS, security headers, caching, observability and free native Web Analytics.
+- Added authenticated versioned site-data and track-analysis exports to the API and Android Admin.
+- Upgraded `/ops` into a ten-panel operational dashboard with bounded logs, local-time presentation and authenticated exports.
+- Updated Windows Desktop Admin and added local-only macOS Desktop Admin source/build support with local archive controls.
+- Added the FORGE manifest/export bridge, 25 MB default bounded active-context policy, verified gzip JSONL cold storage, archive index, bounded retrieval and confirmed manual pruning.
+- Added a structured admin command registry, generated backend/Android registries, runtime `help`, generated command reference and drift check.
+- Reconciled central/component documentation against current routes, versions, paths, builds and runtime boundaries.
+
 ## 2026-08-25 — Free distribution and Cloudflare pipeline cleanup
 
 - Standardized local and CI deployment on the existing Cloudflare Pages project `aifred-site` and canonical source path `apps/website`.

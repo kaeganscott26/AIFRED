@@ -30,4 +30,38 @@ tools/**/obj/
 !.env.example
 .forge/metadata.sqlite
 **/.forge/metadata.sqlite
+.forge/metadata.sqlite.*
+**/.forge/metadata.sqlite.*
+.forge/backups/
+**/.forge/backups/
 .smart-env
+
+integrations/forge/exports/latest/
+integrations/forge/exports/history/
+integrations/forge/archive-workspace/
+
+# AIFRED desktop cold storage and local archive staging
+runtime/aifred-archive/
+runtime/aifred-archive-staging/
+*.jsonl.gz
+*.meta.json.next
+
+# Desktop build output (source and build scripts remain tracked)
+apps/admin-desktop/build/
+apps/admin-desktop/**/*.app/
+apps/admin-desktop/**/*.dmg
+apps/admin-desktop/**/*.pkg
+apps/admin-desktop/**/*.exe
+apps/admin-desktop/**/*.msi
+DerivedData/
+
+# Android/Gradle generated packages and caches
+**/.gradle/
+**/.kotlin/
+**/local.properties
+**/*.apk
+**/*.aab
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

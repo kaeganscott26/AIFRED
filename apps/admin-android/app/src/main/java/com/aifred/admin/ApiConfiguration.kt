@@ -15,6 +15,13 @@ data class ApiConnectionResult(
     val models: List<String> = emptyList()
 )
 
+data class AdminExportResult(
+    val ok: Boolean,
+    val filename: String = "",
+    val content: String = "",
+    val message: String = ""
+)
+
 internal val ApiProviders = listOf("website", "ollama", "openai")
 
 internal fun validateApiEndpoint(value: String): String? {

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "productionApiBase": "https://www.north3rnlight3r.com",
+  "developmentApiBase": "http://127.0.0.1:8787",
+  "archive": {
+    "root": "runtime/aifred-archive",
+    "activeRoot": "integrations/forge/exports/history",
+    "workspace": "integrations/forge/archive-workspace",
+    "thresholdEnvironmentVariable": "AIFRED_FORGE_ACTIVE_LOG_LIMIT_MB",
+    "defaultThresholdMb": 25,
+    "compression": "gzip",
+    "automaticArchiveDeletion": false
+  }
+}

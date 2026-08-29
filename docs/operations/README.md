@@ -1,6 +1,6 @@
 # Operations Documentation Authority
 
-Current production authority as of 2026-08-25:
+Current authority is the central [documentation index](../README.md), [Cloudflare Production Guide](../CLOUDFLARE_PRODUCTION.md), and current source configuration. The following files remain useful evidence from the 2026-08-25 reconciliation:
 
 - `website-cloudflare-production-2026-08-25.md` — deployed Cloudflare/R2/Git/HTTP evidence and blockers.
 - `CLOUDFLARE_MANUAL_VERIFICATION_CHECKLIST.md` — repeatable promotion checks.

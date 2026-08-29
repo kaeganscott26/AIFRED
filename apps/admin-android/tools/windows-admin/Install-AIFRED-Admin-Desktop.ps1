@@ -17,5 +17,7 @@ $shortcut.IconLocation = "powershell.exe,0"
 $shortcut.Description = "AIFRED Admin Desktop"
 $shortcut.Save()
 
+[Environment]::SetEnvironmentVariable("AIFRED_REPO_ROOT", (Resolve-Path (Join-Path $PSScriptRoot "..\..\..\..")).Path, "User")
+
 Write-Host "Installed AIFRED Admin Desktop to $target"
 Write-Host "Shortcut created at $desktopShortcut"

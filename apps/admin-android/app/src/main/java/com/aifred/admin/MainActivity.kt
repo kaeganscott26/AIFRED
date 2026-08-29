@@ -130,24 +130,6 @@ data class RegisteredAction(
     val localOnly: Boolean = false
 )
 
-private val LocalShellActions = listOf(
-    RegisteredAction("local:pwd", "Local — show current directory", "pwd", true),
-    RegisteredAction("local:files", "Local — list files", "ls -la", true),
-    RegisteredAction("local:storage", "Local — show filesystem usage", "df -h", true),
-    RegisteredAction("local:usage", "Local — show current directory size", "du -sh .", true),
-    RegisteredAction("local:identity", "Local — show app-shell identity", "id", true),
-    RegisteredAction("local:system", "Local — show kernel/system details", "uname -a", true),
-    RegisteredAction("local:processes", "Local — list visible processes", "ps -A", true),
-    RegisteredAction("local:network", "Local — show addresses and routes", "ip addr; ip route", true),
-    RegisteredAction("local:environment", "Local — list environment variables", "printenv | sort", true),
-    RegisteredAction("termux:packages", "Termux — list installed packages", "if command -v pkg >/dev/null 2>&1; then pkg list-installed; else echo 'Termux pkg is not available'; fi", true),
-    RegisteredAction("termux:info", "Termux — show environment information", "if command -v termux-info >/dev/null 2>&1; then termux-info; else echo 'termux-info is not available'; fi", true),
-    RegisteredAction("android:version", "Android — show OS version", "getprop ro.build.version.release", true),
-    RegisteredAction("android:packages", "Android — list third-party packages", "pm list packages -3", true),
-    RegisteredAction("android:logs", "Android — show recent accessible logs", "logcat -d -t 100", true),
-    RegisteredAction("site:health", "Local — check production API health", "curl -fsS https://www.north3rnlight3r.com/api/v1/health", true)
-)
-
 data class SiteActivityEvent(
     val id: String,
     val createdAt: String,
@@ -1805,6 +1787,50 @@ fun AIFREDAdminApp() {
                                     status = "reference pool loaded"
                                 }
                             },
+                            onExportSiteData = {
+                                if (adminSessionToken.isBlank() || adminSessionToken.startsWith("local-admin-")) {
+                                    status = "online admin login required"
+                                    websiteAdminOutput = "Online admin login is required for production exports."
+                                    return@CommandScreen
+                                }
+                                scope.launch {
+                                    status = "exporting site data"
+                                    val result = withContext(Dispatchers.IO) { client.adminExport(adminSessionToken, "site") }
+                                    if (result.ok) {
+                                        val target = withContext(Dispatchers.IO) {
+                                            File(context.filesDir, "exports").apply { mkdirs() }
+                                                .resolve(result.filename).apply { writeText(result.content) }
+                                        }
+                                        websiteAdminOutput = "Exported ${result.filename}\n${target.absolutePath}"
+                                        status = "site export complete"
+                                    } else {
+                                        websiteAdminOutput = result.message
+                                        status = result.message
+                                    }
+                                }
+                            },
+                            onExportTrackAnalysis = {
+                                if (adminSessionToken.isBlank() || adminSessionToken.startsWith("local-admin-")) {
+                                    status = "online admin login required"
+                                    websiteAdminOutput = "Online admin login is required for production exports."
+                                    return@CommandScreen
+                                }
+                                scope.launch {
+                                    status = "exporting track analysis"
+                                    val result = withContext(Dispatchers.IO) { client.adminExport(adminSessionToken, "tracks") }
+                                    if (result.ok) {
+                                        val target = withContext(Dispatchers.IO) {
+                                            File(context.filesDir, "exports").apply { mkdirs() }
+                                                .resolve(result.filename).apply { writeText(result.content) }
+                                        }
+                                        websiteAdminOutput = "Exported ${result.filename}\n${target.absolutePath}"
+                                        status = "track analysis export complete"
+                                    } else {
+                                        websiteAdminOutput = result.message
+                                        status = result.message
+                                    }
+                                }
+                            },
                             onRefreshDashboard = {
                                 if (adminSessionToken.isBlank()) {
                                     status = "admin login required"
@@ -2603,6 +2629,8 @@ fun CommandScreen(
     onLoadLogs: () -> Unit,
     onLoadSales: () -> Unit,
     onLoadReferences: () -> Unit,
+    onExportSiteData: () -> Unit,
+    onExportTrackAnalysis: () -> Unit,
     onRefreshDashboard: () -> Unit
 ) {
     Column(
@@ -2632,6 +2660,11 @@ fun CommandScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(8.dp)
         )
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = onExportSiteData, modifier = Modifier.weight(1f)) { Text("Export Site Data") }
+            Button(onClick = onExportTrackAnalysis, modifier = Modifier.weight(1f)) { Text("Export Track Analysis") }
+        }
 
         registeredActions.forEach { action ->
             Button(onClick = { onQuick("action:${action.id}") }, modifier = Modifier.fillMaxWidth()) {
@@ -2747,7 +2780,12 @@ class ApiClient(
     private val token: String,
     private val provider: String = ""
 ) {
-    private val client = OkHttpClient.Builder().build()
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .callTimeout(90, TimeUnit.SECONDS)
+        .build()
     private var ws: WebSocket? = null
 
     private fun endpoint(path: String): String {
@@ -3640,6 +3678,34 @@ class ApiClient(
         }
         val (_ok, rendered) = adminGet(adminSessionToken, "/api/v1/admin/reference/list")
         return rendered
+    }
+
+    fun adminExport(adminSessionToken: String, kind: String): AdminExportResult {
+        val route = when (kind) {
+            "site" -> "/api/v1/admin/export/site"
+            "tracks" -> "/api/v1/admin/export/tracks"
+            else -> return AdminExportResult(false, message = "unsupported export type")
+        }
+        return try {
+            val request = Request.Builder()
+                .url(endpoint(route))
+                .addHeader("Authorization", "Bearer $adminSessionToken")
+                .get()
+                .build()
+            client.newCall(request).execute().use { response ->
+                val content = response.body?.string().orEmpty()
+                val filename = response.header("Content-Disposition")
+                    ?.substringAfter("filename=", "")
+                    ?.trim()
+                    ?.trim('"')
+                    .orEmpty()
+                    .ifBlank { "aifred-$kind-export-${System.currentTimeMillis()}.json" }
+                if (response.isSuccessful) AdminExportResult(true, filename, content, "export ready")
+                else AdminExportResult(false, message = runCatching { JSONObject(content).optString("error") }.getOrDefault("export failed (${response.code})"))
+            }
+        } catch (error: Exception) {
+            AdminExportResult(false, message = "export failed: ${error.message ?: "network error"}")
+        }
     }
 
     private fun offlineAdminLog(name: String): String {

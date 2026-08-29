@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://north3rnlight3r.com/schemas/aifred-archive-manifest-v1.json",
+  "title": "AIFRED Archive Manifest",
+  "type": "object",
+  "required": ["schema", "schemaVersion", "updatedAt", "archives"],
+  "properties": {
+    "schema": { "const": "aifred.archive-manifest" },
+    "schemaVersion": { "type": "string" },
+    "updatedAt": { "type": ["string", "null"], "format": "date-time" },
+    "archives": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["archiveId", "source", "createdAt", "recordCount", "compressedSize", "checksum", "path"],
+        "properties": {
+          "archiveId": { "type": "string" }, "source": { "type": "string" },
+          "createdAt": { "type": "string", "format": "date-time" }, "recordCount": { "type": "integer", "minimum": 1 },
+          "compressedSize": { "type": "integer", "minimum": 1 }, "checksum": { "type": "string", "pattern": "^sha256:" },
+          "path": { "type": "string" }, "categories": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

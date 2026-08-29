@@ -1,0 +1,41 @@
+{
+  "$schema": "./schemas/forge-manifest.schema.json",
+  "schemaVersion": "1.1.0",
+  "project": "AIFRED",
+  "productionApiBase": "https://www.north3rnlight3r.com",
+  "developmentApiBase": "http://127.0.0.1:8787",
+  "endpoints": {
+    "health": "/health",
+    "models": "/v1/models",
+    "chatCompletions": "/v1/chat/completions",
+    "siteExport": "/api/v1/admin/export/site",
+    "trackAnalysisExport": "/api/v1/admin/export/tracks"
+  },
+  "capabilities": ["health", "models", "site-export", "track-analysis-export", "analytics", "downloads", "archive-list", "archive-inspect", "archive-search", "archive-restore"],
+  "authentication": { "adminExports": "existing AIFRED bearer session" },
+  "localExports": {
+    "latestSite": "exports/latest/site/site-export.json",
+    "latestTrackAnalysis": "exports/latest/track-analysis/track-analysis-export.json",
+    "history": "exports/history"
+  },
+  "archive": {
+    "activeDataRoot": "exports/history",
+    "thresholdEnvironmentVariable": "AIFRED_FORGE_ACTIVE_LOG_LIMIT_MB",
+    "defaultThresholdMb": 25,
+    "archiveRoot": "../../runtime/aifred-archive",
+    "archiveManifest": "../../runtime/aifred-archive/manifest.json",
+    "analysisWorkspace": "archive-workspace",
+    "payloadsEmbedded": false,
+    "automaticPermanentDeletion": false,
+    "commands": {
+      "status": "node tools/aifred-archive.mjs status",
+      "rotate": "node tools/aifred-archive.mjs rotate",
+      "list": "node tools/aifred-archive.mjs list",
+      "verify": "node tools/aifred-archive.mjs verify",
+      "rebuildIndex": "node tools/aifred-archive.mjs rebuild-index",
+      "search": "node tools/aifred-archive.mjs search --query <term> --limit <1-1000> --byte-limit <1024-10485760>",
+      "restore": "node tools/aifred-archive.mjs restore --category <category> --start <UTC> --end <UTC> --limit <1-1000> --byte-limit <1024-10485760>",
+      "prune": "node tools/aifred-archive.mjs prune --id <archive-id> --confirm"
+    }
+  }
+}

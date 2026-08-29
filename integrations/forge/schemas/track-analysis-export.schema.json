@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://www.north3rnlight3r.com/schemas/track-analysis-export.schema.json",
+  "type": "object",
+  "required": ["schemaVersion", "exportType", "generatedAt", "timeZone", "summary", "tracks", "analysis", "errors", "engine"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "exportType": { "const": "aifred.track-analysis" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "timeZone": { "const": "UTC" },
+    "summary": { "type": "object" },
+    "tracks": { "type": "array" },
+    "analysis": { "type": "object", "required": ["references", "events"] },
+    "errors": { "type": "array" },
+    "engine": { "type": "object" }
+  }
+}

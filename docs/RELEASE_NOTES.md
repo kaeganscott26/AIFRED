@@ -1,5 +1,7 @@
 # AIFRED v0.3.6 Release Notes
 
+> Plugin release notes. Admin/API/FORGE/archive work after the published plugin tag is tracked under Unreleased in `CHANGELOG.md`; it does not change plugin version 0.3.6.
+
 AIFRED v0.3.6 is the current consolidated JUCE VST3 line. It aligns the plugin UI and chat context around the same interpreted analysis snapshot, improves local engine startup behavior, adds current Windows/macOS packaging, and supports OpenAI routing through `gpt-5.6-luna` when configured.
 
 ## Plugin

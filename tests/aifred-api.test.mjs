@@ -515,3 +515,49 @@ test("removed PayPal routes are not exposed", async () => {
   });
   assert.equal(response.status, 404);
 });
+
+test("admin exports are authenticated, versioned, UTC, secret-safe, and registered", async () => {
+  const password = "test-password";
+  const records = new Map();
+  const exportEnv = {
+    AIFRED_ADMIN_USERNAME: "operator",
+    AIFRED_ADMIN_PASSWORD_SHA256: createHash("sha256").update(password).digest("hex"),
+    AIFRED_ADMIN_SESSION_SECRET: "test-secret",
+    AIFRED_SALES_LOG: {
+      async get(key) { return records.get(key) || null; },
+      async put(key, value) { records.set(key, value); },
+      async delete(key) { records.delete(key); },
+      async list() { return { keys: [], list_complete: true }; }
+    },
+    AIFRED_REFERENCE_POOL: { async list() { return { keys: [] }; }, async get() { return null; } }
+  };
+  const unauthorized = await onRequest({ request: request("/api/v1/admin/export/site"), env: exportEnv, params: { path: ["admin", "export", "site"] } });
+  assert.equal(unauthorized.status, 401);
+  const login = await onRequest({ request: request("/api/v1/admin/login", { method: "POST", body: JSON.stringify({ username: "operator", password }) }), env: exportEnv, params: { path: ["admin", "login"] } });
+  const token = (await login.json()).session_token;
+  const headers = { authorization: `Bearer ${token}` };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("[]", { headers: { "content-type": "application/json" } });
+  try {
+    for (const [route, type] of [["site", "aifred.site-data"], ["tracks", "aifred.track-analysis"]]) {
+      const response = await onRequest({ request: request(`/api/v1/admin/export/${route}`, { headers }), env: exportEnv, params: { path: ["admin", "export", route] } });
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get("cache-control"), "no-store");
+      assert.match(response.headers.get("content-disposition"), /^attachment; filename="aifred-/);
+      const payload = await response.json();
+      assert.equal(payload.schemaVersion, "1.0.0");
+      assert.equal(payload.exportType, type);
+      assert.equal(payload.timeZone, "UTC");
+      assert.doesNotMatch(JSON.stringify(payload), /test-secret|authorization/i);
+    }
+    const registry = await onRequest({ request: request("/api/v1/registry/actions"), env: exportEnv, params: { path: ["registry", "actions"] } });
+    const registryActions = (await registry.json()).actions;
+    const actionIds = registryActions.map((action) => action.id);
+    assert.ok(actionIds.includes("export:site"));
+    assert.ok(actionIds.includes("export:tracks"));
+    assert.ok(actionIds.includes("help"));
+    const helpResponse = await onRequest({ request: request("/api/v1/command/run", { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ command_line: "help" }) }), env: exportEnv, params: { path: ["command", "run"] } });
+    assert.equal(helpResponse.status, 200);
+    assert.deepEqual(JSON.parse((await helpResponse.json()).stdout), registryActions);
+  } finally { globalThis.fetch = originalFetch; }
+});

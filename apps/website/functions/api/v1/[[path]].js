@@ -4,6 +4,7 @@ import {
   normalizeActivityType,
   recordActivity
 } from "../../../lib/activity-log.js";
+import { BackendAdminActions } from "../../../lib/admin-command-registry.js";
 
 const json = (body, init = {}) =>
   new Response(JSON.stringify(body), {
@@ -34,6 +35,15 @@ async function sha256Hex(input) {
   const bytes = new TextEncoder().encode(input);
   const hash = await crypto.subtle.digest("SHA-256", bytes);
   return [...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function constantTimeEqual(left, right) {
+  const a = new TextEncoder().encode(String(left));
+  const b = new TextEncoder().encode(String(right));
+  let difference = a.length ^ b.length;
+  const length = Math.max(a.length, b.length);
+  for (let index = 0; index < length; index += 1) difference |= (a[index] || 0) ^ (b[index] || 0);
+  return difference === 0;
 }
 
 function getExpectedAdmin(env) {
@@ -68,7 +78,7 @@ async function verifyAdmin(request, env) {
     const secret = String(env.AIFRED_ADMIN_SESSION_SECRET || "").trim();
     if (!secret) return false;
     const expected = await sha256Hex(`${username}|${issuedAt}|${nonce}|${secret}`);
-    return expected === sig;
+    return constantTimeEqual(expected, sig);
   } catch (_) {
     return false;
   }
@@ -753,21 +763,75 @@ function chatSettingsPayload(request, env) {
 }
 
 function commandCatalog() {
-  return [
-    { id: "health", description: "Check live website API health", command: "health" },
-    { id: "catalog:list", description: "Count beat catalog tracks", command: "catalog:list" },
-    { id: "models:list", description: "Show configured OpenAI/Ollama model routes", command: "models:list" },
-    { id: "reference:stats", description: "Show analyzer reference-pool status", command: "reference:stats" },
-    { id: "deploy:status", description: "Show Cloudflare Pages deployment status", command: "deploy:status" },
-    { id: "sales:list", description: "Show historical beta sales", command: "sales:list" },
-    { id: "inquiries:list", description: "Show recorded contact inquiries", command: "inquiries:list" }
-  ];
+  return BackendAdminActions.map(({ id, description, command }) => ({ id, description, command }));
 }
 
 function repoConfig(env) {
   const repo = String(env.AIFRED_GITHUB_REPO || "kaeganscott26/AIFRED").trim();
   const branch = String(env.AIFRED_GITHUB_BRANCH || "main").trim();
   return { repo, branch };
+}
+
+const EXPORT_SECRET_FIELD = /authorization|cookie|password|secret|token|api[_-]?key|private[_-]?key|client[_-]?secret/i;
+
+function sanitizeExport(value, depth = 0) {
+  if (depth > 8 || value === undefined) return undefined;
+  if (value === null || ["string", "number", "boolean"].includes(typeof value)) return value;
+  if (Array.isArray(value)) return value.map((entry) => sanitizeExport(entry, depth + 1)).filter((entry) => entry !== undefined);
+  if (typeof value !== "object") return String(value);
+  return Object.fromEntries(Object.entries(value)
+    .filter(([key]) => !EXPORT_SECRET_FIELD.test(key))
+    .map(([key, entry]) => [key, sanitizeExport(entry, depth + 1)])
+    .filter(([, entry]) => entry !== undefined));
+}
+
+function exportFilename(prefix, generatedAt) {
+  return `${prefix}-${generatedAt.replace(/[:.]/g, "-")}.json`;
+}
+
+async function buildSiteExport(request, env) {
+  const generatedAt = new Date().toISOString();
+  const [activity, inquiries] = await Promise.all([listActivityRecords(env, 5000), listInquiryRecords(env)]);
+  const downloads = activity.filter((event) => String(event.event_type || "").startsWith("download."));
+  const errors = activity.filter((event) => /failed|error/.test(String(event.event_type || "")) || event.operation?.status === "failure");
+  const apiActivity = activity.filter((event) => /api|chat|admin\./.test(String(event.event_type || "")));
+  const sessions = [...new Set(activity.map((event) => String(event.session_id || "")).filter(Boolean))];
+  const pageViews = activity.filter((event) => String(event.event_type || "") === "website.page.view");
+  return sanitizeExport({
+    schemaVersion: "1.0.0", exportType: "aifred.site-data", generatedAt, timeZone: "UTC",
+    summary: {
+      activityEvents: activity.length, pageViews: pageViews.length,
+      downloads: new Set(downloads.filter((event) => event.event_type === "download.completed").map((event) => event.request_id || event.event_id)).size,
+      sessions: sessions.length, inquiries: inquiries.length, errors: errors.length
+    },
+    siteAnalytics: { pageViews, referrers: pageViews.map((event) => event.source?.referrer).filter(Boolean) },
+    downloads, sessions, inquiries, errors, apiActivity,
+    deployment: { ...repoConfig(env), target: "Cloudflare Pages project aifred-site", domains: ["north3rnlight3r.com", "www.north3rnlight3r.com", "aifred-site.pages.dev"] },
+    operations: { healthEndpoint: new URL("/health", request.url).toString(), modelsEndpoint: new URL("/v1/models", request.url).toString() }
+  });
+}
+
+async function buildTrackAnalysisExport(request, env) {
+  const generatedAt = new Date().toISOString();
+  const [tracks, references, activity] = await Promise.all([
+    loadCatalog(request), listReferenceRecords(env, 1000), listActivityRecords(env, 5000)
+  ]);
+  const analysis = activity.filter((event) => /analysis|analyzer|reference/.test(String(event.event_type || "")));
+  const errors = analysis.filter((event) => /failed|error|reject/.test(String(event.event_type || "")) || event.operation?.status === "failure");
+  return sanitizeExport({
+    schemaVersion: "1.0.0", exportType: "aifred.track-analysis", generatedAt, timeZone: "UTC",
+    summary: { catalogTracks: tracks.length, referenceRecords: references.length, analysisEvents: analysis.length, errors: errors.length },
+    tracks: withR2CatalogUrls(request, tracks), analysis: { references, events: analysis }, errors,
+    engine: { localFirst: true, localApiBase: "http://127.0.0.1:8787", ollamaBase: "http://127.0.0.1:11434", cloudApiContract: ["/health", "/v1/models", "/v1/chat/completions"] }
+  });
+}
+
+function exportResponse(payload, prefix) {
+  return json(payload, { headers: {
+    "cache-control": "no-store",
+    "content-disposition": `attachment; filename="${exportFilename(prefix, payload.generatedAt)}"`,
+    "x-content-type-options": "nosniff"
+  } });
 }
 
 function pluginReleaseConfig(env) {
@@ -1573,15 +1637,7 @@ async function handleCommand(request, env) {
   const body = await readJson(request);
   const command = String(body.command_line || body.command || "").trim();
   const normalized = command.startsWith("action:") ? command.slice(7).trim() : command;
-  const resolvedActions = {
-    health: { event_type: "admin.operation.completed", subject: "health" },
-    "catalog:list": { event_type: "admin.catalog.reviewed", subject: "catalog" },
-    "models:list": { event_type: "admin.models.reviewed", subject: "models" },
-    "reference:stats": { event_type: "admin.reference.reviewed", subject: "reference-pool" },
-    "deploy:status": { event_type: "admin.deploy.reviewed", subject: "cloudflare-pages" },
-    "sales:list": { event_type: "admin.sales.reviewed", subject: "historical-sales" },
-    "inquiries:list": { event_type: "admin.inquiry.reviewed", subject: "inquiries" }
-  };
+  const resolvedActions = Object.fromEntries(BackendAdminActions.map((action) => [action.command, { event_type: action.eventType, subject: action.subject }]));
   const resolved = resolvedActions[normalized];
   if (!resolved) {
     await recordActivity(env, {
@@ -1594,7 +1650,8 @@ async function handleCommand(request, env) {
     return json({ ok: false, exit_code: 2, stderr: "Unsupported command. Use /api/v1/registry/actions for the allowlist." }, { status: 400 });
   }
   let stdout = "";
-  if (normalized === "health") stdout = JSON.stringify({ ok: true, service: "AIFRED website backend" }, null, 2);
+  if (normalized === "help") stdout = JSON.stringify(commandCatalog(), null, 2);
+  else if (normalized === "health") stdout = JSON.stringify({ ok: true, service: "AIFRED website backend" }, null, 2);
   else if (normalized === "catalog:list") stdout = `tracks=${(await loadCatalog(request)).length}`;
   else if (normalized === "models:list") stdout = JSON.stringify({
     openai: Boolean(env.OPENAI_API_KEY),
@@ -1611,6 +1668,8 @@ async function handleCommand(request, env) {
   else if (normalized === "deploy:status") stdout = "Cloudflare Pages project: aifred-site. Production domains: north3rnlight3r.com and aifred-site.pages.dev.";
   else if (normalized === "sales:list") stdout = JSON.stringify(await listSaleRecords(env), null, 2);
   else if (normalized === "inquiries:list") stdout = JSON.stringify(await listInquiryRecords(env), null, 2);
+  else if (normalized === "export:site") stdout = JSON.stringify(await buildSiteExport(request, env), null, 2);
+  else if (normalized === "export:tracks") stdout = JSON.stringify(await buildTrackAnalysisExport(request, env), null, 2);
   await recordActivity(env, {
     event_type: resolved.event_type,
     actor: { type: "admin", id: adminActorId(request) },
@@ -1626,10 +1685,26 @@ async function handleAdminLogin(request, env) {
   const username = String(body.username || "").trim();
   const password = String(body.password || "");
   const expected = getExpectedAdmin(env);
+  if (!expected.username || !expected.passwordHash || !String(env.AIFRED_ADMIN_SESSION_SECRET || "").trim()) {
+    return json({ ok: false, error: "admin authentication is not configured" }, { status: 503 });
+  }
+  const clientAddress = String(request.headers.get("cf-connecting-ip") || "unknown").trim();
+  const throttleKey = `security:admin-login:${await sha256Hex(clientAddress)}`;
+  const throttleStore = env.AIFRED_SALES_LOG &&
+    typeof env.AIFRED_SALES_LOG.get === "function" &&
+    typeof env.AIFRED_SALES_LOG.put === "function"
+    ? env.AIFRED_SALES_LOG
+    : null;
+  const attempts = throttleStore ? Number(await throttleStore.get(throttleKey) || 0) : 0;
+  if (attempts >= 5) {
+    return json({ ok: false, error: "too many login attempts; try again later" }, { status: 429, headers: { "retry-after": "600" } });
+  }
   const passwordHash = await sha256Hex(password);
-  if (username !== expected.username || passwordHash !== expected.passwordHash) {
+  if (!constantTimeEqual(username, expected.username) || !constantTimeEqual(passwordHash, expected.passwordHash)) {
+    if (throttleStore) await throttleStore.put(throttleKey, String(attempts + 1), { expirationTtl: 600 });
     return json({ ok: false, error: "invalid admin credentials" }, { status: 401 });
   }
+  if (throttleStore && typeof throttleStore.delete === "function") await throttleStore.delete(throttleKey);
   await recordActivity(env, {
     event_type: "admin.login.succeeded",
     actor: { type: "admin", id: username },
@@ -1670,8 +1745,8 @@ export async function onRequest({ request, env, params }) {
   if (path === "registry/actions") return json({ ok: true, actions: commandCatalog() });
   if (path === "admin/dashboard/state") {
   const catalog = await loadCatalog(request);
-  const activity = allActivity.slice (0, 300);
-  const downloadCount = await getCompletedDownloadCount(env);
+  const allActivity = await listActivityRecords(env, 5000);
+  const activity = allActivity.slice(0, 300);
   const inquiries = await listInquiryRecords(env);
   const sales = await listSaleRecords(env);
 
@@ -1732,6 +1807,8 @@ export async function onRequest({ request, env, params }) {
     });
   }
   if (path === "admin/ops/status" && request.method === "GET") return handleOpsStatus(request, env);
+  if (path === "admin/export/site" && request.method === "GET") return exportResponse(await buildSiteExport(request, env), "aifred-site-data-export");
+  if (path === "admin/export/tracks" && request.method === "GET") return exportResponse(await buildTrackAnalysisExport(request, env), "aifred-track-analysis-export");
   if (path === "admin/catalog/list") return json({ ok: true, tracks: withR2CatalogUrls(request, await loadCatalog(request)) });
   if (path === "admin/files/read" && request.method === "POST") return handleAdminFileRead(request, env);
   if (path === "admin/files/write" && request.method === "POST") return handleAdminFileWrite(request, env);

@@ -1,12 +1,12 @@
-name = "aifred"
+name = "aifred-site"
 pages_build_output_dir = "."
 compatibility_date = "2026-08-25"
 compatibility_flags = ["nodejs_compat"]
 
 [observability]
-enabled = false
+enabled = true
 head_sampling_rate = 1
-redact_query_string = false
+redact_query_string = true
 
 [observability.logs]
 enabled = true
