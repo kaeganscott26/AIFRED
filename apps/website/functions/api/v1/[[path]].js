@@ -1669,28 +1669,50 @@ export async function onRequest({ request, env, params }) {
   if (path === "command/run" && request.method === "POST") return handleCommand(request, env);
   if (path === "registry/actions") return json({ ok: true, actions: commandCatalog() });
   if (path === "admin/dashboard/state") {
-    const catalog = await loadCatalog(request);
-    const activity = await listActivityRecords(env, 300);
-    const inquiries = await listInquiryRecords(env);
-    const sales = await listSaleRecords(env);
-    const eventRecords = activity.filter((entry) => !String(entry.event_type || "").startsWith("admin."));
-    const adminRecords = activity.filter((entry) => String(entry.event_type || "").startsWith("admin."));
-    const trafficEvents = eventRecords.filter((entry) => {
-      const type = String(entry.event_type || "");
-      return type.includes("page_view") || type.includes("buy") || type.includes("play") || type.includes("analysis") || type.includes("download");
-    });
-    return json({
-      ok: true,
-      snapshot_at: new Date().toISOString(),
-      traffic: {
-        status: "live",
-        source: env.AIFRED_SALES_LOG ? "Cloudflare KV activity log" : "read-only historical GitHub activity records",
-        page_views: eventRecords.filter((entry) => String(entry.event_type || "").includes("page_view")).length,
-        api_hits: activity.length,
-        media_streams: eventRecords.filter((entry) => String(entry.event_type || "").includes("play")).length,
-        downloads: eventRecords.filter((entry) => String(entry.event_type || "").includes("download")).length,
-        recent: trafficEvents.slice(0, 12)
-      },
+  const catalog = await loadCatalog(request);
+  const activity = allActivity.slice (0, 300);
+  const downloadCount = await getCompletedDownloadCount(env);
+  const inquiries = await listInquiryRecords(env);
+  const sales = await listSaleRecords(env);
+
+  const eventRecords = activity.filter((entry) =>
+    !String(entry.event_type || "").startsWith("admin.")
+  );
+
+  const adminRecords = activity.filter((entry) =>
+    String(entry.event_type || "").startsWith("admin.")
+  );
+
+  const trafficEvents = eventRecords.filter((entry) => {
+    const type = String(entry.event_type || "");
+    return (
+      type.includes("page_view") ||
+      type.includes("buy") ||
+      type.includes("play") ||
+      type.includes("analysis") ||
+      type.includes("download")
+    );
+  });
+
+  const completedDownloadIds = new Set(
+    allActivity
+      .filter((entry) => String(entry.event_type || "") === "download.completed")
+      .map((entry) => String(entry.request_id || activityEventId(entry) || ""))
+      .filter(Boolean)
+  );
+
+  return json({
+    ok: true,
+    snapshot_at: new Date().toISOString(),
+    traffic: {
+      status: "live",
+      source: env.AIFRED_SALES_LOG ? "Cloudflare KV activity log" : "read-only historical GitHub activity records",
+      page_views: eventRecords.filter((entry) => String(entry.event_type || "").includes("page_view")).length,
+      api_hits: activity.length,
+      media_streams: eventRecords.filter((entry) => String(entry.event_type || "").includes("play")).length,
+      downloads: completedDownloadIds.size,
+      recent: trafficEvents.slice(0, 12)
+    },
       catalog: { tracks: catalog.length, source: "apps/website/assets/data/beat_catalog.json" },
       inquiries: {
         count: inquiries.length,

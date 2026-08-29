@@ -1,7 +1,24 @@
-name = "aifred-site"
+name = "aifred"
 pages_build_output_dir = "."
 compatibility_date = "2026-08-25"
 compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = false
+head_sampling_rate = 1
+redact_query_string = false
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = false
+persist = true
+head_sampling_rate = 1
+
 
 [[kv_namespaces]]
 binding = "AIFRED_REFERENCE_POOL"
