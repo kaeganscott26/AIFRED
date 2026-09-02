@@ -1,1 +1,143 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><title>AIFRED Operations</title><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/ops.css"></head><body class="ops-body"><main class="ops-shell"><header class="ops-header"><div><p class="eyebrow">AIFRED CONTROL SURFACE</p><h1>Operations</h1><p>Live production state, UTC-backed and presented in your local time.</p></div><div class="ops-actions"><span id="connection" class="status-pill">Signed out</span><button id="refresh" hidden>Refresh</button><button id="logout" hidden>Sign out</button></div></header><section id="login" class="ops-card login-card"><h2>Operator sign in</h2><p>Authentication is verified by the AIFRED API. Credentials are not stored by this page.</p><form id="login-form"><label>Username<input id="username" autocomplete="username" required></label><label>Password<input id="password" type="password" autocomplete="current-password" required></label><button type="submit">Sign in</button></form><p id="login-error" class="error" role="alert"></p></section><section id="console" hidden><nav id="tabs" class="ops-tabs" aria-label="Administration sections"></nav><div id="notice" class="notice" hidden></div><section id="overview" class="tab-panel"></section><section id="analytics" class="tab-panel" hidden></section><section id="downloads" class="tab-panel" hidden></section><section id="track-analysis" class="tab-panel" hidden></section><section id="api" class="tab-panel" hidden></section><section id="logs" class="tab-panel" hidden></section><section id="inquiries" class="tab-panel" hidden></section><section id="exports" class="tab-panel" hidden></section><section id="forge" class="tab-panel" hidden></section><section id="archive" class="tab-panel" hidden></section></section></main><script src="/ops.js" defer></script></body></html>
+```html
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+
+    <title>AIFRED Operations</title>
+
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/ops.css">
+  </head>
+
+  <body class="ops-body">
+    <main class="ops-shell">
+      <header class="ops-header">
+        <div>
+          <p class="eyebrow">AIFRED CONTROL SURFACE</p>
+          <h1>Operations</h1>
+          <p>Live production state, UTC-backed and presented in your local time.</p>
+        </div>
+
+        <div class="ops-actions">
+          <span id="connection" class="status-pill">Signed out</span>
+          <button id="refresh" hidden>Refresh</button>
+          <button id="logout" hidden>Sign out</button>
+        </div>
+      </header>
+
+      <section id="login" class="ops-card login-card">
+        <h2>Operator sign in</h2>
+
+        <p>
+          Authentication is verified by the AIFRED API.
+          Credentials are not stored by this page.
+        </p>
+
+        <form id="login-form">
+          <label>
+            Username
+            <input
+              id="username"
+              autocomplete="username"
+              required
+            >
+          </label>
+
+          <label>
+            Password
+            <input
+              id="password"
+              type="password"
+              autocomplete="current-password"
+              required
+            >
+          </label>
+
+          <button type="submit">Sign in</button>
+        </form>
+
+        <p
+          id="login-error"
+          class="error"
+          role="alert"
+        ></p>
+      </section>
+
+      <section id="console" hidden>
+        <nav
+          id="tabs"
+          class="ops-tabs"
+          aria-label="Administration sections"
+        ></nav>
+
+        <div
+          id="notice"
+          class="notice"
+          hidden
+        ></div>
+
+        <section id="overview" class="tab-panel"></section>
+
+        <section
+          id="analytics"
+          class="tab-panel"
+          hidden
+        ></section>
+
+        <section
+          id="downloads"
+          class="tab-panel"
+          hidden
+        ></section>
+
+        <section
+          id="track-analysis"
+          class="tab-panel"
+          hidden
+        ></section>
+
+        <section
+          id="api"
+          class="tab-panel"
+          hidden
+        ></section>
+
+        <section
+          id="logs"
+          class="tab-panel"
+          hidden
+        ></section>
+
+        <section
+          id="inquiries"
+          class="tab-panel"
+          hidden
+        ></section>
+
+        <section
+          id="exports"
+          class="tab-panel"
+          hidden
+        ></section>
+
+        <section
+          id="forge"
+          class="tab-panel"
+          hidden
+        ></section>
+
+        <section
+          id="archive"
+          class="tab-panel"
+          hidden
+        ></section>
+      </section>
+    </main>
+
+    <script src="/ops.js" defer></script>
+  </body>
+</html>
+```
