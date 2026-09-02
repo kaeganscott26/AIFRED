@@ -1163,6 +1163,7 @@ async function canonicalDownloadState(env) {
     configured: true,
     available: true,
     source: "deterministic Cloudflare KV event-key set",
+    consistency: "Concurrency-safe idempotent keys avoid lost increments; global list visibility follows Cloudflare KV eventual-consistency timing.",
     key_list_pages: pages,
     ...(earliestUtc ? { earliest_utc: earliestUtc } : {}),
     ...(latestUtc ? { latest_utc: latestUtc } : {})
@@ -1491,6 +1492,8 @@ function canonicalDownloadEligibility(request, response, correlation) {
 async function recordCanonicalDownload(env, request, baseEvent, correlation, metadata) {
   const transactionHash = await sha256Hex(correlation.request_id);
   const eventId = `download-counted-${transactionHash}`;
+  // The transaction hash is the counter: concurrent retries overwrite one key
+  // instead of racing a read-modify-write numeric total.
   const stored = await recordActivity(env, {
     ...baseEvent,
     event_id: eventId,
