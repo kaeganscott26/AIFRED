@@ -194,6 +194,34 @@ test("ops dashboard uses bounded bulk activity reads and logs reuse the snapshot
   assert.equal(calls.bulkGet - beforeLogs.bulkGet, 0);
 });
 
+test("ops dashboard reports unavailable totals instead of failing or inventing zero when KV reads are quota-limited", async () => {
+  const password = "test-password";
+  const configured = {
+    AIFRED_ADMIN_USERNAME: "operator",
+    AIFRED_ADMIN_PASSWORD_SHA256: createHash("sha256").update(password).digest("hex"),
+    AIFRED_ADMIN_SESSION_SECRET: "test-secret"
+  };
+  const login = await onRequest({ request: request("/api/v1/admin/login", { method: "POST", body: JSON.stringify({ username: "operator", password }) }), env: configured, params: { path: ["admin", "login"] } });
+  const session = (await login.json()).session_token;
+  const quotaError = () => { throw new Error("KV get() limit exceeded for the day."); };
+  const response = await onRequest({
+    request: request("/api/v1/admin/dashboard/state", { headers: { authorization: `Bearer ${session}` } }),
+    env: {
+      ...configured,
+      AIFRED_SALES_LOG: { get: quotaError, list: quotaError, put: quotaError },
+      AIFRED_REFERENCE_POOL: { list: quotaError, get: quotaError },
+      ASSETS: { async fetch() { return new Response("[]", { headers: { "content-type": "application/json" } }); } }
+    },
+    params: { path: ["admin", "dashboard", "state"] }
+  });
+  const payload = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(payload.traffic.downloads, null);
+  assert.equal(payload.traffic.canonical.available, false);
+  assert.equal(payload.activity_snapshot.source_available, false);
+  assert.match(payload.traffic.canonical.message, /not replaced with zero/);
+});
+
 test("admin login remains available when optional KV throttling is quota-limited", async () => {
   const password = "test-password";
   const quotaEnv = {

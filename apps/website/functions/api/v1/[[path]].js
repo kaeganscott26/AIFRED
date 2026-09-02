@@ -368,7 +368,8 @@ async function persistReferenceRecord(env, metadata) {
 
 async function listReferenceRecords(env, limit = 100) {
   if (!env.AIFRED_REFERENCE_POOL || typeof env.AIFRED_REFERENCE_POOL.list !== "function") return [];
-  const listed = await env.AIFRED_REFERENCE_POOL.list({ prefix: "reference:", limit });
+  let listed;
+  try { listed = await env.AIFRED_REFERENCE_POOL.list({ prefix: "reference:", limit }); } catch (_) { return []; }
   const records = await bulkReadKvJson(env.AIFRED_REFERENCE_POOL, (listed.keys || []).map((key) => key.name));
   return records.sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
 }
@@ -982,15 +983,19 @@ async function bulkReadKvJson(binding, keys) {
 }
 
 async function listActivityKeys(env) {
-  if (!env.AIFRED_SALES_LOG || typeof env.AIFRED_SALES_LOG.list !== "function") return [];
+  if (!env.AIFRED_SALES_LOG || typeof env.AIFRED_SALES_LOG.list !== "function") return { keys: [], available: false };
   const keys = [];
   let cursor;
-  do {
-    const listed = await env.AIFRED_SALES_LOG.list({ prefix: "activity:", limit: 1000, ...(cursor ? { cursor } : {}) });
-    keys.push(...(listed.keys || []));
-    cursor = listed.list_complete === false ? listed.cursor : undefined;
-  } while (cursor && keys.length < 10000);
-  return keys;
+  try {
+    do {
+      const listed = await env.AIFRED_SALES_LOG.list({ prefix: "activity:", limit: 1000, ...(cursor ? { cursor } : {}) });
+      keys.push(...(listed.keys || []));
+      cursor = listed.list_complete === false ? listed.cursor : undefined;
+    } while (cursor && keys.length < 10000);
+    return { keys, available: true };
+  } catch (_) {
+    return { keys, available: false };
+  }
 }
 
 function metadataActivityRecord(key) {
@@ -1032,14 +1037,16 @@ function summarizeActivity(records) {
 
 async function readCachedActivitySnapshot(env) {
   if (!env.AIFRED_SALES_LOG || typeof env.AIFRED_SALES_LOG.get !== "function") return null;
-  const parsed = parseStoredJson(await env.AIFRED_SALES_LOG.get(ACTIVITY_SNAPSHOT_KEY));
+  let parsed;
+  try { parsed = parseStoredJson(await env.AIFRED_SALES_LOG.get(ACTIVITY_SNAPSHOT_KEY)); } catch (_) { return null; }
   if (!parsed || parsed.schema_version !== 1 || !Array.isArray(parsed.recent) || !parsed.summary) return null;
   const generatedAt = Date.parse(parsed.generated_at || "");
   return Number.isFinite(generatedAt) && Date.now() - generatedAt <= ACTIVITY_SNAPSHOT_MAX_AGE_MS ? parsed : null;
 }
 
 async function buildActivitySnapshot(env) {
-  const keys = await listActivityKeys(env);
+  const listedActivity = await listActivityKeys(env);
+  const keys = listedActivity.keys;
   const indexed = keys.map(metadataActivityRecord).filter(Boolean);
   const legacyKeys = keys.filter((key) => !metadataActivityRecord(key)).map((key) => key.name);
   const recentKeys = indexed
@@ -1075,6 +1082,7 @@ async function buildActivitySnapshot(env) {
   const snapshot = {
     schema_version: 1,
     generated_at: new Date().toISOString(),
+    source_available: listedActivity.available,
     key_count: keys.length,
     summary: summarizeActivity(aggregateRecords),
     recent,
@@ -1115,33 +1123,45 @@ async function activitySnapshot(env) {
 
 async function canonicalDownloadState(env) {
   if (!env.AIFRED_SALES_LOG || typeof env.AIFRED_SALES_LOG.list !== "function") {
-    return { count: 0, configured: false, source: "unavailable", key_list_pages: 0 };
+    return { count: null, configured: false, available: false, source: "unavailable", key_list_pages: 0 };
   }
   let count = 0;
   let cursor;
   let pages = 0;
   let earliestUtc = "";
   let latestUtc = "";
-  do {
-    const listed = await env.AIFRED_SALES_LOG.list({
-      prefix: COUNTED_DOWNLOAD_PREFIX,
-      limit: 1000,
-      ...(cursor ? { cursor } : {})
-    });
-    pages += 1;
-    const keys = listed.keys || [];
-    count += keys.length;
-    for (const key of keys) {
-      const timestamp = String(key.metadata?.ts || "").trim();
-      if (!timestamp) continue;
-      if (!earliestUtc || timestamp < earliestUtc) earliestUtc = timestamp;
-      if (!latestUtc || timestamp > latestUtc) latestUtc = timestamp;
-    }
-    cursor = listed.list_complete === false ? listed.cursor : undefined;
-  } while (cursor);
+  try {
+    do {
+      const listed = await env.AIFRED_SALES_LOG.list({
+        prefix: COUNTED_DOWNLOAD_PREFIX,
+        limit: 1000,
+        ...(cursor ? { cursor } : {})
+      });
+      pages += 1;
+      const keys = listed.keys || [];
+      count += keys.length;
+      for (const key of keys) {
+        const timestamp = String(key.metadata?.ts || "").trim();
+        if (!timestamp) continue;
+        if (!earliestUtc || timestamp < earliestUtc) earliestUtc = timestamp;
+        if (!latestUtc || timestamp > latestUtc) latestUtc = timestamp;
+      }
+      cursor = listed.list_complete === false ? listed.cursor : undefined;
+    } while (cursor);
+  } catch (_) {
+    return {
+      count: null,
+      configured: true,
+      available: false,
+      source: "deterministic Cloudflare KV event-key set temporarily unavailable",
+      key_list_pages: pages,
+      message: "KV read quota is temporarily unavailable; the canonical total is intentionally not replaced with zero."
+    };
+  }
   return {
     count,
     configured: true,
+    available: true,
     source: "deterministic Cloudflare KV event-key set",
     key_list_pages: pages,
     ...(earliestUtc ? { earliest_utc: earliestUtc } : {}),
@@ -1172,8 +1192,8 @@ function adminActorId(request) {
 async function listActivityRecords(env, limit = 300) {
   const records = [];
   if (env.AIFRED_SALES_LOG && typeof env.AIFRED_SALES_LOG.list === "function") {
-    const keys = await listActivityKeys(env);
-    records.push(...await bulkReadKvJson(env.AIFRED_SALES_LOG, keys.map((key) => key.name)));
+    const listed = await listActivityKeys(env);
+    records.push(...await bulkReadKvJson(env.AIFRED_SALES_LOG, listed.keys.map((key) => key.name)));
   }
   records.push(...await readRepoJsonArray(env, activityRepoPath()));
   const seen = new Set();
@@ -1191,7 +1211,8 @@ async function listActivityRecords(env, limit = 300) {
 async function listSaleRecords(env) {
   const repoSales = await readRepoJsonArray(env, salesRepoPath());
   if (!env.AIFRED_SALES_LOG || typeof env.AIFRED_SALES_LOG.list !== "function") return repoSales;
-  const listed = await env.AIFRED_SALES_LOG.list({ prefix: "sale:", limit: 200 });
+  let listed;
+  try { listed = await env.AIFRED_SALES_LOG.list({ prefix: "sale:", limit: 200 }); } catch (_) { return repoSales; }
   const kvSales = await bulkReadKvJson(env.AIFRED_SALES_LOG, (listed.keys || []).map((key) => key.name));
   const byTxn = new Map();
   [...kvSales, ...repoSales].forEach((sale) => {
@@ -1212,8 +1233,10 @@ async function persistInquiryRecord(env, inquiry) {
 async function listInquiryRecords(env, limit = 200) {
   const records = [];
   if (env.AIFRED_SALES_LOG && typeof env.AIFRED_SALES_LOG.list === "function") {
-    const listed = await env.AIFRED_SALES_LOG.list({ prefix: "inquiry:", limit });
-    records.push(...await bulkReadKvJson(env.AIFRED_SALES_LOG, (listed.keys || []).map((key) => key.name)));
+    try {
+      const listed = await env.AIFRED_SALES_LOG.list({ prefix: "inquiry:", limit });
+      records.push(...await bulkReadKvJson(env.AIFRED_SALES_LOG, (listed.keys || []).map((key) => key.name)));
+    } catch (_) {}
   }
   records.push(...await readRepoJsonArray(env, inquiriesRepoPath()));
   const byId = new Map();
@@ -2085,6 +2108,7 @@ export async function onRequest({ request, env, params }) {
       activity_snapshot: {
         generated_at: activity.generated_at,
         key_count: activity.key_count,
+        source_available: activity.source_available,
         cache: activity.request_diagnostics,
         build: activity.build_diagnostics
       },
