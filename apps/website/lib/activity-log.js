@@ -78,10 +78,35 @@ export function activityTimestamp(record) {
   return cleanText(record?.timestamp || record?.created_at, 40);
 }
 
+function canonicalUtcTimestamp(value, fallback = new Date()) {
+  const fallbackDate = fallback instanceof Date ? fallback : new Date(fallback);
+  const fallbackTimestamp = Number.isFinite(fallbackDate.valueOf()) ? fallbackDate.toISOString() : new Date().toISOString();
+  if (value === undefined || value === null || value === "") return fallbackTimestamp;
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const numericDate = new Date(Math.abs(value) < 1e12 ? value * 1000 : value);
+    return Number.isFinite(numericDate.valueOf()) ? numericDate.toISOString() : fallbackTimestamp;
+  }
+
+  const text = String(value).trim();
+  if (!text) return fallbackTimestamp;
+  if (/^\d+(?:\.\d+)?$/.test(text)) {
+    const numeric = Number(text);
+    const numericDate = new Date(Math.abs(numeric) < 1e12 ? numeric * 1000 : numeric);
+    return Number.isFinite(numericDate.valueOf()) ? numericDate.toISOString() : fallbackTimestamp;
+  }
+
+  // A persisted instant must name its timezone. Do not reinterpret a browser-local
+  // timestamp as UTC merely because the Worker runtime itself runs in UTC.
+  if (!/(?:Z|[+-]\d{2}:?\d{2})$/i.test(text)) return fallbackTimestamp;
+  const parsed = new Date(text);
+  return Number.isFinite(parsed.valueOf()) ? parsed.toISOString() : fallbackTimestamp;
+}
+
 export function normalizeActivityEvent(record = {}, { request, now, randomUUID } = {}) {
   const createId = () => typeof randomUUID === "function" ? randomUUID() : crypto.randomUUID();
   const eventType = normalizeActivityType(record.event_type || record.type || record.kind);
-  const timestamp = cleanText(record.timestamp || record.created_at || (now || new Date()).toISOString(), 40);
+  const timestamp = canonicalUtcTimestamp(record.timestamp ?? record.created_at, now || new Date());
   const eventId = cleanId(record.event_id || record.id || createId(), 160);
   const suppliedSource = record.source && typeof record.source === "object" ? record.source : {};
   const surface = cleanText(suppliedSource.surface || (typeof record.source === "string" ? record.source : "") || "worker", 40).toLowerCase();
@@ -127,6 +152,7 @@ export function normalizeActivityEvent(record = {}, { request, now, randomUUID }
     event_id: eventId,
     event_type: eventType,
     timestamp,
+    epoch_ms: Date.parse(timestamp),
     session_id: sessionId,
     request_id: requestId,
     actor,
@@ -146,15 +172,17 @@ export function activityKey(event) {
 
 export async function recordActivity(env, record, options = {}) {
   const event = normalizeActivityEvent(record, options);
-  const key = activityKey(event);
+  const requestedKey = cleanText(options.key, 512);
+  const key = requestedKey.startsWith("activity:") ? requestedKey : activityKey(event);
   const binding = env?.AIFRED_SALES_LOG;
   if (!binding || typeof binding.put !== "function") return { event, key, storage: "unconfigured", stored: false };
 
   try {
-    await binding.put(key, JSON.stringify(event), {
-      expirationTtl: ACTIVITY_RETENTION_SECONDS,
+    const putOptions = {
       metadata: compactObject({ schema: 1, type: event.event_type, ts: event.timestamp, request_id: event.request_id })
-    });
+    };
+    if (options.expirationTtl !== null) putOptions.expirationTtl = options.expirationTtl || ACTIVITY_RETENTION_SECONDS;
+    await binding.put(key, JSON.stringify(event), putOptions);
     return { event, key, storage: "kv", stored: true };
   } catch (_) {
     return { event, key, storage: "error", stored: false, error: "activity_log_write_failed" };

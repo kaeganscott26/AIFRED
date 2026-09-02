@@ -32,6 +32,16 @@ test("activity events use the compact v1 envelope and strip secret fields", () =
   assert.equal(activityKey(event), "activity:v1:2026-08-27T12:00:00.000Z:download.completed:event-123");
 });
 
+test("activity timestamps are stored as canonical UTC instants", () => {
+  const offset = normalizeActivityEvent({ event_type: "site.event", timestamp: "2026-09-01T23:00:00-05:00" }, { randomUUID: () => "offset" });
+  const seconds = normalizeActivityEvent({ event_type: "site.event", timestamp: 1788321600 }, { randomUUID: () => "seconds" });
+  const naive = normalizeActivityEvent({ event_type: "site.event", timestamp: "2026-09-01 23:00:00" }, { now: new Date("2026-09-02T05:00:00.000Z"), randomUUID: () => "naive" });
+  assert.equal(offset.timestamp, "2026-09-02T04:00:00.000Z");
+  assert.equal(seconds.timestamp, new Date(1788321600 * 1000).toISOString());
+  assert.equal(naive.timestamp, "2026-09-02T05:00:00.000Z");
+  assert.equal(offset.epoch_ms, Date.parse(offset.timestamp));
+});
+
 test("health is outside the v1 contract", async () => {
   const response = await onRequest({ request: request("/health"), env, params: { path: ["health"] } });
   assert.equal(response.status, 200);
@@ -108,6 +118,80 @@ test("authorized admin can read operations status", async () => {
   const response = await onRequest({ request: request("/api/v1/admin/ops/status", { headers: { authorization: `Bearer ${session}` } }), env: configuredEnv, params: { path: ["admin", "ops", "status"] } });
   assert.equal(response.status, 200);
   assert.equal((await response.json()).service, "AIFRED operations");
+});
+
+test("ops dashboard uses bounded bulk activity reads and logs reuse the snapshot", async () => {
+  const password = "test-password";
+  const configured = {
+    AIFRED_ADMIN_USERNAME: "operator",
+    AIFRED_ADMIN_PASSWORD_SHA256: createHash("sha256").update(password).digest("hex"),
+    AIFRED_ADMIN_SESSION_SECRET: "test-secret"
+  };
+  const login = await onRequest({ request: request("/api/v1/admin/login", { method: "POST", body: JSON.stringify({ username: "operator", password }) }), env: configured, params: { path: ["admin", "login"] } });
+  const session = (await login.json()).session_token;
+  const auth = { authorization: `Bearer ${session}` };
+  const activityKeys = Array.from({ length: 1244 }, (_, index) => {
+    const timestamp = new Date(Date.UTC(2026, 7, 27, 12, 0, 0) - index * 1000).toISOString();
+    return { name: `activity:v1:${timestamp}:website.page.view:event-${index}`, metadata: { schema: 1, type: "website.page.view", ts: timestamp, request_id: `request-${index}` } };
+  });
+  const calls = { list: 0, scalarGet: 0, bulkGet: 0, put: 0, assets: 0 };
+  let snapshot = "";
+  const salesLog = {
+    async list(options) {
+      calls.list += 1;
+      if (options.prefix === "activity:download:counted:v1:") return { keys: [], list_complete: true };
+      if (options.prefix === "activity:") {
+        if (options.cursor === "activity-next") return { keys: activityKeys.slice(1000), list_complete: true };
+        return { keys: activityKeys.slice(0, 1000), list_complete: false, cursor: "activity-next" };
+      }
+      return { keys: [], list_complete: true };
+    },
+    async get(key) {
+      if (Array.isArray(key)) {
+        calls.bulkGet += 1;
+        return new Map(key.map((name) => {
+          const metadata = activityKeys.find((entry) => entry.name === name)?.metadata || {};
+          return [name, { event_id: name, event_type: metadata.type, timestamp: metadata.ts, request_id: metadata.request_id }];
+        }));
+      }
+      calls.scalarGet += 1;
+      if (key === "ops:snapshot:activity:v1") return snapshot || null;
+      if (key === "admin:config:api-runtime") return null;
+      throw new Error(`unexpected per-event scalar KV read: ${key}`);
+    },
+    async put(key, value) {
+      calls.put += 1;
+      if (key === "ops:snapshot:activity:v1") snapshot = value;
+    }
+  };
+  const dashboardEnv = {
+    ...configured,
+    AIFRED_SALES_LOG: salesLog,
+    ASSETS: {
+      async fetch() {
+        calls.assets += 1;
+        return new Response(JSON.stringify([{ id: "track-1", title: "Track" }]), { headers: { "content-type": "application/json" } });
+      }
+    }
+  };
+  const dashboardResponse = await onRequest({ request: request("/api/v1/admin/dashboard/state", { headers: auth }), env: dashboardEnv, params: { path: ["admin", "dashboard", "state"] } });
+  const dashboard = await dashboardResponse.json();
+  assert.equal(dashboardResponse.status, 200);
+  assert.equal(dashboard.traffic.downloads, 0);
+  assert.equal(dashboard.traffic.canonical_event, "download.counted");
+  assert.equal(dashboard.activity_snapshot.cache.cache_hit, false);
+  assert.equal(dashboard.activity_snapshot.cache.activity_key_list_pages, 2);
+  assert.equal(dashboard.activity_snapshot.cache.bulk_read_batches, 3);
+  assert.deepEqual(calls, { list: 5, scalarGet: 2, bulkGet: 3, put: 1, assets: 1 });
+
+  const beforeLogs = { ...calls };
+  const logsResponse = await onRequest({ request: request("/api/v1/admin/logs/list", { headers: auth }), env: dashboardEnv, params: { path: ["admin", "logs", "list"] } });
+  const logs = await logsResponse.json();
+  assert.equal(logsResponse.status, 200);
+  assert.equal(logs.activity_snapshot.cache.cache_hit, true);
+  assert.equal(calls.scalarGet - beforeLogs.scalarGet, 1);
+  assert.equal(calls.list - beforeLogs.list, 0);
+  assert.equal(calls.bulkGet - beforeLogs.bulkGet, 0);
 });
 
 test("admin login remains available when optional KV throttling is quota-limited", async () => {
@@ -239,14 +323,66 @@ test("plugin downloads are public and served from the downloads bucket", async (
   assert.equal(response.headers.get("content-disposition"), 'attachment; filename="AIFRED-VST3-windows.zip"');
   assert.equal(await response.text(), "plugin-zip");
   assert.equal(response.headers.get("x-aifred-request-id"), "request-123");
-  assert.equal(stored.length, 2);
+  assert.equal(stored.length, 3);
   assert.match(stored[0][0], /^activity:v1:/);
+  assert.match(stored[2][0], /^activity:download:counted:v1:[a-f0-9]{64}$/);
   const events = stored.map(([, value]) => JSON.parse(value));
-  assert.deepEqual(events.map((event) => event.event_type), ["download.requested", "download.completed"]);
-  assert.deepEqual(events.map((event) => event.request_id), ["request-123", "request-123"]);
-  assert.deepEqual(events.map((event) => event.session_id), ["session-123", "session-123"]);
-  assert.equal(events[1].operation.result, "response_resolved");
+  assert.deepEqual(events.map((event) => event.event_type), ["download.requested", "download.completed", "download.counted"]);
+  assert.deepEqual(events.map((event) => event.request_id), ["request-123", "request-123", "request-123"]);
+  assert.deepEqual(events.map((event) => event.session_id), ["session-123", "session-123", "session-123"]);
+  assert.equal(events[1].operation.result, "response_body_delivered");
+  assert.equal(events[2].operation.result, "canonical_delivery_counted");
   assert.equal(events[1].metadata.object_key, "releases/v0.3.6-installer-ai-alias/AIFRED-VST3-windows.zip");
+});
+
+test("canonical download counting is idempotent and excludes range retries", async () => {
+  const records = new Map();
+  const salesLog = {
+    async put(key, value) { records.set(key, JSON.parse(value)); },
+    async delete() {}
+  };
+  const bucket = {
+    async head() { return { size: 10, httpMetadata: { contentType: "application/zip" } }; },
+    async get(_key, options) {
+      return {
+        body: new TextEncoder().encode(options?.range ? "plug" : "plugin-zip"),
+        size: options?.range ? 4 : 10,
+        httpMetadata: { contentType: "application/zip" }
+      };
+    }
+  };
+  const url = "/api/v1/downloads/plugin?asset=zip&sid=stable-session&rid=stable-transaction&surface=website.downloads";
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const response = await onRequest({ request: request(url), env: { ...env, AIFRED_SALES_LOG: salesLog, AIFRED_DOWNLOADS: bucket }, params: { path: ["downloads", "plugin"] } });
+    assert.equal(await response.text(), "plugin-zip");
+  }
+  const range = await onRequest({ request: request(url, { headers: { range: "bytes=0-3" } }), env: { ...env, AIFRED_SALES_LOG: salesLog, AIFRED_DOWNLOADS: bucket }, params: { path: ["downloads", "plugin"] } });
+  assert.equal(range.status, 206);
+  assert.equal(await range.text(), "plug");
+  const counted = [...records.entries()].filter(([key]) => key.startsWith("activity:download:counted:v1:"));
+  assert.equal(counted.length, 1);
+  assert.equal(counted[0][1].event_type, "download.counted");
+  assert.equal(counted[0][1].request_id, "stable-transaction");
+  assert.equal(counted[0][1].metadata.transaction_id, "stable-transaction");
+  assert.equal([...records.values()].filter((event) => event.event_type === "download.counted").length, 1);
+});
+
+test("Cloudflare verified-bot evidence excludes canonical counting", async () => {
+  const stored = [];
+  const botRequest = request("/api/v1/downloads/plugin?asset=zip&sid=bot-session&rid=bot-transaction&surface=website.downloads");
+  Object.defineProperty(botRequest, "cf", { value: { botManagement: { verifiedBot: true, score: 99 } } });
+  const response = await onRequest({
+    request: botRequest,
+    env: {
+      ...env,
+      AIFRED_SALES_LOG: { async put(_key, value) { stored.push(JSON.parse(value)); } },
+      AIFRED_DOWNLOADS: { async get() { return { body: new TextEncoder().encode("plugin-zip"), size: 10, httpMetadata: { contentType: "application/zip" } }; } }
+    },
+    params: { path: ["downloads", "plugin"] }
+  });
+  await response.text();
+  assert.deepEqual(stored.map((event) => event.event_type), ["download.requested", "download.completed"]);
+  assert.equal(response.headers.get("x-aifred-canonical-count"), "ineligible");
 });
 
 test("activity logging failure never breaks a successful plugin download", async () => {
@@ -384,7 +520,8 @@ test("beat download requests use attachment headers", async () => {
   assert.equal(response.headers.get("content-disposition"), 'attachment; filename="Test Beat.mp3"');
   assert.equal(response.headers.get("content-type"), "audio/mpeg");
   assert.equal(response.headers.get("x-aifred-request-id"), "catalog-request");
-  assert.deepEqual(activity.map(([, event]) => event.event_type), ["download.requested", "download.completed"]);
+  assert.equal(await response.text(), "beat");
+  assert.deepEqual(activity.map(([, event]) => event.event_type), ["download.requested", "download.completed", "download.counted"]);
   assert.equal(activity[1][1].subject.type, "track");
   assert.equal(activity[1][1].metadata.response_source, "r2");
 });

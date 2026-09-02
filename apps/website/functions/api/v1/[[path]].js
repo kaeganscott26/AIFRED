@@ -84,8 +84,11 @@ async function verifyAdmin(request, env) {
   }
 }
 
-async function loadCatalog(request) {
-  const response = await fetch(new URL("/assets/data/beat_catalog.json", request.url), { cache: "no-store" });
+async function loadCatalog(request, env) {
+  const assetRequest = new Request(new URL("/assets/data/beat_catalog.json", request.url), { cache: "no-store" });
+  const response = env?.ASSETS && typeof env.ASSETS.fetch === "function"
+    ? await env.ASSETS.fetch(assetRequest)
+    : await fetch(assetRequest);
   const tracks = await response.json();
   return Array.isArray(tracks) ? tracks : [];
 }
@@ -366,14 +369,7 @@ async function persistReferenceRecord(env, metadata) {
 async function listReferenceRecords(env, limit = 100) {
   if (!env.AIFRED_REFERENCE_POOL || typeof env.AIFRED_REFERENCE_POOL.list !== "function") return [];
   const listed = await env.AIFRED_REFERENCE_POOL.list({ prefix: "reference:", limit });
-  const records = [];
-  for (const key of listed.keys || []) {
-    const raw = await env.AIFRED_REFERENCE_POOL.get(key.name);
-    if (!raw) continue;
-    try {
-      records.push(JSON.parse(raw));
-    } catch (_) {}
-  }
+  const records = await bulkReadKvJson(env.AIFRED_REFERENCE_POOL, (listed.keys || []).map((key) => key.name));
   return records.sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
 }
 
@@ -801,7 +797,8 @@ async function buildSiteExport(request, env) {
     schemaVersion: "1.0.0", exportType: "aifred.site-data", generatedAt, timeZone: "UTC",
     summary: {
       activityEvents: activity.length, pageViews: pageViews.length,
-      downloads: new Set(downloads.filter((event) => event.event_type === "download.completed").map((event) => event.request_id || event.event_id)).size,
+      downloads: new Set(downloads.filter((event) => event.event_type === "download.counted").map((event) => event.request_id || event.event_id)).size,
+      historicalDownloadLifecycleEventsExcluded: downloads.filter((event) => event.event_type !== "download.counted").length,
       sessions: sessions.length, inquiries: inquiries.length, errors: errors.length
     },
     siteAnalytics: { pageViews, referrers: pageViews.map((event) => event.source?.referrer).filter(Boolean) },
@@ -814,7 +811,7 @@ async function buildSiteExport(request, env) {
 async function buildTrackAnalysisExport(request, env) {
   const generatedAt = new Date().toISOString();
   const [tracks, references, activity] = await Promise.all([
-    loadCatalog(request), listReferenceRecords(env, 1000), listActivityRecords(env, 5000)
+    loadCatalog(request, env), listReferenceRecords(env, 1000), listActivityRecords(env, 5000)
   ]);
   const analysis = activity.filter((event) => /analysis|analyzer|reference/.test(String(event.event_type || "")));
   const errors = analysis.filter((event) => /failed|error|reject/.test(String(event.event_type || "")) || event.operation?.status === "failure");
@@ -948,6 +945,210 @@ function activityRepoPath() {
   return "ops/activity/site-activity.json";
 }
 
+const ACTIVITY_SNAPSHOT_KEY = "ops:snapshot:activity:v1";
+const ACTIVITY_SNAPSHOT_MAX_AGE_MS = 60 * 1000;
+const ACTIVITY_RECENT_LIMIT = 300;
+const COUNTED_DOWNLOAD_PREFIX = "activity:download:counted:v1:";
+
+function activityType(record) {
+  return String(record?.event_type || record?.type || record?.kind || "").trim().toLowerCase();
+}
+
+function parseStoredJson(value) {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "object") return value;
+  try { return JSON.parse(value); } catch (_) { return null; }
+}
+
+function chunks(values, size = 100) {
+  const result = [];
+  for (let index = 0; index < values.length; index += size) result.push(values.slice(index, index + size));
+  return result;
+}
+
+async function bulkReadKvJson(binding, keys) {
+  const records = [];
+  for (const batch of chunks([...new Set(keys)].filter(Boolean), 100)) {
+    let values = null;
+    try { values = await binding.get(batch, "json"); } catch (_) {}
+    if (values instanceof Map) {
+      for (const key of batch) {
+        const parsed = parseStoredJson(values.get(key));
+        if (parsed) records.push(parsed);
+      }
+    }
+  }
+  return records;
+}
+
+async function listActivityKeys(env) {
+  if (!env.AIFRED_SALES_LOG || typeof env.AIFRED_SALES_LOG.list !== "function") return [];
+  const keys = [];
+  let cursor;
+  do {
+    const listed = await env.AIFRED_SALES_LOG.list({ prefix: "activity:", limit: 1000, ...(cursor ? { cursor } : {}) });
+    keys.push(...(listed.keys || []));
+    cursor = listed.list_complete === false ? listed.cursor : undefined;
+  } while (cursor && keys.length < 10000);
+  return keys;
+}
+
+function metadataActivityRecord(key) {
+  const metadata = key?.metadata && typeof key.metadata === "object" ? key.metadata : {};
+  const eventType = String(metadata.type || "").trim().toLowerCase();
+  const timestamp = String(metadata.ts || "").trim();
+  if (!eventType || !timestamp) return null;
+  const epochMs = Date.parse(timestamp);
+  return {
+    event_id: String(key.name || ""),
+    event_type: eventType,
+    timestamp,
+    ...(Number.isFinite(epochMs) ? { epoch_ms: epochMs } : {}),
+    request_id: String(metadata.request_id || "").trim()
+  };
+}
+
+function summarizeActivity(records) {
+  const byType = {};
+  const countedDownloadIds = new Set();
+  for (const record of records) {
+    const type = activityType(record);
+    if (!type) continue;
+    byType[type] = (byType[type] || 0) + 1;
+    if (type === "download.counted") {
+      const id = String(record.request_id || activityEventId(record) || "").trim();
+      if (id) countedDownloadIds.add(id);
+    }
+  }
+  const countMatching = (pattern) => Object.entries(byType).reduce((total, [type, count]) => total + (pattern.test(type) ? count : 0), 0);
+  return {
+    events: Object.values(byType).reduce((total, count) => total + count, 0),
+    page_views: countMatching(/page[._]view/),
+    media_streams: countMatching(/playback\.started|media\.play|stream\.started/),
+    downloads: countedDownloadIds.size,
+    by_type: byType
+  };
+}
+
+async function readCachedActivitySnapshot(env) {
+  if (!env.AIFRED_SALES_LOG || typeof env.AIFRED_SALES_LOG.get !== "function") return null;
+  const parsed = parseStoredJson(await env.AIFRED_SALES_LOG.get(ACTIVITY_SNAPSHOT_KEY));
+  if (!parsed || parsed.schema_version !== 1 || !Array.isArray(parsed.recent) || !parsed.summary) return null;
+  const generatedAt = Date.parse(parsed.generated_at || "");
+  return Number.isFinite(generatedAt) && Date.now() - generatedAt <= ACTIVITY_SNAPSHOT_MAX_AGE_MS ? parsed : null;
+}
+
+async function buildActivitySnapshot(env) {
+  const keys = await listActivityKeys(env);
+  const indexed = keys.map(metadataActivityRecord).filter(Boolean);
+  const legacyKeys = keys.filter((key) => !metadataActivityRecord(key)).map((key) => key.name);
+  const recentKeys = indexed
+    .slice()
+    .sort((a, b) => activityTimestamp(b).localeCompare(activityTimestamp(a)))
+    .slice(0, ACTIVITY_RECENT_LIMIT)
+    .map((record) => record.event_id);
+  const legacyRecords = env.AIFRED_SALES_LOG && typeof env.AIFRED_SALES_LOG.get === "function"
+    ? await bulkReadKvJson(env.AIFRED_SALES_LOG, legacyKeys)
+    : [];
+  const recentRecords = env.AIFRED_SALES_LOG && typeof env.AIFRED_SALES_LOG.get === "function"
+    ? await bulkReadKvJson(env.AIFRED_SALES_LOG, recentKeys)
+    : [];
+  const repoRecords = await readRepoJsonArray(env, activityRepoPath());
+  const historical = [...legacyRecords, ...repoRecords];
+  const aggregateSeen = new Set();
+  const aggregateRecords = [...indexed, ...historical].filter((record) => {
+    const id = activityEventId(record) || JSON.stringify(record);
+    if (aggregateSeen.has(id)) return false;
+    aggregateSeen.add(id);
+    return true;
+  });
+  const seen = new Set();
+  const recent = [...recentRecords, ...legacyRecords, ...repoRecords]
+    .sort((a, b) => activityTimestamp(b).localeCompare(activityTimestamp(a)))
+    .filter((record) => {
+      const id = activityEventId(record) || JSON.stringify(record);
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    })
+    .slice(0, ACTIVITY_RECENT_LIMIT);
+  const snapshot = {
+    schema_version: 1,
+    generated_at: new Date().toISOString(),
+    key_count: keys.length,
+    summary: summarizeActivity(aggregateRecords),
+    recent,
+    build_diagnostics: {
+      activity_key_list_pages: Math.max(1, Math.ceil(keys.length / 1000)),
+      legacy_bulk_read_batches: Math.ceil(legacyKeys.length / 100),
+      recent_bulk_read_batches: Math.ceil(recentKeys.length / 100),
+      recent_limit: ACTIVITY_RECENT_LIMIT
+    }
+  };
+  if (env.AIFRED_SALES_LOG && typeof env.AIFRED_SALES_LOG.put === "function") {
+    try {
+      await env.AIFRED_SALES_LOG.put(ACTIVITY_SNAPSHOT_KEY, JSON.stringify(snapshot), {
+        expirationTtl: 5 * 60,
+        metadata: { schema: 1, type: "ops.activity.snapshot", ts: snapshot.generated_at }
+      });
+    } catch (_) {}
+  }
+  return snapshot;
+}
+
+async function activitySnapshot(env) {
+  const cached = await readCachedActivitySnapshot(env);
+  if (cached) return { ...cached, request_diagnostics: { cache_hit: true, snapshot_kv_reads: 1 } };
+  const built = await buildActivitySnapshot(env);
+  const build = built.build_diagnostics || {};
+  return {
+    ...built,
+    request_diagnostics: {
+      cache_hit: false,
+      snapshot_kv_reads: 1,
+      activity_key_list_pages: build.activity_key_list_pages || 0,
+      bulk_read_batches: (build.legacy_bulk_read_batches || 0) + (build.recent_bulk_read_batches || 0),
+      snapshot_kv_writes: env.AIFRED_SALES_LOG && typeof env.AIFRED_SALES_LOG.put === "function" ? 1 : 0
+    }
+  };
+}
+
+async function canonicalDownloadState(env) {
+  if (!env.AIFRED_SALES_LOG || typeof env.AIFRED_SALES_LOG.list !== "function") {
+    return { count: 0, configured: false, source: "unavailable", key_list_pages: 0 };
+  }
+  let count = 0;
+  let cursor;
+  let pages = 0;
+  let earliestUtc = "";
+  let latestUtc = "";
+  do {
+    const listed = await env.AIFRED_SALES_LOG.list({
+      prefix: COUNTED_DOWNLOAD_PREFIX,
+      limit: 1000,
+      ...(cursor ? { cursor } : {})
+    });
+    pages += 1;
+    const keys = listed.keys || [];
+    count += keys.length;
+    for (const key of keys) {
+      const timestamp = String(key.metadata?.ts || "").trim();
+      if (!timestamp) continue;
+      if (!earliestUtc || timestamp < earliestUtc) earliestUtc = timestamp;
+      if (!latestUtc || timestamp > latestUtc) latestUtc = timestamp;
+    }
+    cursor = listed.list_complete === false ? listed.cursor : undefined;
+  } while (cursor);
+  return {
+    count,
+    configured: true,
+    source: "deterministic Cloudflare KV event-key set",
+    key_list_pages: pages,
+    ...(earliestUtc ? { earliest_utc: earliestUtc } : {}),
+    ...(latestUtc ? { latest_utc: latestUtc } : {})
+  };
+}
+
 function requestCorrelation(request, defaultSurface) {
   const url = new URL(request.url);
   return {
@@ -971,20 +1172,8 @@ function adminActorId(request) {
 async function listActivityRecords(env, limit = 300) {
   const records = [];
   if (env.AIFRED_SALES_LOG && typeof env.AIFRED_SALES_LOG.list === "function") {
-    const keys = [];
-    let cursor;
-    do {
-      const listed = await env.AIFRED_SALES_LOG.list({ prefix: "activity:", limit: 1000, ...(cursor ? { cursor } : {}) });
-      keys.push(...(listed.keys || []));
-      cursor = listed.list_complete === false ? listed.cursor : undefined;
-    } while (cursor && keys.length < 5000);
-    for (const key of keys) {
-      const raw = await env.AIFRED_SALES_LOG.get(key.name);
-      if (!raw) continue;
-      try {
-        records.push(JSON.parse(raw));
-      } catch (_) {}
-    }
+    const keys = await listActivityKeys(env);
+    records.push(...await bulkReadKvJson(env.AIFRED_SALES_LOG, keys.map((key) => key.name)));
   }
   records.push(...await readRepoJsonArray(env, activityRepoPath()));
   const seen = new Set();
@@ -1003,14 +1192,7 @@ async function listSaleRecords(env) {
   const repoSales = await readRepoJsonArray(env, salesRepoPath());
   if (!env.AIFRED_SALES_LOG || typeof env.AIFRED_SALES_LOG.list !== "function") return repoSales;
   const listed = await env.AIFRED_SALES_LOG.list({ prefix: "sale:", limit: 200 });
-  const kvSales = [];
-  for (const key of listed.keys || []) {
-    const raw = await env.AIFRED_SALES_LOG.get(key.name);
-    if (!raw) continue;
-    try {
-      kvSales.push(JSON.parse(raw));
-    } catch (_) {}
-  }
+  const kvSales = await bulkReadKvJson(env.AIFRED_SALES_LOG, (listed.keys || []).map((key) => key.name));
   const byTxn = new Map();
   [...kvSales, ...repoSales].forEach((sale) => {
     const id = String(sale.txn_id || sale.id || "");
@@ -1031,13 +1213,7 @@ async function listInquiryRecords(env, limit = 200) {
   const records = [];
   if (env.AIFRED_SALES_LOG && typeof env.AIFRED_SALES_LOG.list === "function") {
     const listed = await env.AIFRED_SALES_LOG.list({ prefix: "inquiry:", limit });
-    for (const key of listed.keys || []) {
-      const raw = await env.AIFRED_SALES_LOG.get(key.name);
-      if (!raw) continue;
-      try {
-        records.push(JSON.parse(raw));
-      } catch (_) {}
-    }
+    records.push(...await bulkReadKvJson(env.AIFRED_SALES_LOG, (listed.keys || []).map((key) => key.name)));
   }
   records.push(...await readRepoJsonArray(env, inquiriesRepoPath()));
   const byId = new Map();
@@ -1274,6 +1450,106 @@ function contentTypeForPath(path) {
   return "application/octet-stream";
 }
 
+function hasReliableBotEvidence(request) {
+  const bot = request.cf?.botManagement;
+  if (!bot || typeof bot !== "object") return false;
+  if (bot.verifiedBot === true) return true;
+  const score = Number(bot.score);
+  return Number.isFinite(score) && score <= 30;
+}
+
+function canonicalDownloadEligibility(request, response, correlation) {
+  if (request.method !== "GET" || response.status !== 200 || request.headers.has("range")) return false;
+  if (!correlation.request_id || !correlation.session_id) return false;
+  if (!["catalog", "website.downloads"].includes(correlation.surface)) return false;
+  return !hasReliableBotEvidence(request);
+}
+
+async function recordCanonicalDownload(env, request, baseEvent, correlation, metadata) {
+  const transactionHash = await sha256Hex(correlation.request_id);
+  const eventId = `download-counted-${transactionHash}`;
+  const stored = await recordActivity(env, {
+    ...baseEvent,
+    event_id: eventId,
+    request_id: correlation.request_id,
+    event_type: "download.counted",
+    operation: { action: "download", status: "success", result: "canonical_delivery_counted" },
+    metadata: {
+      ...metadata,
+      canonical: true,
+      transaction_id: correlation.request_id,
+      idempotency_version: 1
+    }
+  }, {
+    request,
+    key: `${COUNTED_DOWNLOAD_PREFIX}${transactionHash}`,
+    expirationTtl: null
+  });
+  if (stored.stored && env.AIFRED_SALES_LOG && typeof env.AIFRED_SALES_LOG.delete === "function") {
+    try { await env.AIFRED_SALES_LOG.delete(ACTIVITY_SNAPSHOT_KEY); } catch (_) {}
+  }
+  return stored;
+}
+
+async function finalizeDownloadResponse(request, env, response, baseEvent, correlation, metadata) {
+  const headers = new Headers(response.headers);
+  headers.set("cache-control", "no-store");
+  headers.set("x-aifred-request-id", baseEvent.request_id);
+  const eligible = canonicalDownloadEligibility(request, response, correlation);
+  headers.set("x-aifred-canonical-count", eligible ? "eligible-after-delivery" : "ineligible");
+
+  if (!response.ok || !response.body) {
+    await recordActivity(env, {
+      ...baseEvent,
+      event_type: "download.failed",
+      operation: { action: "download", status: "failure", result: `http_${response.status}` },
+      metadata
+    }, { request });
+    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+  }
+
+  const reader = response.body.getReader();
+  let settled = false;
+  const stream = new ReadableStream({
+    async pull(controller) {
+      try {
+        const chunk = await reader.read();
+        if (!chunk.done) {
+          controller.enqueue(chunk.value);
+          return;
+        }
+        if (!settled) {
+          settled = true;
+          await recordActivity(env, {
+            ...baseEvent,
+            event_type: "download.completed",
+            operation: { action: "download", status: "success", result: "response_body_delivered" },
+            metadata
+          }, { request });
+          if (eligible) await recordCanonicalDownload(env, request, baseEvent, correlation, metadata);
+        }
+        controller.close();
+      } catch (error) {
+        if (!settled) {
+          settled = true;
+          await recordActivity(env, {
+            ...baseEvent,
+            event_type: "download.failed",
+            operation: { action: "download", status: "failure", result: "response_body_interrupted" },
+            metadata: { ...metadata, error_type: error?.name || "Error" }
+          }, { request });
+        }
+        controller.error(error);
+      }
+    },
+    async cancel(reason) {
+      settled = true;
+      await reader.cancel(reason);
+    }
+  });
+  return new Response(stream, { status: response.status, statusText: response.statusText, headers });
+}
+
 async function handlePluginDownload(request, env) {
   const url = new URL(request.url);
   const assetKey = String(url.searchParams.get("asset") || "").trim();
@@ -1312,26 +1588,14 @@ async function handlePluginDownload(request, env) {
     throw error;
   }
 
-  const responseSource = response.headers.get("x-aifred-download-source") || "unresolved";
-  await recordActivity(env, {
-    ...baseEvent,
-    event_type: response.ok ? "download.completed" : "download.failed",
-    operation: {
-      action: "download",
-      status: response.ok ? "success" : "failure",
-      result: response.ok ? "response_resolved" : `http_${response.status}`
-    },
-    metadata: {
-      artifact: assetKey,
-      release,
-      object_key: objectKey,
-      response_source: responseSource,
-      http_status: response.status,
-      content_length: response.headers.get("content-length") || ""
-    }
-  }, { request });
-  response.headers.set("x-aifred-request-id", requested.event.request_id);
-  return response;
+  return finalizeDownloadResponse(request, env, response, baseEvent, correlation, {
+    artifact: assetKey,
+    release,
+    object_key: objectKey,
+    response_source: response.headers.get("x-aifred-download-source") || "unresolved",
+    http_status: response.status,
+    content_length: response.headers.get("content-length") || ""
+  });
 }
 
 async function handleWebsiteAssetRequest(request, env, relPath) {
@@ -1372,24 +1636,13 @@ async function handleWebsiteAssetRequest(request, env, relPath) {
     throw error;
   }
 
-  await recordActivity(env, {
-    ...baseEvent,
-    event_type: response.ok ? "download.completed" : "download.failed",
-    operation: {
-      action: "download",
-      status: response.ok ? "success" : "failure",
-      result: response.ok ? "response_resolved" : `http_${response.status}`
-    },
-    metadata: {
-      object_key: `assets/${decodedPath}`,
-      artifact: "catalog_mp3",
-      response_source: response.headers.get("x-aifred-asset-source") || "unresolved",
-      http_status: response.status,
-      content_length: response.headers.get("content-length") || ""
-    }
-  }, { request });
-  response.headers.set("x-aifred-request-id", requested.event.request_id);
-  return response;
+  return finalizeDownloadResponse(request, env, response, baseEvent, correlation, {
+    object_key: `assets/${decodedPath}`,
+    artifact: "catalog_mp3",
+    response_source: response.headers.get("x-aifred-asset-source") || "unresolved",
+    http_status: response.status,
+    content_length: response.headers.get("content-length") || ""
+  });
 }
 
 async function handleAdminFileRead(request, env) {
@@ -1589,7 +1842,7 @@ async function handleAdminCatalogUpload(request, env) {
   const fileName = safeUploadName(file.name);
   const audioPath = `apps/website/assets/audio/catalog/${fileName}`;
   const audioWrite = await writeBinaryRepoFile(env, audioPath, file, `Upload catalog audio ${fileName} from AIFRED admin`);
-  const tracks = await loadCatalog(request);
+  const tracks = await loadCatalog(request, env);
   const track = {
     key: crypto.randomUUID(),
     title,
@@ -1652,7 +1905,7 @@ async function handleCommand(request, env) {
   let stdout = "";
   if (normalized === "help") stdout = JSON.stringify(commandCatalog(), null, 2);
   else if (normalized === "health") stdout = JSON.stringify({ ok: true, service: "AIFRED website backend" }, null, 2);
-  else if (normalized === "catalog:list") stdout = `tracks=${(await loadCatalog(request)).length}`;
+  else if (normalized === "catalog:list") stdout = `tracks=${(await loadCatalog(request, env)).length}`;
   else if (normalized === "models:list") stdout = JSON.stringify({
     openai: Boolean(env.OPENAI_API_KEY),
     openai_model: env.OPENAI_MODEL || "gpt-5.6-luna",
@@ -1738,7 +1991,7 @@ export async function onRequest({ request, env, params }) {
   if (path === "chat/completions" && request.method === "POST") return canonicalChat(request, env);
   if (path === "embeddings" && request.method === "POST") return json(openAiError("embeddings provider is not configured", "server_error"), { status: 501 });
   if (path === "responses") return json(openAiError("responses is reserved for a future compatible implementation", "not_implemented"), { status: 501 });
-  if (path === "catalog/list") return json({ ok: true, tracks: withR2CatalogUrls(request, await loadCatalog(request)) });
+  if (path === "catalog/list") return json({ ok: true, tracks: withR2CatalogUrls(request, await loadCatalog(request, env)) });
   if (path === "soundpacks/list") return json({ ok: true, soundpacks: [] });
   if (path === "content/get") return json({ ok: true, content: contentPayload() });
   if (path === "activity/record" && request.method === "POST") return handleActivityRecord(request, env);
@@ -1757,63 +2010,83 @@ export async function onRequest({ request, env, params }) {
   if (path === "command/run" && request.method === "POST") return handleCommand(request, env);
   if (path === "registry/actions") return json({ ok: true, actions: commandCatalog() });
   if (path === "admin/dashboard/state") {
-  const catalog = await loadCatalog(request);
-  const allActivity = await listActivityRecords(env, 5000);
-  const activity = allActivity.slice(0, 300);
-  const inquiries = await listInquiryRecords(env);
-  const sales = await listSaleRecords(env);
+    const [catalog, activity, canonicalDownloads, inquiries, sales, references, runtimeConfig] = await Promise.all([
+      loadCatalog(request, env),
+      activitySnapshot(env),
+      canonicalDownloadState(env),
+      listInquiryRecords(env),
+      listSaleRecords(env),
+      listReferenceRecords(env, 200),
+      loadRuntimeApiConfig(env)
+    ]);
+    const recent = activity.recent || [];
+    const eventRecords = recent.filter((entry) => !String(entry.event_type || "").startsWith("admin."));
+    const adminRecords = recent.filter((entry) => String(entry.event_type || "").startsWith("admin."));
+    const trafficEvents = eventRecords.filter((entry) => /page[._]view|buy|play|analysis|download/.test(String(entry.event_type || "")));
+    const historicalCompleted = Number(activity.summary?.by_type?.["download.completed"] || 0);
+    const historicalRequested = Number(activity.summary?.by_type?.["download.requested"] || 0);
+    const historicalClicked = Number(activity.summary?.by_type?.["download.clicked"] || 0);
+    const runtimeEnv = {
+      ...env,
+      AIFRED_CHAT_PROVIDER: runtimeConfig.provider,
+      OLLAMA_BASE_URL: runtimeConfig.ollama_base_url,
+      OLLAMA_MODEL: runtimeConfig.ollama_model,
+      OPENAI_MODEL: runtimeConfig.openai_model
+    };
+    const models = canonicalModelList(runtimeEnv);
 
-  const eventRecords = activity.filter((entry) =>
-    !String(entry.event_type || "").startsWith("admin.")
-  );
-
-  const adminRecords = activity.filter((entry) =>
-    String(entry.event_type || "").startsWith("admin.")
-  );
-
-  const trafficEvents = eventRecords.filter((entry) => {
-    const type = String(entry.event_type || "");
-    return (
-      type.includes("page_view") ||
-      type.includes("buy") ||
-      type.includes("play") ||
-      type.includes("analysis") ||
-      type.includes("download")
-    );
-  });
-
-  const completedDownloadIds = new Set(
-    allActivity
-      .filter((entry) => String(entry.event_type || "") === "download.completed")
-      .map((entry) => String(entry.request_id || activityEventId(entry) || ""))
-      .filter(Boolean)
-  );
-
-  return json({
-    ok: true,
-    snapshot_at: new Date().toISOString(),
-    traffic: {
-      status: "live",
-      source: env.AIFRED_SALES_LOG ? "Cloudflare KV activity log" : "read-only historical GitHub activity records",
-      page_views: eventRecords.filter((entry) => String(entry.event_type || "").includes("page_view")).length,
-      api_hits: activity.length,
-      media_streams: eventRecords.filter((entry) => String(entry.event_type || "").includes("play")).length,
-      downloads: completedDownloadIds.size,
-      recent: trafficEvents.slice(0, 12)
-    },
-      catalog: { tracks: catalog.length, source: "apps/website/assets/data/beat_catalog.json" },
-      inquiries: {
-        count: inquiries.length,
-        latest: inquiries.slice(0, 1)
+    return json({
+      ok: true,
+      snapshot_at: new Date().toISOString(),
+      status: {
+        ok: true,
+        api_version: "v1",
+        service: "AIFRED operations",
+        health: {
+          api: "ok",
+          providers: models.length,
+          r2: { downloads_and_assets: Boolean(env.AIFRED_DOWNLOADS), reference: Boolean(env.AIFRED_REFERENCE_BUCKET) },
+          kv: { reference_pool: Boolean(env.AIFRED_REFERENCE_POOL), activity_log: Boolean(env.AIFRED_SALES_LOG) }
+        },
+        api_configuration: safeRuntimeApiPayload(runtimeConfig, env)
       },
-      sales: {
-        count: sales.length,
-        latest: sales.slice(0, 1)
+      traffic: {
+        status: "live",
+        source: canonicalDownloads.source,
+        page_views: Number(activity.summary?.page_views || 0),
+        api_hits: Number(activity.summary?.events || 0),
+        media_streams: Number(activity.summary?.media_streams || 0),
+        downloads: canonicalDownloads.count,
+        canonical_event: "download.counted",
+        canonical: canonicalDownloads,
+        historical_ambiguity: {
+          excluded_from_total: true,
+          download_completed: historicalCompleted,
+          download_requested: historicalRequested,
+          download_clicked: historicalClicked,
+          message: "Historical lifecycle events are preserved but cannot be reliably converted into unique human downloads."
+        },
+        recent: trafficEvents.slice(0, 12)
       },
-      logs: {
-        configured: Boolean(env.AIFRED_SALES_LOG),
-        events: eventRecords.slice(0, 100),
-        adminlog: adminRecords.slice(0, 100)
+      catalog: { tracks: catalog.length, items: withR2CatalogUrls(request, catalog), source: "apps/website/assets/data/beat_catalog.json" },
+      inquiries: { count: inquiries.length, items: inquiries, latest: inquiries.slice(0, 1) },
+      sales: { count: sales.length, items: sales, latest: sales.slice(0, 1) },
+      references: { count: references.length, items: references },
+      models: {
+        ok: true,
+        models,
+        active_model: runtimeConfig.provider === "openai" ? runtimeConfig.openai_model : runtimeConfig.ollama_model,
+        providers: {
+          openai: { configured: Boolean(env.OPENAI_API_KEY), model: runtimeConfig.openai_model },
+          ollama: { configured: Boolean(runtimeConfig.ollama_base_url), model: runtimeConfig.ollama_model }
+        }
+      },
+      logs: { configured: Boolean(env.AIFRED_SALES_LOG), logs: recent, events: eventRecords, adminlog: adminRecords },
+      activity_snapshot: {
+        generated_at: activity.generated_at,
+        key_count: activity.key_count,
+        cache: activity.request_diagnostics,
+        build: activity.build_diagnostics
       },
       analytics: { configured: Boolean(env.AIFRED_ANALYTICS_API_TOKEN), message: env.AIFRED_ANALYTICS_API_TOKEN ? "analytics provider configured" : "live analytics are not configured" },
       deploy: { source: repoConfig(env).repo, branch: repoConfig(env).branch, target: "Cloudflare Pages project aifred-site" }
@@ -1822,7 +2095,7 @@ export async function onRequest({ request, env, params }) {
   if (path === "admin/ops/status" && request.method === "GET") return handleOpsStatus(request, env);
   if (path === "admin/export/site" && request.method === "GET") return exportResponse(await buildSiteExport(request, env), "aifred-site-data-export");
   if (path === "admin/export/tracks" && request.method === "GET") return exportResponse(await buildTrackAnalysisExport(request, env), "aifred-track-analysis-export");
-  if (path === "admin/catalog/list") return json({ ok: true, tracks: withR2CatalogUrls(request, await loadCatalog(request)) });
+  if (path === "admin/catalog/list") return json({ ok: true, tracks: withR2CatalogUrls(request, await loadCatalog(request, env)) });
   if (path === "admin/files/read" && request.method === "POST") return handleAdminFileRead(request, env);
   if (path === "admin/files/write" && request.method === "POST") return handleAdminFileWrite(request, env);
   if (path === "admin/files/list") return handleAdminFileList(request, env);
@@ -1840,7 +2113,8 @@ export async function onRequest({ request, env, params }) {
     });
   }
   if (path === "admin/logs/list") {
-    const activity = await listActivityRecords(env, 300);
+    const snapshot = await activitySnapshot(env);
+    const activity = snapshot.recent || [];
     const adminlog = activity.filter((entry) => String(entry.event_type || "").startsWith("admin."));
     const events = activity.filter((entry) => !String(entry.event_type || "").startsWith("admin."));
     return json({
@@ -1849,6 +2123,7 @@ export async function onRequest({ request, env, params }) {
       logs: activity,
       events,
       adminlog,
+      activity_snapshot: { generated_at: snapshot.generated_at, key_count: snapshot.key_count, cache: snapshot.request_diagnostics, build: snapshot.build_diagnostics },
       message: env.AIFRED_SALES_LOG ? "Activity loaded from KV with read-only historical repository records." : "New activity persistence requires AIFRED_SALES_LOG KV; historical repository records remain read-only."
     });
   }
