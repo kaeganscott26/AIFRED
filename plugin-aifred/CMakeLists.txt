@@ -12,6 +12,7 @@ FetchContent_Declare(
   GIT_TAG 8.0.14
 )
 FetchContent_MakeAvailable(JUCE)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../shared-dsp ${CMAKE_BINARY_DIR}/shared-dsp)
 
 juce_add_plugin(Aifred
   COMPANY_NAME "North3rnLight3r"
@@ -40,10 +41,6 @@ juce_add_binary_data(AifredAssets
 target_sources(Aifred PRIVATE
   Source/PluginProcessor.cpp
   Source/PluginEditor.cpp
-  Source/HaloState.cpp
-  Source/AnalysisEngine.cpp
-  Source/DiagnosticInterpreter.cpp
-  Source/AifredEngineClient.cpp
   Source/AifredLookAndFeel.cpp
 )
 
@@ -60,6 +57,7 @@ target_compile_definitions(Aifred
 target_link_libraries(Aifred
   PRIVATE
     AifredAssets
+    aifred_pipeline
     juce::juce_audio_utils
     $<$<PLATFORM_ID:Windows>:winhttp>
   PUBLIC

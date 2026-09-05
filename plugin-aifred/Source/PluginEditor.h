@@ -1,8 +1,8 @@
 #pragma once
 
 #include "AifredLookAndFeel.h"
-#include "AifredEngineClient.h"
-#include "DiagnosticInterpreter.h"
+
+
 #include "PluginProcessor.h"
 
 #include <juce_gui_basics/juce_gui_basics.h>
@@ -33,23 +33,23 @@ private:
   
   void drawHeader(juce::Graphics&, juce::Rectangle<int>);
   
-  void drawHalo(juce::Graphics&, juce::Rectangle<int>, const HaloState&, const char* title, bool referenceOverlay);
-  void drawDomainCard(juce::Graphics&, juce::Rectangle<int>, const char*, Domain, const DomainAlignment&, const HaloState&);
-  void drawCandles(juce::Graphics&, juce::Rectangle<int>, const HaloState&);
-  void drawCandleStrip(juce::Graphics&, juce::Rectangle<int>, const HaloState&, CandleStripType type);
+  void drawHalo(juce::Graphics&, juce::Rectangle<int>, const BetaView&, const char* title, bool referenceOverlay);
+  void drawDomainCard(juce::Graphics&, juce::Rectangle<int>, const char*, Domain, const BetaView&);
+  void drawCandles(juce::Graphics&, juce::Rectangle<int>, const BetaView&);
+  void drawCandleStrip(juce::Graphics&, juce::Rectangle<int>, const BetaView&, CandleStripType type);
   void drawChatPanel(juce::Graphics&, juce::Rectangle<int>);
-  void drawHaloSpectrometer(juce::Graphics&, juce::Rectangle<float>, const HaloState&);
+  void drawHaloSpectrometer(juce::Graphics&, juce::Rectangle<float>, const BetaView&);
   void drawReferenceMixer(juce::Graphics&, juce::Rectangle<int>);
   void drawCompare(juce::Graphics&, juce::Rectangle<int>);
-  void drawCompareVu(juce::Graphics&, juce::Rectangle<int>, const HaloState&, const HaloState&);
-  void drawMixSignature(juce::Graphics&, juce::Rectangle<int>, const HaloState&);
-  void drawSpectrumMeter(juce::Graphics&, juce::Rectangle<int>, const HaloState&);
-  void drawCorrelationMeter(juce::Graphics&, juce::Rectangle<int>, const HaloState&);
+  void drawCompareVu(juce::Graphics&, juce::Rectangle<int>, const BetaView&, const BetaView&);
+  void drawMixSignature(juce::Graphics&, juce::Rectangle<int>, const BetaView&);
+  void drawSpectrumMeter(juce::Graphics&, juce::Rectangle<int>, const BetaView&);
+  void drawCorrelationMeter(juce::Graphics&, juce::Rectangle<int>, const BetaView&);
   void pushSettingsToProcessor();
   bool analyzeReferenceFile(const juce::File& file, int slot);
   void clearReferenceSlot(int slot);
   void updateReferenceTargetFromSlots();
-  juce::String scoreText(float score, const HaloState& state, Domain domain);
+  juce::String scoreText(float score, const BetaView& state, Domain domain);
 
   AifredAudioProcessor& processor_;
   AifredLookAndFeel lookAndFeel_;
@@ -77,6 +77,7 @@ private:
   juce::TextEditor aiModel_;
   juce::ComboBox providerMenu_;
   juce::ComboBox genreMenu_;
+  juce::ComboBox profileMenu_;
   juce::Slider gateSlider_;
   std::array<juce::Slider, 5> referenceVolumeSliders_;
   std::array<juce::String, 5> referenceFileNames_;
@@ -84,9 +85,9 @@ private:
   std::array<bool, 5> referenceTargetValid_ {};
   juce::Image mascot_;
   std::unique_ptr<juce::FileChooser> fileChooser_;
-  HaloState state_;
-  HaloState compareState_;
-  DiagnosticPresentation diagnostic_;
+  BetaView state_;
+  BetaView compareState_;
+
   juce::String chatOutputText_;
   juce::String apiStatus_ = "API route not connected.";
   juce::String referenceStatus_ = "No reference file selected.";

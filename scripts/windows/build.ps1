@@ -15,20 +15,20 @@ try {
     Initialize-AifredMsvc
     Invoke-Checked cmake @('--preset','windows-release')
     if ($Action -eq 'configure') { return }
-    $targets = @('Aifred_VST3')
+    $targets = @('Aifred_VST3','aifred_core_tests')
     if ($official) { $targets += @('aifred_dsp_smoke','aifred_comparison_tests','aifred_integration_contract_tests') }
     Invoke-Checked cmake (@('--build','--preset','windows-release','--target') + $targets)
     if ($Action -eq 'build') { return }
     Invoke-Checked python @('-B','scripts/common/check_repository.py')
     Invoke-Checked python @('-B','-m','unittest','discover','-s','scripts/tests')
+    Invoke-Checked dotnet @('run','--project','tools/AifredIntelligenceHost.Tests/AifredIntelligenceHost.ContractTests.csproj','-c','Release')
     if ($official) {
         Invoke-Checked ctest @('--preset','windows-release')
-        Invoke-Checked dotnet @('run','--project','tools/AifredEngine.Tests/AifredEngine.ContractTests.csproj','-c','Release')
         foreach ($suite in @('python_brain/tests','ai_engine/tests','bridge/tests')) {
             Invoke-Checked python @('-B','-m','unittest','discover','-s',$suite)
         }
     } else {
-        Invoke-Checked pwsh @('-NoProfile','-File','tools/check-aifred-analysis-regressions.ps1')
+        Invoke-Checked ctest @('--preset','windows-release')
         Invoke-Checked node @('--test','tests/aifred-api.test.mjs','tests/aifred-archive.test.mjs')
         Invoke-Checked npm @('--prefix','apps','run','website:check')
     }

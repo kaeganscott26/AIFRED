@@ -8,6 +8,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(AIFRED_BUILD_PLUGIN "Build the Aifred VST3 plugin" ON)
 
+enable_testing()
+
 if(AIFRED_BUILD_PLUGIN)
   add_subdirectory(plugin-aifred)
 endif()

@@ -1,6 +1,7 @@
 #pragma once
+#include "aifred/IntelligenceClient.h"
 
-#include "AnalysisEngine.h"
+#include "BetaView.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <atomic>
@@ -46,8 +47,8 @@ public:
   void getStateInformation(juce::MemoryBlock& destData) override;
   void setStateInformation(const void* data, int sizeInBytes) override;
 
-  HaloState getHaloState() const;
-  HaloState getCompareHaloState() const;
+  BetaView getView() const;
+  BetaView getCompareView() const;
   AnalysisMode getMode() const;
   void setMode(AnalysisMode mode);
   PluginSettings getPluginSettings() const;
@@ -56,16 +57,22 @@ public:
   void clearReferenceTarget();
   bool isSessionInitialized() const;
   void markSessionInitialized();
+  core::Pipeline& pipeline() noexcept {return analysis_;}
+  core::Pipeline& comparePipeline() noexcept {return compareAnalysis_;}
+  ReferenceTarget referenceTarget() const {return reference_;}
+
+    aifred::core::IntelligenceClient& intelligence() noexcept {return intelligence_;}
 
 private:
+    aifred::core::IntelligenceClient intelligence_ { "beta" };
   static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
   void loadLocalSettings();
   void saveLocalSettings() const;
-  void loadSessionHistory();
-  void saveSessionHistory();
 
-  AnalysisEngine analysis_;
-  AnalysisEngine compareAnalysis_;
+
+  core::Pipeline analysis_ {"beta","0.3.6"};
+  core::Pipeline compareAnalysis_ {"beta","0.3.6"};
+  ReferenceTarget reference_;
   std::atomic<int> mode_ { static_cast<int>(AnalysisMode::Analyze) };
   PluginSettings settings_;
   juce::AudioProcessorValueTreeState parameters_;

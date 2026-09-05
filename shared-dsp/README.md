@@ -1,7 +1,16 @@
-# Planned shared analyzer adapter
+# Planned shared analyzer ownership
 
-PLANNED / UNIMPLEMENTED. `adapters/` reserves Beta frontend integration ownership. No target or runtime uses this directory.
+PLANNED / UNIMPLEMENTED. This directory is not compiled or called by either current product.
+Official owns the initial design contract in [the construction guide](../docs/REPOSITORY_CONSTRUCTION.md). Develop the new engine from documented algorithms and standards; current products are behavioral baselines, not implementation sources.
 
-The authoritative initial design belongs to Official's [construction guide](https://github.com/kaeganscott26/AIFRED_Official-/blob/main/docs/REPOSITORY_CONSTRUCTION.md); that construction change must be published before the remote link resolves. The current Beta DSP remains a behavioral baseline. Do not port its implementation into the new engine.
+| Folder | Future responsibility |
+|---|---|
+| aifred_engine/analysis | Authoritative sample peak, RMS, loudness, stereo and other documented algorithms |
+| aifred_engine/spectrum | Precise FFT/STFT bins and derived telemetry energy |
+| aifred_engine/profiles | Versioned configurations of shared algorithm implementations |
+| aifred_engine/snapshots | Bounded measurement schema, units, validity, sample-time, profile and epoch |
+| BufferHunter | Non-realtime observation windows, coverage, freshness and trends |
+| aifred_filter | Factual semantic/context relationships; no canned chatbot responses |
+| adapters | Frontend integration contracts for Beta and Official |
 
-The future dependency provides aifred_engine (analysis/spectrum/profiles/snapshots), BufferHunter (non-realtime observations) and aifred_filter (factual context boundary). Choose and pin a versioned dependency before implementing this adapter. Never consume a sibling source tree or maintain a second Beta copy of the algorithm implementation. No model integration belongs in this scaffold.
+No runtime classes, Python brain or CMake target are introduced. Before linking either frontend, choose a versioned distribution mechanism (for example a pinned dependency release). Both consumers must pin the same reviewed contract. Never add a sibling checkout path or copy old analysis implementations. Model identity files and tools remain future documentation only.
