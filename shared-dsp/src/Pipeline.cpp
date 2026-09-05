@@ -37,6 +37,9 @@ juce::var filteredContextJson(const FilteredMixContext& c)
     obj->setProperty("schema",text(c.schema));obj->setProperty("shared_core_version",text(coreVersion));
     obj->setProperty("observation_id",juce::String(o.id));obj->setProperty("observation_epoch",juce::String(o.epoch));obj->setProperty("engine_epoch",juce::String(o.engineEpoch));
     obj->setProperty("profile_id",text(profile(o.profileId).name));obj->setProperty("profile_version",static_cast<int>(o.profileVersion));
+    obj->setProperty("rms_window_seconds",profile(o.profileId).rmsSeconds);
+    obj->setProperty("stereo_window_seconds",profile(o.profileId).stereoSeconds);
+    obj->setProperty("lra_provisional",o.sampleRate<=0||static_cast<double>(o.sampleEnd)/o.sampleRate<60);
     obj->setProperty("sample_rate_hz",o.sampleRate);obj->setProperty("sample_start",juce::String(o.sampleStart));obj->setProperty("sample_end",juce::String(o.sampleEnd));
     obj->setProperty("observation_seconds",number(o.durationSeconds,1));obj->setProperty("age_seconds",number(o.ageSeconds,1));
     obj->setProperty("available",o.valid);obj->setProperty("fresh",o.fresh);obj->setProperty("signal_active",o.signalActive);obj->setProperty("sufficient_observation",o.sufficient);
@@ -58,7 +61,11 @@ void Pipeline::hiResTimerCallback()
     // by a concurrent producer. Neither this mutex nor JSON reaches the producer.
     for(int i=0;i<7;++i)
     {
+        const auto previousEpoch=live_.epoch;
         if(!engine_->pop(live_))break;
+        if(live_.epoch!=previousEpoch)
+            juce::Logger::writeToLog("AIFRED " + text(channel_) + " profile=" + text(profile(live_.profileId).name)
+                + " revision=" + juce::String(live_.profileVersion) + " epoch=" + juce::String(live_.epoch));
         hunter_.consume(live_,now());
     }
 }

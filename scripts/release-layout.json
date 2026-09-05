@@ -19,6 +19,15 @@
       "status": "SCAFFOLDED / NOT VALIDATED"
     }
   },
-  "futureSharedDsp": "UNIMPLEMENTED",
-  "dspProfileSchemaVersion": null
+  "dspProfileSchemaVersion": 1,
+  "sharedCoreVersion": "1.1.0",
+  "contextSchema": "aifred.filtered-mix.v1",
+  "runtimeChannel": "beta",
+  "hostPort": 8787,
+  "profiles": {
+    "MIX_BALANCED": 1,
+    "SPECTRUM_SURGICAL": 1,
+    "MASTERING_PRECISION": 1,
+    "STEREO_PHASE_DIAGNOSTIC": 2
+  }
 }

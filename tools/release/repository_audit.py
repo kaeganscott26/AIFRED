@@ -24,7 +24,7 @@ def main(kind):
   text=(ROOT/'.github/workflows/build.yml').read_text()
   for token in ("github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'",'CLOUDFLARE_CREDENTIALS_PRESENT',"startsWith(github.ref, 'refs/tags/v')",'./scripts/windows/build.ps1 -Action release','out/windows-x64/current/'):
    if token not in text:errors.append('Missing release/deployment gate or canonical path: '+token)
-  details['buildWorkflow']='Windows validated-current pipeline; macOS candidate CI; tag releases and manual credential-gated website deployment'
+  details['buildWorkflow']='Windows validated-current pipeline; macOS/Linux distribution scaffolded; tag releases and manual credential-gated website deployment'
  else:
   details['trackedFiles']=paths;details['areas']=dict(collections.Counter(p.split('/')[0] for p in paths))
   for p in paths:

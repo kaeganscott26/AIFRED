@@ -1,24 +1,17 @@
 {
-  "status": "PLANNED / NOT CONSUMED BY RUNTIME",
-  "product": "AIFRED Beta",
-  "channel": "beta",
+  "status": "IMPLEMENTED",
+  "runtimeChannel": "beta",
+  "hostPort": 8787,
+  "contextSchema": "aifred.filtered-mix.v1",
   "preserveCurrentPluginIds": true,
   "requiredHandshakeFields": [
-    "product",
-    "channel",
-    "version",
-    "protocol",
-    "instanceId",
-    "sessionId"
-  ],
-  "requiredOwnedPaths": [
-    "plugin",
-    "engine",
-    "settings",
-    "logs",
-    "cache",
-    "reports",
-    "references"
+    "product_channel",
+    "product_version",
+    "plugin_instance_id",
+    "session_id",
+    "profile_id",
+    "profile_version",
+    "schema"
   ],
   "automaticChannelReplacement": false
 }

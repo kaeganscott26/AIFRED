@@ -1,21 +1,3 @@
 # Documentation
 
-- [ARCHITECTURE](ARCHITECTURE.md)
-- [BUILD](BUILD.md)
-- [INSTALLATION](INSTALLATION.md)
-- [DEVELOPMENT](DEVELOPMENT.md)
-- [TESTING](TESTING.md)
-- [DISTRIBUTION](DISTRIBUTION.md)
-- [COEXISTENCE](COEXISTENCE.md)
-- [USER_GUIDE](USER_GUIDE.md)
-- [ADMIN_GUIDE](ADMIN_GUIDE.md)
-- [ADMIN_COMMAND_REFERENCE](ADMIN_COMMAND_REFERENCE.md)
-- [API_REFERENCE](API_REFERENCE.md)
-- [CLOUDFLARE_PRODUCTION](CLOUDFLARE_PRODUCTION.md)
-- [FORGE_INTEGRATION](FORGE_INTEGRATION.md)
-- [ARCHIVE_GUIDE](ARCHIVE_GUIDE.md)
-- [OPS_GUIDE](OPS_GUIDE.md)
-- [TROUBLESHOOTING](TROUBLESHOOTING.md)
-- [RELEASE_NOTES](RELEASE_NOTES.md)
-
-The [activity ledger contract](operations/AIFRED_ACTIVITY_LOG.md) retains current event/KV semantics. Component guides own their specific runtime details. Git history holds migration-phase logs; generated reports stay outside canonical docs.
+[Product/commands](../README.md) · [Architecture](ARCHITECTURE.md) · [DSP contract](../shared-dsp/README.md) · [Build](BUILD.md) · [Testing](TESTING.md) · [Install](INSTALLATION.md) · [Distribution](DISTRIBUTION.md) · [Coexistence](COEXISTENCE.md) · [Development](DEVELOPMENT.md)

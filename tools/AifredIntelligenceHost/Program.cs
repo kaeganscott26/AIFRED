@@ -54,7 +54,7 @@ async Task Handle(HttpListenerContext http)
         }
         else await Write(http,new JsonObject{["error"]="Unknown route."},404);
     }
-    catch(Exception error) when(error is JsonException or InvalidOperationException or ArgumentException or IOException)
+    catch(Exception error) when(error is JsonException or InvalidOperationException or ArgumentException or IOException or OperationCanceledException)
     {
         Console.Error.WriteLine($"Request failed: {error.GetType().Name}");
         await Write(http,new JsonObject{["error"]="Invalid request or unavailable local storage."},400);

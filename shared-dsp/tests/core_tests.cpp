@@ -113,6 +113,15 @@ int main()
         f->rate=rate;f->clock=0;f->engine->prepare(rate,2);f->tone(3,.1,1000);
         near(f->latest.get(MetricId::shortTerm).value,-20,.15,"sample-rate K weighting");
     }
+    f->rate=48000; f->engine->prepare(f->rate,2);
+    f->engine->requestProfile(ProfileId::stereoPhase);
+    f->tone(.1,.5);
+    near(f->latest.get(MetricId::correlation).value,1,1e-10,"diagnostic stereo warmup 100 ms");
+    require(!f->latest.get(MetricId::rms).valid,"fast stereo preserves 400 ms RMS warmup");
+    f->tone(.1,.5,1000,-1);
+    near(f->latest.get(MetricId::correlation).value,-1,1e-10,"phase reversal resolves in 100 ms");
+    near(f->latest.get(MetricId::width).value,100,1e-10,"live side share follows phase reversal");
+    require(f->latest.profileVersion==2,"changed stereo integration has a new profile revision");
     auto hunter=std::make_unique<BufferHunter>();
     auto measured=std::make_unique<EngineSnapshot>();
     measured->sampleRate=48000;measured->epoch=1;measured->valid=measured->signalActive=true;

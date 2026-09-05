@@ -6,7 +6,7 @@ The production API authority is `https://www.north3rnlight3r.com`. The app const
 
 The Commands screen exposes authenticated live analytics, downloads, inquiries, logs, references, API/deployment status, **Export Site Data**, and **Export Track Analysis**. Exports are fetched off the UI thread from `/api/v1/admin/export/site` or `/api/v1/admin/export/tracks`, written to the app-private `files/exports` directory, and reported with their exact filename/location.
 
-The VST remains local-first: it calls AifredEngine at `http://127.0.0.1:8787`; AifredEngine selects local Ollama (`http://127.0.0.1:11434`) or a configured compatible provider. The plugin does not depend on Cloudflare.
+The VST remains local-first: it calls AifredIntelligenceHost at `http://127.0.0.1:8787`; AifredIntelligenceHost selects local Ollama (`http://127.0.0.1:11434`) or a configured compatible provider. The plugin does not depend on Cloudflare.
 
 It lives at:
 

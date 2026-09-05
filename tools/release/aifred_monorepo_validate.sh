@@ -98,7 +98,7 @@ for path in \
   apps/website \
   apps/admin-android \
   plugin-aifred \
-  tools/AifredEngine \
+  tools/AifredIntelligenceHost \
   infra/cloudflare \
   packages/plugin-juce \
   packages/local-engine
@@ -192,8 +192,8 @@ done
 
 forbid_reference "AIFRED_API_TOKEN=sk-" apps/admin-android
 require_reference "apps/website" apps/admin-android/app/src/main/java/com/aifred/admin/MainActivity.kt
-require_reference "aifred:latest" apps/admin-android tools/AifredEngine plugin-aifred README.md
-require_reference "gpt-5.6-luna" apps/admin-android apps/website tools/AifredEngine README.md
+require_reference "aifred:latest" apps/admin-android tools/AifredIntelligenceHost plugin-aifred README.md
+require_reference "gpt-5.6-luna" apps/admin-android apps/website tools/AifredIntelligenceHost README.md
 
 if [ "$run_gradle" -eq 1 ]; then
   section "Android Admin Gradle Task Discovery"
@@ -208,14 +208,14 @@ for path in \
   CMakeLists.txt \
   plugin-aifred/CMakeLists.txt \
   CMakePresets.json \
-  tools/AifredEngine/Program.cs
+  tools/AifredIntelligenceHost/Program.cs
 do
   require_file "$path"
 done
 require_reference "GIT_TAG 8.0.14" plugin-aifred/CMakeLists.txt
-require_reference "127.0.0.1:8787" tools/AifredEngine plugin-aifred tools/windows tools/macos models/aifred docs README.md
-require_reference "127.0.0.1:11434" tools/AifredEngine plugin-aifred tools/windows tools/macos models/aifred docs README.md
-require_reference "https://api.openai.com/v1" tools/AifredEngine apps/admin-android apps/website docs README.md
+require_reference "127.0.0.1:8787" tools/AifredIntelligenceHost shared-dsp plugin-aifred scripts/windows models/aifred docs README.md
+require_reference "127.0.0.1:11434" tools/AifredIntelligenceHost shared-dsp plugin-aifred scripts/windows models/aifred docs README.md
+require_reference "https://api.openai.com/v1" tools/AifredIntelligenceHost apps/admin-android apps/website docs README.md
 
 section "Nested Repo And Excluded Folder Checks"
 if find apps infra -type d -name .git -print -quit | grep -q .; then
@@ -242,11 +242,11 @@ require_reference "bash tools/release/aifred_monorepo_validate.sh" .github/workf
 forbid_reference "pages deploy website" .github/workflows
 forbid_reference "node --check website/" .github/workflows
 
-section "Verification-First Removal Guard"
-pass "Legacy /api compatibility shim is intentionally preserved pending verification."
-pass "Engine /analyze and /v1/restart routes are intentionally preserved pending verification."
-pass "Generic UNIX CPack configuration is intentionally preserved pending verification."
-pass "Package placeholders, local MP3 fallback, and sibling repos are intentionally preserved pending verification."
+section "Shared Analyzer Contract"
+require_file shared-core.lock.json
+require_reference "aifred.filtered-mix.v1" tools/AifredIntelligenceHost shared-dsp
+pass "Native analysis/context tests run in the canonical Windows pipeline."
+pass "Website API and administration remain separate from the plugin Intelligence Host."
 
 section "Validation Complete"
 pass "final monorepo shape and current config/documentation truth are valid"

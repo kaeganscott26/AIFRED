@@ -1,40 +1,9 @@
-# AIFRED User Guide
+# AIFRED Beta user guide
 
-## What AIFRED does
+Install from verified current using [installation](INSTALLATION.md). DSP operates without chat. AifredIntelligenceHost on port 8787 requires .NET 10 and a configured available Ollama/OpenAI-compatible provider. No model is downloaded implicitly. macOS/Linux runtime remains unvalidated.
 
-AIFRED analyzes a DAW signal, presents tone, width, punch, loudness, dynamics and reference-alignment information, and can send the current interpreted analysis context to a local model through AifredEngine. Version 0.3.6 is a VST3; no AU/AAX build is registered.
+Select MIX_BALANCED for general mixing, SPECTRUM_SURGICAL for detailed FFT, MASTERING_PRECISION for programme metering, or STEREO_PHASE_DIAGNOSTIC for fast phase response. Profile switching starts a clean observation epoch. Live correlation/width follow current audio; other engineering values summarize observed measurements. Short observations remain insufficient for sustained conclusions. The FFT display is -24..0 dB while measurements retain full range.
 
-## Install and start
+Analyze observes Mix A; Reference uses compatible locally measured reference files; Compare has independent Mix A/B input pipelines. The first enabled reference slot supplies the selected distribution; slot controls do not average LUFS or fabricate FFT data. Chat sends explicit filtered observations only when asked. Four recent observation/question/response records support follow-up questions. Stated actions are not verified DAW edits.
 
-Windows distribution includes the VST3, AifredEngine, installer/uninstaller and local Ollama setup. The published macOS artifact is a manual-install ZIP; the repository can build a local pkg. Start Ollama with the `aifred:latest` model, then confirm:
-
-```sh
-curl http://127.0.0.1:8787/health
-```
-
-The plugin detects the engine off the audio thread. Audio analysis remains usable when model chat is unavailable.
-
-## Plugin workflow
-
-- **Analyze** shows the current mix signature and history.
-- **Reference** compares the mix with selected reference material.
-- **Compare** separates Mix A and Mix B analysis.
-- **Chat** sends a request only when asked and includes the current canonical interpreted snapshot.
-
-The plugin preserves local-first operation. It does not send audio to Cloudflare and does not require the website to analyze a track.
-
-## Website and downloads
-
-Use `https://www.north3rnlight3r.com` for the public site, browser analyzer, beat catalog and free plugin downloads. Catalog streams and downloads are served through controlled API routes backed by R2, with byte-range support. Commercial licensing is inquiry-based; the old PayPal flow is disabled.
-
-## Administration
-
-Android Admin is the private mobile control surface. `/ops` is the authenticated browser dashboard. Windows and macOS Desktop Admin mirror live operations and add local archive management. See [Admin Guide](ADMIN_GUIDE.md) and the exact [Command Reference](ADMIN_COMMAND_REFERENCE.md).
-
-## Exports and history
-
-**Export Site Data** and **Export Track Analysis** produce authenticated, sanitized JSON snapshots. FORGE retains bounded current context. Desktop/local storage retains verified historical bundles; see [Archive Guide](ARCHIVE_GUIDE.md).
-
-## Common problems
-
-If engine health fails, confirm the engine process and port 8787. If the engine reports Ollama unavailable or the model missing, verify port 11434 and `ollama list`. For admin, export, archive, connectivity and timestamp issues, use [Troubleshooting](TROUBLESHOOTING.md).
+The plugin does not require Cloudflare to measure audio. Website, Android/desktop administration and archive features have separate [admin](ADMIN_GUIDE.md), [API](API_REFERENCE.md) and [archive](ARCHIVE_GUIDE.md) contracts. Plugin observation history is bounded in memory, not a long-term session archive.

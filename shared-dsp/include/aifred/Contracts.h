@@ -9,7 +9,7 @@
 
 namespace aifred::core
 {
-inline constexpr std::string_view coreVersion = "1.0.0";
+inline constexpr std::string_view coreVersion = "1.1.0";
 inline constexpr std::uint32_t schemaVersion = 1;
 inline constexpr std::size_t maximumFftSize = 8192;
 inline constexpr std::size_t maximumBins = maximumFftSize / 2 + 1;
@@ -33,7 +33,7 @@ inline constexpr std::array<DspProfile, 4> profiles {{
     { ProfileId::mixBalanced, "MIX_BALANCED", 1, 2048, .75, .4, .5, 2, .4, .4, 15, true },
     { ProfileId::spectrumSurgical, "SPECTRUM_SURGICAL", 1, 8192, .75, 2, 1.5, 4, .4, .4, 20, true },
     { ProfileId::masteringPrecision, "MASTERING_PRECISION", 1, 8192, .75, 3, 2, 5, .4, .4, 25, true },
-    { ProfileId::stereoPhase, "STEREO_PHASE_DIAGNOSTIC", 1, 2048, .75, .4, .5, 2, .4, .4, 15, true }
+    { ProfileId::stereoPhase, "STEREO_PHASE_DIAGNOSTIC", 2, 2048, .75, .4, .5, 2, .4, .1, 15, true }
 }};
 inline const DspProfile& profile(ProfileId id) noexcept
 {

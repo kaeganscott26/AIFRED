@@ -22,7 +22,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout AifredAudioProcessor::create
 }
 
 void AifredAudioProcessor::prepareToPlay(double sampleRate, int) {
-  analysis_.prepare(sampleRate,getTotalNumInputChannels()>1?2:1);
+  analysis_.prepare(sampleRate,getBus(true,0)->getNumberOfChannels());
   compareAnalysis_.prepare(sampleRate,2);
 }
 

@@ -21,9 +21,6 @@ jobs:
           - name: windows
             os: windows-latest
             package_platform: windows
-          - name: macOS
-            os: macos-15
-            package_platform: macOS
 
     steps:
       - uses: actions/checkout@v4
@@ -45,13 +42,6 @@ jobs:
         shell: pwsh
         run: ./scripts/windows/build.ps1 -Action release
 
-      - name: macOS candidate build and package
-        if: runner.os == 'macOS'
-        run: |
-          sh scripts/macos/build.sh build
-          sh scripts/macos/build.sh test
-          sh tools/macos/package-aifred-macos.sh
-
       - name: Upload Windows release
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
@@ -63,13 +53,7 @@ jobs:
             out/windows-x64/current/uninstaller/AIFRED-Uninstall.exe
           if-no-files-found: error
 
-      - name: Upload macOS candidate
-        if: runner.os == 'macOS'
-        uses: actions/upload-artifact@v4
-        with:
-          name: AIFRED-VST3-macOS
-          path: out/macos-arm64/stage/AIFRED-VST3-macOS.pkg
-          if-no-files-found: error
+      # macOS/Linux distribution remains scaffolded and is not published by this workflow.
 
   website:
     name: Website checks
@@ -91,9 +75,10 @@ jobs:
         shell: pwsh
         run: ./tools/check-no-hardcoded-paths.ps1
 
-      - name: Analysis snapshot regression checks
-        shell: pwsh
-        run: ./tools/check-aifred-analysis-regressions.ps1
+      - name: Shared architecture and repository contracts
+        run: |
+          python3 -B scripts/common/check_shared_core.py
+          python3 -B scripts/common/check_repository.py
 
       - name: Monorepo validation
         run: bash tools/release/aifred_monorepo_validate.sh

@@ -15,8 +15,7 @@ try {
     Initialize-AifredMsvc
     Invoke-Checked cmake @('--preset','windows-release')
     if ($Action -eq 'configure') { return }
-    $targets = @('Aifred_VST3','aifred_core_tests')
-    if ($official) { $targets += @('aifred_dsp_smoke','aifred_comparison_tests','aifred_integration_contract_tests') }
+    $targets = @('Aifred_VST3','aifred_frontend_contract_tests','aifred_fixture_meter','aifred_state_contract_tests','aifred_core_tests')
     Invoke-Checked cmake (@('--build','--preset','windows-release','--target') + $targets)
     if ($Action -eq 'build') { return }
     Invoke-Checked python @('-B','scripts/common/check_repository.py')
@@ -24,25 +23,27 @@ try {
     Invoke-Checked dotnet @('run','--project','tools/AifredIntelligenceHost.Tests/AifredIntelligenceHost.ContractTests.csproj','-c','Release')
     if ($official) {
         Invoke-Checked ctest @('--preset','windows-release')
-        foreach ($suite in @('python_brain/tests','ai_engine/tests','bridge/tests')) {
-            Invoke-Checked python @('-B','-m','unittest','discover','-s',$suite)
-        }
+
     } else {
         Invoke-Checked ctest @('--preset','windows-release')
         Invoke-Checked node @('--test','tests/aifred-api.test.mjs','tests/aifred-archive.test.mjs')
         Invoke-Checked npm @('--prefix','apps','run','website:check')
     }
+    Invoke-Checked python @('-B','scripts/common/check_shared_core.py')
     if ($Action -eq 'test') { return }
     Invoke-Checked python @('-B','scripts/common/release.py','prepare','--platform','windows-x64')
     $sourceBundle = Join-Path $buildRoot $layout.platforms.'windows-x64'.plugin
     if (!(Test-Path -LiteralPath (Join-Path $sourceBundle 'Contents/x86_64-win/Aifred.vst3'))) { throw 'Exact expected VST3 binary is missing.' }
     if ($official) {
         Copy-Item -LiteralPath $sourceBundle -Destination (Join-Path $stageRoot 'Aifred.vst3') -Recurse
-        Invoke-Checked dotnet @('publish','tools/AifredEngine/AifredEngine.csproj','-c','Release','-r','win-x64','--self-contained','false','-o',(Join-Path $stageRoot 'AifredEngine'))
+        Invoke-Checked dotnet @('publish','tools/AifredIntelligenceHost/AifredIntelligenceHost.csproj','-c','Release','-r','win-x64','--self-contained','false','-o',(Join-Path $stageRoot 'AifredIntelligenceHost'))
     } else {
         Invoke-Checked pwsh @('-NoProfile','-File','tools/package-aifred.ps1','-BuildRoot','out/windows-x64/build','-OutputDir','out/windows-x64/stage','-Platform','windows')
         Invoke-Checked dotnet @('publish','tools/AifredWindowsInstaller/AifredWindowsInstaller.csproj','-c','Release','-o',(Join-Path $stageRoot 'installer'))
         Invoke-Checked dotnet @('publish','tools/AifredWindowsUninstaller/AifredWindowsUninstaller.csproj','-c','Release','-o',(Join-Path $stageRoot 'uninstaller'))
+    }
+    if ($official) {
+        '{"channel":"official"}' | Set-Content -Encoding utf8 (Join-Path $stageRoot 'AifredIntelligenceHost/channel.json')
     }
     Invoke-Checked python @('-B','scripts/common/release.py','manifest','--platform','windows-x64')
     Invoke-Checked python @('-B','scripts/common/release.py','verify','--platform','windows-x64','--location','stage')

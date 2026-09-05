@@ -13,7 +13,7 @@ juce::var IntelligenceClient::request(std::size_t slot,const juce::String& path,
     const auto origin=channel_=="official"?"http://127.0.0.1:8788":"http://127.0.0.1:8787";
     auto url=juce::URL(juce::String(origin)+path);if(!body.isVoid())url=url.withPOSTData(juce::JSON::toString(body,true));
     auto stream=std::make_shared<juce::WebInputStream>(url,!body.isVoid());
-    stream->withConnectionTimeout(180000).withNumRedirectsToFollow(0);
+    stream->withConnectionTimeout(slot==1?180000:5000).withNumRedirectsToFollow(0);
     if(!body.isVoid())stream->withExtraHeaders("Content-Type: application/json\r\n");
     {std::lock_guard lock(mutex_);streams_[slot]=stream;}
     juce::var result;
@@ -52,6 +52,7 @@ bool IntelligenceClient::askAsync(juce::String question,juce::String context)
         const bool identity=response["plugin_instance_id"].toString()==parsed["plugin_instance_id"].toString()&&response["session_id"].toString()==parsed["session_id"].toString();
         next.response=response["response"].toString().toStdString();next.success=identity&&!next.response.empty();
         next.error=response["error"].toString().toStdString();if(!next.success&&next.error.empty())next.error="Intelligence Host unavailable or response identity mismatch.";
+        if(responseHandler_)responseHandler_(juce::String(next.success?next.response:next.error));
         {std::lock_guard lock(mutex_);next.revision=reply_.revision+1;reply_=std::move(next);}chatBusy_=false;
     });return true;
 }

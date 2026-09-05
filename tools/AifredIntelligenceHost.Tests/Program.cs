@@ -3,17 +3,17 @@ using System.Text;
 using System.Text.Json.Nodes;
 using Aifred.Intelligence;
 
-var tests = new EngineContractTests();
+var tests = new IntelligenceHostContractTests();
 await tests.RunAsync();
 
-sealed class EngineContractTests
+sealed class IntelligenceHostContractTests
 {
     static JsonObject Envelope(JsonObject context)
     {
         context["schema"]="aifred.filtered-mix.v1";context["product_channel"]="official";context["product_version"]="4.0.0-alpha.2";context["plugin_instance_id"]="instance-1";context["session_id"]="session-1";
         context["profile_id"]="MIX_BALANCED";context["profile_version"]=1;context["observation_id"]="1";
-        var metrics=new JsonArray();for(var i=0;i<16;i++)metrics.Add(new JsonObject{["metric"]="test_metric",["unit"]="LUFS",["available"]=false});
-        var bands=new JsonArray();for(var i=0;i<30;i++)bands.Add(new JsonObject{["metric"]="band_energy",["unit"]="dBFS",["available"]=false});
+        var metrics=new JsonArray();foreach(var metric in ContextContract.Metrics)metrics.Add(new JsonObject{["metric"]=metric.Name,["unit"]=metric.Unit,["available"]=false});
+        var bands=new JsonArray();foreach(var hz in ContextContract.Centres)bands.Add(new JsonObject{["metric"]="band_energy",["unit"]="dBFS",["available"]=false,["centre_hz"]=hz});
         context["metrics"]=metrics;context["bands"]=bands;context["session_context"]=new JsonArray();return context;
     }
     int failures;
@@ -24,6 +24,12 @@ sealed class EngineContractTests
         await OpenAiCompatibleRouteIsSelectable();
         await MissingProviderIsCleanlyUnavailable();
         PublicSettingsHideSecrets();
+        var wrongUnit=Envelope(new JsonObject());wrongUnit["metrics"]![3]!["unit"]="dBFS";
+        Expect(ContextContract.Validate(wrongUnit)!=null,"LUFS cannot be relabelled dBFS");
+        var wrongBand=Envelope(new JsonObject());wrongBand["bands"]![16]!["centre_hz"]=300.0;
+        Expect(ContextContract.Validate(wrongBand)!=null,"850 Hz cannot be replaced with 300 Hz");
+        var stereo=Envelope(new JsonObject());stereo["profile_id"]="STEREO_PHASE_DIAGNOSTIC";stereo["profile_version"]=2;
+        Expect(ContextContract.Validate(stereo)==null,"diagnostic profile v2 accepted");
         Expect(ContextContract.Validate(new JsonObject())!=null,"raw snapshot rejected");
         var current=Envelope(new JsonObject());
         Expect(ContextContract.Validate(current)==null,"filtered contract accepted");
@@ -54,7 +60,7 @@ sealed class EngineContractTests
         Expect(health.Available, "mocked Ollama health must be available");
 
         const string question = "Why does my chorus feel wider but weaker?";
-        var context = JsonNode.Parse("""{"mode":"Analyze","current":{"metrics":{"width":{"available":true,"value":0.72}}}}""")!.AsObject();
+        var context = new JsonObject { ["mode"] = "Analyze" };
         Envelope(context);
         var reply = await router.ChatAsync(settings, question, context);
         Expect(reply.Success && reply.Response == "A natural mocked reply.",
@@ -83,7 +89,7 @@ sealed class EngineContractTests
         var health = await router.CheckAsync(settings);
         Expect(health.Available, "mocked OpenAI-compatible health must be available");
         var reply = await router.ChatAsync(settings, "What changed?",
-            JsonNode.Parse("""{"mode":"Compare","mix_a":{},"mix_b":{},"delta":{}}""")!.AsObject());
+            Envelope(new JsonObject { ["mode"] = "Compare", ["compare_b"] = Envelope(new JsonObject()) }));
         Expect(reply.Success && reply.Response == "Compatible mocked reply.",
             "OpenAI-compatible route must return provider text");
         Expect(capture.SawBearerToken, "OpenAI-compatible request must use configured bearer token");
@@ -98,7 +104,7 @@ sealed class EngineContractTests
         var health = await router.CheckAsync(settings);
         Expect(!health.Available && health.Error?.Contains("no configured API key") == true,
             "missing provider credentials must produce a clean unavailable state");
-        var reply = await router.ChatAsync(settings, "Still meter?", new JsonObject());
+        var reply = await router.ChatAsync(settings, "Still meter?", Envelope(new JsonObject()));
         Expect(!reply.Success && reply.Error?.Contains("no configured API key") == true,
             "chat must remain unavailable without pretending the engine or DSP failed");
     }

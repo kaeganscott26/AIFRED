@@ -61,12 +61,27 @@ void Engine::publish() noexcept
     }
     if(filled_>=window)
     {
-        const double n=static_cast<double>(window*tickSamples_),l=sum.l/n,r=sum.r/n,lr=sum.lr/n;
-        const double energy=(l+r)/2,mid=std::max(0.0,(l+r+2*lr)/4),side=std::max(0.0,(l+r-2*lr)/4);
+        const double n=static_cast<double>(window*tickSamples_),l=sum.l/n,r=sum.r/n;
+        const double energy=(l+r)/2;
         const auto peak=std::max(sum.peakL,sum.peakR);
         snapshot_.get(MetricId::samplePeak)=powerDb(peak*peak); snapshot_.get(MetricId::rms)=powerDb(energy);
         snapshot_.channelPeaks={powerDb(sum.peakL*sum.peakL),powerDb(sum.peakR*sum.peakR)};
         snapshot_.get(MetricId::crest)=energy>0 ? MetricValue{10*std::log10(peak*peak/energy),true} : MetricValue{};
+    }
+    // Stereo integration is independent of the level window. Diagnostic mode
+    // resolves a phase change within 100 ms; loudness and RMS keep their definitions.
+    const auto stereoWindow=static_cast<std::size_t>(std::round(profile(snapshot_.profileId).stereoSeconds*10));
+    if(filled_>=stereoWindow)
+    {
+        Block stereo;
+        for(std::size_t i=0;i<stereoWindow;++i)
+        {
+            const auto& b=blocks_[(blockPosition_+blocks_.size()-1-i)%blocks_.size()];
+            stereo.l+=b.l; stereo.r+=b.r; stereo.lr+=b.lr;
+        }
+        const double n=static_cast<double>(stereoWindow*tickSamples_);
+        const double l=stereo.l/n,r=stereo.r/n,lr=stereo.lr/n;
+        const double energy=(l+r)/2,mid=std::max(0.0,(l+r+2*lr)/4),side=std::max(0.0,(l+r-2*lr)/4);
         snapshot_.get(MetricId::correlation)=l>0 && r>0 ? MetricValue{std::clamp(lr/std::sqrt(l*r),-1.0,1.0),true} : MetricValue{};
         snapshot_.get(MetricId::leftEnergy)=powerDb(l); snapshot_.get(MetricId::rightEnergy)=channels_>1?powerDb(r):MetricValue{};
         snapshot_.get(MetricId::midEnergy)=powerDb(mid); snapshot_.get(MetricId::sideEnergy)=powerDb(side);

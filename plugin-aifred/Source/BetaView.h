@@ -40,13 +40,13 @@ inline BetaView makeBetaView(const core::EngineSnapshot& live,const core::Observ
 {
     BetaView view;view.observation=observation;view.hasSignal=observation.signalActive;view.valuesValid=observation.valid;view.isStale=!observation.fresh;
     view.spectrumPower=live.averagePower;view.binCount=live.binCount;view.binWidthHz=live.binWidthHz;
-    const auto value=[&](core::MetricId id){const auto& m=observation.get(id);return m.valid?static_cast<float>(core::Filter::published(m.typical,core::metricDefinitions[core::index(id)].decimals)):0.0f;};
+    const auto value=[&](core::MetricId id){const auto& m=observation.get(id);return m.valid?static_cast<float>(m.typical):0.0f;};
     auto& m=view.metrics;
     m.rmsDb=value(core::MetricId::rms);m.peakDb=value(core::MetricId::samplePeak);m.truePeakDb=value(core::MetricId::truePeak);m.crestDb=value(core::MetricId::crest);
-    m.shortTermLufs=value(core::MetricId::shortTerm);m.integratedLufs=value(core::MetricId::integrated);m.stereoWidth=value(core::MetricId::width)/100;m.correlation=value(core::MetricId::correlation);
+    m.shortTermLufs=value(core::MetricId::shortTerm);m.integratedLufs=value(core::MetricId::integrated);m.stereoWidth=static_cast<float>(live.get(core::MetricId::width).value)/100; m.correlation=static_cast<float>(live.get(core::MetricId::correlation).value);
     m.rmsScale=clamp01((m.rmsDb+60)/60);m.widthScale=m.stereoWidth;m.crestScale=clamp01(m.crestDb/24);m.loudnessScale=clamp01((m.shortTermLufs+60)/60);
     constexpr std::array<std::size_t,8> displayedBands {2,7,10,13,17,20,23,27};
-    for(std::size_t i=0;i<8;++i) {const auto& b=observation.bands[displayedBands[i]];m.spectrumBands[i]=b.valid?clamp01(static_cast<float>((b.typical+96)/96)):0;}
+    for(std::size_t i=0;i<8;++i) {const auto& b=observation.bands[displayedBands[i]];m.spectrumBands[i]=b.valid?clamp01(static_cast<float>((b.typical+24)/24)):0;}
     for(std::size_t i=0;i<live.vectorscopeCount;++i)m.waveform[i]=live.vectorscope[i][0];
     const auto& rms=observation.get(core::MetricId::rms);
     if(rms.valid)

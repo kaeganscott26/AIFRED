@@ -49,16 +49,14 @@ Production origin: `https://www.north3rnlight3r.com`. Function responses use JSO
 - `POST /api/v1/command/run` accepts `{ "command_line": "<exact command>" }` and returns `{ok, exit_code, stdout, stderr}`; execution requires an admin session and returns 401 without one.
 - Exact commands are generated in [Administrator Command Reference](ADMIN_COMMAND_REFERENCE.md).
 
-## Local AifredEngine API
+## Local AifredIntelligenceHost API
 
-Origin: `http://127.0.0.1:8787`; loopback only, no Cloudflare involvement.
+Loopback Beta: http://127.0.0.1:8787. Official uses 8788.
 
 | Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/health` | Engine 1.0.0, provider/model readiness |
-| POST | `/analyze` | Threshold-based interpretation of submitted metrics |
-| POST | `/chat` | Request-driven chat with supplied analysis context |
-| GET/POST | `/v1/settings` | Read/save local user settings |
-| POST | `/v1/restart` | Acknowledge restart and exit for supervisor restart |
+|---|---|---|
+| GET | /health | Host/channel/schema and provider/model availability |
+| POST | /chat | Message plus strict FilteredMixContext; response echoes instance/session |
+| GET/POST | /v1/settings | Public/redacted settings and configured provider changes |
 
-Unknown routes return 404 JSON. Engine responses are `no-store`; logs go to the installed engine `logs/engine.log` location.
+No separate analysis/restart endpoint exists. Unknown routes return 404. Channel settings and startup logs are described in [installation](INSTALLATION.md).

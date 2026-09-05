@@ -16,3 +16,6 @@ add_library(aifred_pipeline STATIC src/Pipeline.cpp src/IntelligenceClient.cpp)
 target_link_libraries(aifred_pipeline PUBLIC aifred_engine juce::juce_core)
 target_compile_definitions(aifred_pipeline PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
 
+
+add_executable(aifred_fixture_meter tests/fixture_meter.cpp)
+target_link_libraries(aifred_fixture_meter PRIVATE aifred_engine)

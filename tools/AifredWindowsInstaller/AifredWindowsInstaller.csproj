@@ -20,4 +20,5 @@
   <ItemGroup>
     <EmbeddedResource Include="$(AifredPackagePath)" LogicalName="AIFRED-VST3-windows.zip" />
   </ItemGroup>
+  <ItemGroup><Compile Include="../WindowsInstallOwnership.cs" Link="WindowsInstallOwnership.cs" /></ItemGroup>
 </Project>

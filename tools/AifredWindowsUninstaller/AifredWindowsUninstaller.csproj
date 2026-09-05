@@ -13,4 +13,5 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
+  <ItemGroup><Compile Include="../WindowsInstallOwnership.cs" Link="WindowsInstallOwnership.cs" /></ItemGroup>
 </Project>

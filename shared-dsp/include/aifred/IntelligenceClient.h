@@ -4,6 +4,7 @@
 #include <array>
 #include <mutex>
 #include <thread>
+#include <functional>
 
 namespace aifred::core
 {
@@ -22,7 +23,8 @@ struct HostReply
 class IntelligenceClient
 {
 public:
-    explicit IntelligenceClient(juce::String channel):channel_(std::move(channel)){}
+    explicit IntelligenceClient(juce::String channel, std::function<void(juce::String)> responseHandler = {})
+        :channel_(std::move(channel)),responseHandler_(std::move(responseHandler)){}
     ~IntelligenceClient();
     bool pingHealthAsync();
     bool askAsync(juce::String question,juce::String filteredContext);
@@ -38,6 +40,7 @@ public:
 private:
     juce::var request(std::size_t slot,const juce::String& path,juce::var body,std::stop_token);
     juce::String channel_;
+    const std::function<void(juce::String)> responseHandler_;
     mutable std::mutex mutex_;
     HostHealth health_;
     HostReply reply_;

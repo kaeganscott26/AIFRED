@@ -1,15 +1,9 @@
-# Installation and user data
+# Beta installation
 
-CURRENT Windows artifacts come from out/windows-x64/current after release validation. Build/test/stage/release never install. Close the DAW before replacing a loaded bundle. Verify the manifest before use.
+Use [README commands](../README.md). Install/uninstall needs elevation for CommonProgramFiles, closed DAW, PowerShell 7 and Python. Host needs .NET 10 runtime. Verified current files are copied/hash-checked before replacement. Retained .candidate/.previous directories block updates for inspection. Successful replacement recycles old binaries.
 
-The existing .NET installer is out/windows-x64/current/installer/AIFRED-VST3-Setup.exe. It requests elevation, installs the shared VST3, engine, startup registration and model setup. Run it only after deliberately choosing Beta for the shared slot; the new install wrapper requires -ReplaceSharedSlot. The uninstaller remains out/windows-x64/current/uninstaller/AIFRED-Uninstall.exe.
+Owned VST3: CommonProgramFiles/VST3/AIFRED Beta/Aifred.vst3. Host: %LOCALAPPDATA%/Aifred/beta/IntelligenceHost. HKCU Run: AIFRED Beta Intelligence Host. Settings: %APPDATA%/Aifred/beta/IntelligenceHost/settings.json. Explicit startup script writes channel logs under LocalAppData/Aifred/beta/logs, overwritten each launch.
 
-Both products currently install Aifred.vst3 into %CommonProgramFiles%/VST3. Beta installs engine/config/models/logs under %ProgramFiles%/Aifred and user_settings.json under %APPDATA%/Aifred; logs can fall back to application data. This pass preserves current IDs and runtime settings formats. Consult [channel collisions](COEXISTENCE.md); shared-slot replacement is not side-by-side support.
+Uninstall removes only channel binaries/startup; settings, references, other channels and provider data remain. Public settings hide credentials. Compatible prior provider settings are read without deleting originals. Configure provider through existing settings UI; no model is implicitly downloaded.
 
-Uninstall/update/rollback wrappers document their boundary and refuse automatic mutation until channel ownership is established. Beta retains its existing uninstaller, which predates channel isolation. Inspect its targets before using it on a machine with Official installed. User references, settings, models, reports and other-channel files must survive by default. Build cleanup never touches installed files or user data.
-
-Beta macOS packaging uses /Library/Audio/Plug-Ins/VST3/Aifred.vst3, /Library/Application Support/Aifred and /Library/LaunchAgents/com.aifred.engine.plist. User overrides live below ~/Library/Application Support/Aifred. The existing postinstall/AI repair/control scripts remain owned by Beta. pkg signing, notarization, login restart and host behavior need Mac validation.
-
-The gateway is 127.0.0.1:8787; Ollama is a separate service normally at 127.0.0.1:11434. A healthy port alone does not identify the correct channel. Do not auto-start arbitrary provider processes during a build. Installation and model downloads require a deliberate runtime operation.
-
-Future lifecycle: a channel manifest records installed files and hashes; update validates product/channel and waits for host shutdown; uninstall removes only owned components; rollback restores a verified prior same-channel package. These are planned boundaries, not a new updater implementation.
+Read [coexistence migration](COEXISTENCE.md) for global-slot installs. Installed/DAW validation remains manual. lifecycle.ps1 -Action update releases then installs. Installed rollback is not automatic; inspect recovery paths before recovery.

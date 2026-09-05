@@ -346,7 +346,16 @@ void AifredAudioProcessorEditor::sliderValueChanged(juce::Slider* slider) {
 }
 
 void AifredAudioProcessorEditor::timerCallback() {
+  const auto previousMetrics = state_.metrics;
+  const bool previousValid = state_.valuesValid;
   state_ = processor_.getView();
+  // A short display response follows continuous live measurements. The observation
+  // attached to this view remains untouched for reasoning and history.
+  if (previousValid && state_.valuesValid) {
+    state_.metrics.correlation = previousMetrics.correlation + 0.4f * (state_.metrics.correlation - previousMetrics.correlation);
+    state_.metrics.stereoWidth = previousMetrics.stereoWidth + 0.4f * (state_.metrics.stereoWidth - previousMetrics.stereoWidth);
+    state_.metrics.widthScale = state_.metrics.stereoWidth;
+  }
   compareState_ = processor_.getCompareView();
 
   if (juce::Time::getMillisecondCounter() % 3000 < 40) {
@@ -786,7 +795,7 @@ void AifredAudioProcessorEditor::drawHaloSpectrometer(juce::Graphics& g, juce::R
     for(std::size_t i=1;i<state.binCount;++i){const double hz=static_cast<double>(i)*state.binWidthHz;if(hz<20||hz>20000)continue;
       const float x=plot.getX()+plot.getWidth()*static_cast<float>(std::log(hz/20)/std::log(1000.0));
       const float db=state.spectrumPower[i]>0?static_cast<float>(10*std::log10(state.spectrumPower[i])):-120;
-      const float y=plot.getBottom()-plot.getHeight()*clamp01((db+96)/96);
+      const float y=plot.getBottom()-plot.getHeight()*clamp01((db+24)/24);
       if(!started){spectrum.startNewSubPath(x,y);started=true;}else spectrum.lineTo(x,y);
     }
     g.setColour(Colours::cyan);g.strokePath(spectrum,juce::PathStrokeType(1.6f));
@@ -804,7 +813,7 @@ void AifredAudioProcessorEditor::drawHaloSpectrometer(juce::Graphics& g, juce::R
   }
   g.setFont(juce::FontOptions(9.0f, juce::Font::bold));
   g.setColour(Colours::muted);
-  g.drawText(haloCenterMode_ == 0 ? "FFT POWER" : (haloCenterMode_ == 1 ? "WAVEFORM" : "FFT + WAVE"), bounds.toNearestInt().removeFromTop(14), juce::Justification::centred);
+  g.drawText(haloCenterMode_ == 0 ? "FFT POWER / -24 TO 0 dB" : (haloCenterMode_ == 1 ? "WAVEFORM" : "FFT + WAVE"), bounds.toNearestInt().removeFromTop(14), juce::Justification::centred);
 }
 
 void AifredAudioProcessorEditor::drawDomainCard(juce::Graphics& g,juce::Rectangle<int> bounds,const char* name,Domain domain,const BetaView& state) {

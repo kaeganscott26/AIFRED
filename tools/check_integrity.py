@@ -30,15 +30,16 @@ def main() -> int:
         names = set(archive.namelist())
         required = [
             "Aifred.vst3/Contents/x86_64-win/Aifred.vst3",
-            "Aifred/./bin/AifredEngine.exe",
-            "Aifred/./config/config.json",
+            "AifredIntelligenceHost/AifredIntelligenceHost.exe",
+            "AifredIntelligenceHost/AifredIntelligenceHost.runtimeconfig.json",
+            "AifredIntelligenceHost/channel.json",
         ]
         normalized = {name.replace("\\", "/").replace("//", "/") for name in names}
         for item in required:
             if item not in normalized and item.replace("/./", "/") not in normalized:
                 return fail(f"package missing {item}")
         # Current Beta intentionally ships the documented optional AI repair script.
-    pass_line("package contains VST3, engine, and config and documented optional repair tools")
+    pass_line("package contains VST3, Intelligence Host and channel configuration")
 
     if "--health" not in sys.argv:
         pass_line(f"installer present: {INSTALLER}")
@@ -47,7 +48,7 @@ def main() -> int:
     try:
         with urllib.request.urlopen("http://127.0.0.1:8787/health", timeout=2) as response:
             payload = json.loads(response.read().decode("utf-8"))
-        if not payload.get("ok"):
+        if payload.get("host_identity") != "AifredIntelligenceHost" or payload.get("product_channel") != "beta":
             return fail("engine health returned ok=false")
         pass_line(f"engine health ok; model_loaded={payload.get('model_loaded')}")
     except Exception as exc:

@@ -1,0 +1,33 @@
+{
+  "version": "1.1.0",
+  "normalization": "CRLF to LF",
+  "files": {
+    "shared-dsp/CMakeLists.txt": "b984c722be38446c981e501b6c9eee44431756ad716a022d6ca40d7977f7223c",
+    "shared-dsp/README.md": "834ee2c2842ff2f9aab113cdc28da31d6eda3ed2ee185d2bfda9692c963b5194",
+    "shared-dsp/include/aifred/BufferHunter.h": "44ca51541f0cb5acff4a711cdb77b9de17f5bebc59b5230fea6ba36271125a57",
+    "shared-dsp/include/aifred/Contracts.h": "348e4659c5d064fa96188835b373d6621a5f43faff51331ecc2136fd4f3138d7",
+    "shared-dsp/include/aifred/Engine.h": "cc13803f9f26d5946756b8b479c0d5261acc21b1f9e5fa44d8978ac379ca95da",
+    "shared-dsp/include/aifred/Filter.h": "9ff1896ec7e1d9264af99526fa87fdc5e5bf59d2a54fc99e8de59df2eb063b6c",
+    "shared-dsp/include/aifred/IntelligenceClient.h": "08e437cb557dbfb254fd593c1fbe71c3120571cd03c330441e8fe3af7e32e10f",
+    "shared-dsp/include/aifred/Loudness.h": "04a279af7b67b2a3d802ee11ffbb2f4e55f81f1f0ddcf3279be7f9e2501d6433",
+    "shared-dsp/include/aifred/Pipeline.h": "6ed3b5400c5a678f6eecf132296e5f3c30786b83f9bca13e0dd7ac79eea9b2c5",
+    "shared-dsp/include/aifred/Spectrum.h": "3a0fd355a67d75cf432a22dddb4f29df3b127289c63901c5119773601568e4f9",
+    "shared-dsp/include/aifred/TruePeak.h": "8b154704c2aba51e63461294c5adf7ec4b63e163bb9b370be1ddb3ec55f64cd1",
+    "shared-dsp/src/BufferHunter.cpp": "2c0e423f7bb4605b90d4dbfede5eef1f1a477b987e98842c2f8eda6069d7d2f6",
+    "shared-dsp/src/Engine.cpp": "a8ed90033d42064f1bf8eb658aa52bda1b16f799def3b1e4028f6c3b860f0948",
+    "shared-dsp/src/Filter.cpp": "893da518072e0f9bb033286696370b7eeb8da4c03abac097083c7c998465b08a",
+    "shared-dsp/src/IntelligenceClient.cpp": "5d5dd88b2fe3ac8ed5e7269141dd3cd49632d8dba65be8f98e7807ea66daafbf",
+    "shared-dsp/src/Loudness.cpp": "be5d9a1cb2d6c61509271e11e1563afb677986e57889822c82131ea4e0e38bea",
+    "shared-dsp/src/Pipeline.cpp": "0f866ae7264b163c9c8cb1ec4ed19b6713be28d425b856ae3c1a6b8bee9ff963",
+    "shared-dsp/src/Spectrum.cpp": "b20648366f95ee86292f03f1e2106168f64ae654ebf4a8e0d8ea505fd98fda54",
+    "shared-dsp/tests/core_tests.cpp": "38943b0b28d86eb0dedc18b89ddff2f3171249a19ca586c62634b52af1469106",
+    "shared-dsp/tests/fixture_meter.cpp": "a7231dd5802170c135fdd219bdb46e364872dbdbb9e0a30f5bc464b740ed1724",
+    "tools/AifredIntelligenceHost.Tests/AifredIntelligenceHost.ContractTests.csproj": "222e60406659e41d612e313bd5ec8db3f87ede8f37fb9ed48235f13278a8c3b6",
+    "tools/AifredIntelligenceHost.Tests/Program.cs": "29c327bf4c5e1865bf2f498aa9d9140170c6348fea4e3b09b5b088d57421c9a9",
+    "tools/AifredIntelligenceHost/AifredIntelligenceHost.csproj": "73e0dd08783ec91a53c2acb6a4a303ee5fd6966f0d82a7904c40e6a07e0629c4",
+    "tools/AifredIntelligenceHost/ContextContract.cs": "789e4001cdc6cc6432bff055fde4b380134f227e58e34df88e4bd868447dafa2",
+    "tools/AifredIntelligenceHost/HostSettings.cs": "7ca8f73416e71c322a47ef437bedafc6bdf05087e2a989840764081357c282ce",
+    "tools/AifredIntelligenceHost/Program.cs": "4ac0f659cc7b8c23dde516ec47bdfc072254ee40615dec2be56c722a9ff36d6e",
+    "tools/AifredIntelligenceHost/ProviderRouter.cs": "77250168d23013d09796068bb64b443e764d790599b1f6fd7a7853f000c2e927"
+  }
+}

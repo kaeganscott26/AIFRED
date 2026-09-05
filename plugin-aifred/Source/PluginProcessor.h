@@ -64,7 +64,6 @@ public:
     aifred::core::IntelligenceClient& intelligence() noexcept {return intelligence_;}
 
 private:
-    aifred::core::IntelligenceClient intelligence_ { "beta" };
   static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
   void loadLocalSettings();
   void saveLocalSettings() const;
@@ -72,6 +71,8 @@ private:
 
   core::Pipeline analysis_ {"beta","0.3.6"};
   core::Pipeline compareAnalysis_ {"beta","0.3.6"};
+  // Client joins before the context owner is destroyed, independently of editor lifetime.
+  core::IntelligenceClient intelligence_ {"beta", [this](juce::String response){analysis_.recordResponse(response);} };
   ReferenceTarget reference_;
   std::atomic<int> mode_ { static_cast<int>(AnalysisMode::Analyze) };
   PluginSettings settings_;
