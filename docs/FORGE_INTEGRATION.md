@@ -1,4 +1,4 @@
-# AIFRED ↔ FORGE Integration
+# AIFRED â†” FORGE Integration
 
 FORGE is not the long-term raw AIFRED log archive. It retains bounded current operational context and lightweight pointers; Desktop Admin/local AIFRED storage owns history.
 
@@ -27,3 +27,8 @@ The PowerShell link script provides the equivalent Windows setup. Both refuse un
 FORGE reads `runtime/aifred-archive/manifest.json` to discover history. Search and restore require query/category/date plus record and byte bounds. Restored slices are temporary analysis material, not permanent active memory.
 
 No FORGE ToolRouter implementation is stored in AIFRED. The manifest declares capabilities for registration by FORGE's existing authority/router; the bridge does not bypass it.
+
+
+## Export and desktop ownership
+
+Site exports use aifred.site-data 1.0.0; track exports use aifred.track-analysis 1.0.0. Both preserve UTC timestamps and sanitized bounded records with no-store responses and existing admin authorization. Sources include catalog, reference-pool and activity KV. Windows WinForms and macOS AppKit/WebKit clients call the same protected API and local archive CLI. Credentials are supplied to the export process, not stored in the discovery manifest.

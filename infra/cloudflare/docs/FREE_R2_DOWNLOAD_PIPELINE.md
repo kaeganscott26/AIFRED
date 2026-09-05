@@ -13,7 +13,7 @@ browser
 
 Public activity and inquiry events are written to `AIFRED_SALES_LOG` KV. They do not mutate GitHub.
 
-The canonical operational guide is [`docs/wiki/Cloudflare-R2-Setup-Guide.md`](../../../docs/wiki/Cloudflare-R2-Setup-Guide.md). This file is only an infrastructure entry point.
+The canonical operational guide is [`docs/ARCHITECTURE.md`](../../../docs/ARCHITECTURE.md). This file is only an infrastructure entry point.
 
 The active pipeline has no checkout, order creation, capture, IPN, entitlement token, `MAILER` service binding, or separate website-assets bucket.
 

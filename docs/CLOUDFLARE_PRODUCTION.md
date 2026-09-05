@@ -11,7 +11,7 @@
 - Root convenience config: `wrangler.jsonc`
 - Functions: `apps/website/functions/` plus advanced-mode `_worker.js`
 
-The separate live Worker named `aifred` has no route/binding and does not intercept production domains. Pages Functions are the active API runtime.
+The checked-in architecture assigns the API to Pages Functions. Confirm live Worker routes, Pages bindings and access policies before a deployment; historical dashboard observations are not a current account audit.
 
 ## Storage and bindings
 
@@ -43,8 +43,13 @@ Never commit values. Local names are illustrated in `apps/website/.dev.vars.exam
 ```sh
 npm ci --prefix apps
 npm --prefix apps run website:check
-cd apps && npx wrangler pages functions build website --outdir /tmp/aifred-pages-functions-build
+npx --prefix apps wrangler pages functions build apps/website --outdir out/website/build/functions
 npm --prefix apps run website:deploy
 ```
 
 GitHub Actions validates pushes/tags. Production deployment is explicit through the npm command or the manually dispatched workflow when Cloudflare repository secrets exist; native duplicate Git deployment is not the authority.
+
+
+## Promotion checks
+
+Before deployment, verify account/project, main branch, apps/website source, /api and /api/v1 compatibility, /v1 and /ws/chat handling, binding names, admin authorization and public/preview hostname policy. Run repository/API checks, capture the previous deployment identifier, deploy only within the authorized environment, verify responses and retain a rollback target. Validation workflows must not publish packages or deploy. Never record secret values. Historical migration checklists do not grant current deployment approval.

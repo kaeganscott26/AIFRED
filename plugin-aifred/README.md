@@ -11,4 +11,4 @@ cmake -S . -B build/aifred -DCMAKE_BUILD_TYPE=Release
 cmake --build build/aifred --config Release --parallel
 ```
 
-Windows packaging uses `tools/package-aifred.ps1` and the .NET installer projects. macOS packaging uses `tools/macos/package-aifred-macos.sh`. See [User Guide](../docs/USER_GUIDE.md), [Developer Guide](../docs/DEVELOPER_GUIDE.md), and [Troubleshooting](../docs/TROUBLESHOOTING.md).
+Windows packaging uses `tools/package-aifred.ps1` and the .NET installer projects. macOS packaging uses `tools/macos/package-aifred-macos.sh`. See [User Guide](../docs/USER_GUIDE.md), [Developer Guide](../docs/DEVELOPMENT.md), and [Troubleshooting](../docs/TROUBLESHOOTING.md).

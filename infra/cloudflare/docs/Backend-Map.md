@@ -2,7 +2,7 @@
 
 The canonical current backend map is:
 
-- [`docs/wiki/Backend-Map.md`](../../../docs/wiki/Backend-Map.md)
+- [`docs/ARCHITECTURE.md`](../../../docs/ARCHITECTURE.md)
 
 This file is retained as an operations entry point so old links under `infra/cloudflare/docs/` do not break, but it must not become a second independent source of backend truth.
 

@@ -164,32 +164,19 @@ require_reference "/api/v1/downloads/plugin" apps/website docs README.md
 require_reference "AIFRED_DOWNLOADS" apps/website infra/cloudflare docs README.md
 require_reference "AIFRED_REFERENCE_BUCKET" apps/website infra/cloudflare docs README.md
 require_reference "kaeganscott26/AIFRED" apps/website apps/admin-android docs README.md
-forbid_reference "kaeganscott26/aifred-site" apps/website apps/admin-android .github README.md docs/wiki infra/cloudflare/docs
+forbid_reference "kaeganscott26/aifred-site" apps/website apps/admin-android .github README.md docs infra/cloudflare
 require_reference 'name = "aifred-site"' apps/website/wrangler.toml infra/cloudflare/wrangler.toml
-forbid_reference "project-name=north3rnlight3r" apps/website .github README.md docs/wiki infra/cloudflare
+forbid_reference "project-name=north3rnlight3r" apps/website .github README.md docs infra/cloudflare
 
 section "Current Documentation Truth"
-for path in \
-  README.md \
-  aifred_state.md \
-  docs/RELEASE_NOTES.md \
-  docs/wiki/Home.md \
-  docs/wiki/User-Guide.md \
-  docs/wiki/Admin-App-Guide.md \
-  docs/wiki/Developer-Guide.md \
-  docs/wiki/Backend-Map.md \
-  docs/wiki/Function-Map.md \
-  docs/wiki/Cloudflare-R2-Setup-Guide.md \
-  docs/wiki/Security-And-Distribution.md
-  do
+for path in README.md docs/BUILD.md docs/ARCHITECTURE.md docs/DEVELOPMENT.md docs/TESTING.md docs/DISTRIBUTION.md docs/INSTALLATION.md docs/API_REFERENCE.md docs/CLOUDFLARE_PRODUCTION.md; do
   require_file "$path"
 done
-
-require_reference "gpt-5.6-luna" README.md aifred_state.md docs/wiki docs/RELEASE_NOTES.md apps/website/assets/docs
-require_reference "v0.3.6-installer-ai-alias" docs/RELEASE_NOTES.md docs/wiki apps/website/assets/docs apps/website/.dev.vars.example
-forbid_reference "AIFRED-VST3-linux.zip" README.md docs/wiki infra/cloudflare/docs apps/website/assets/docs
-forbid_reference "AIFRED-VST3-arch.zip" README.md docs/wiki infra/cloudflare/docs apps/website/assets/docs
-require_reference "AIFRED-VST3-macos.zip" docs/wiki apps/website
+require_reference "gpt-5.6-luna" docs apps/website/assets/docs
+require_reference "v0.3.6-installer-ai-alias" apps/website/assets/docs apps/website/.dev.vars.example
+forbid_reference "AIFRED-VST3-linux.zip" README.md docs apps/website/assets/docs
+forbid_reference "AIFRED-VST3-arch.zip" README.md docs apps/website/assets/docs
+require_reference "AIFRED-VST3-macos.zip" apps/website
 
 section "Android Admin Shape"
 for path in \

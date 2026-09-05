@@ -2,19 +2,74 @@
   "version": 6,
   "configurePresets": [
     {
-      "name": "ninja-release",
-      "displayName": "Ninja Release",
+      "name": "windows-release",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/ninja-release",
+      "binaryDir": "${sourceDir}/out/windows-x64/build",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_STANDARD": "20",
+        "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+        "JUCE_BUILD_EXAMPLES": "OFF",
+        "JUCE_BUILD_EXTRAS": "OFF"
+      }
+    },
+    {
+      "name": "macos-release",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/macos-arm64/build",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_STANDARD": "20",
+        "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+        "JUCE_BUILD_EXAMPLES": "OFF",
+        "JUCE_BUILD_EXTRAS": "OFF",
+        "CMAKE_OSX_ARCHITECTURES": "arm64"
+      }
+    },
+    {
+      "name": "linux-release",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/linux-x64/build",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_STANDARD": "20",
+        "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+        "JUCE_BUILD_EXAMPLES": "OFF",
+        "JUCE_BUILD_EXTRAS": "OFF"
       }
     }
   ],
   "buildPresets": [
     {
-      "name": "ninja-release",
-      "configurePreset": "ninja-release"
+      "name": "windows-release",
+      "configurePreset": "windows-release",
+      "jobs": 4
+    },
+    {
+      "name": "macos-release",
+      "configurePreset": "macos-release",
+      "jobs": 4
+    },
+    {
+      "name": "linux-release",
+      "configurePreset": "linux-release",
+      "jobs": 4
     }
-  ]
+  ],
+  "testPresets": []
 }

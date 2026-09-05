@@ -3,7 +3,7 @@ import { access, readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const files = ["README.md", "docs/README.md", "docs/USER_GUIDE.md", "docs/DEVELOPER_GUIDE.md", "docs/ADMIN_GUIDE.md", "docs/ADMIN_COMMAND_REFERENCE.md", "docs/API_REFERENCE.md", "docs/FORGE_INTEGRATION.md", "docs/ARCHIVE_GUIDE.md", "docs/CLOUDFLARE_PRODUCTION.md", "docs/TROUBLESHOOTING.md", "docs/OPS_GUIDE.md", "plugin-aifred/README.md", "tools/AifredEngine/README.md", "apps/website/README.md", "apps/admin-android/README.md", "apps/admin-desktop/README.md", "integrations/forge/README.md"];
+const files = ["README.md", ...["README", "BUILD", "ARCHITECTURE", "DEVELOPMENT", "DISTRIBUTION", "INSTALLATION", "TESTING", "COEXISTENCE", "USER_GUIDE", "ADMIN_GUIDE", "ADMIN_COMMAND_REFERENCE", "API_REFERENCE", "FORGE_INTEGRATION", "ARCHIVE_GUIDE", "CLOUDFLARE_PRODUCTION", "TROUBLESHOOTING", "OPS_GUIDE"].map(name => `docs/${name}.md`)];
 const failures = [];
 for (const name of files) {
   const path = resolve(root, name);

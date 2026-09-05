@@ -3,27 +3,32 @@ set -eu
 
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
-BUILD_ROOT="${BUILD_ROOT:-$REPO_ROOT/build-mac}"
-DIST_DIR="${DIST_DIR:-$REPO_ROOT/dist/macos}"
+BUILD_ROOT="${BUILD_ROOT:-$REPO_ROOT/out/macos-arm64/build}"
+DIST_DIR="${DIST_DIR:-$REPO_ROOT/out/macos-arm64/stage}"
 RUNTIME="${RUNTIME:-osx-arm64}"
-PKGROOT="$DIST_DIR/pkgroot"
-SCRIPTS_DIR="$DIST_DIR/scripts"
+PKGROOT="$BUILD_ROOT/packaging/pkgroot"
+SCRIPTS_DIR="$BUILD_ROOT/packaging/scripts"
 PRODUCT_ROOT="$PKGROOT/Library/Application Support/Aifred"
 PLUGIN_ROOT="$PKGROOT/Library/Audio/Plug-Ins/VST3"
 
-PLUGIN_PATH="$(find "$BUILD_ROOT" -type d -name Aifred.vst3 -path '*/Release/VST3/*' | head -n 1)"
-if [ -z "$PLUGIN_PATH" ]; then
+PLUGIN_PATH="$BUILD_ROOT/plugin-aifred/Aifred_artefacts/Release/VST3/Aifred.vst3"
+if [ ! -d "$PLUGIN_PATH" ]; then
   echo "Aifred.vst3 was not found under $BUILD_ROOT" >&2
   exit 1
 fi
 
-rm -rf "$DIST_DIR"
+# Canonical owned staging/scratch only; never remove an arbitrary override directory.
+if [ "$BUILD_ROOT" != "$REPO_ROOT/out/macos-arm64/build" ] || [ "$DIST_DIR" != "$REPO_ROOT/out/macos-arm64/stage" ]; then
+  echo 'Packaging requires canonical macos-arm64 build/stage paths.' >&2; exit 2
+fi
+python3 -B "$REPO_ROOT/scripts/common/release.py" prepare --platform macos-arm64
+python3 -B "$REPO_ROOT/scripts/common/release.py" prepare_scratch --platform macos-arm64
 mkdir -p "$PRODUCT_ROOT/bin" "$PRODUCT_ROOT/config" "$PRODUCT_ROOT/logs" "$PRODUCT_ROOT/models/aifred" "$PLUGIN_ROOT" "$PKGROOT/Library/LaunchAgents" "$SCRIPTS_DIR"
 
 cp -R "$PLUGIN_PATH" "$PLUGIN_ROOT/Aifred.vst3"
 
-dotnet publish "$REPO_ROOT/tools/AifredEngine/AifredEngine.Mac.csproj" -c Release -r "$RUNTIME" -o "$DIST_DIR/engine/$RUNTIME"
-cp "$DIST_DIR/engine/$RUNTIME/AifredEngine" "$PRODUCT_ROOT/bin/AifredEngine"
+dotnet publish "$REPO_ROOT/tools/AifredEngine/AifredEngine.Mac.csproj" -c Release -r "$RUNTIME" -p:AifredPlatform=macos-arm64 -o "$BUILD_ROOT/packaging/engine/$RUNTIME"
+cp "$BUILD_ROOT/packaging/engine/$RUNTIME/AifredEngine" "$PRODUCT_ROOT/bin/AifredEngine"
 chmod 755 "$PRODUCT_ROOT/bin/AifredEngine"
 
 cat > "$PRODUCT_ROOT/config/config.json" <<'JSON'

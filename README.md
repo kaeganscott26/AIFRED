@@ -1,58 +1,17 @@
-# AIFRED
+# AIFRED Beta
 
-AIFRED is a private audio-analysis ecosystem: a JUCE VST3 and local model gateway, a Cloudflare-hosted website/API, owner-only admin clients, and a bounded FORGE integration with desktop-owned cold storage.
+CURRENT: 0.3.6 / JUCE 8.0.14. Operational Beta: VST3 analysis, local .NET companion, Cloudflare website/API and private admin clients.
 
-## Runtime components
+The repositories remain separate. AIFRED helps producers interpret measured audio; it does not automatically mix a session. Windows x64 is the construction validation target. macOS has an existing Beta package route, not validated in this pass. Linux (Arch/Debian/Ubuntu) is SCAFFOLDED / NOT VALIDATED. No complete Linux release is claimed.
 
-| Component | Authority | Current role |
-| --- | --- | --- |
-| VST3 0.3.6 | `plugin-aifred/` | DAW analysis, reference comparison, interpreted mix state, local-engine chat |
-| AifredEngine 1.0.0 | `tools/AifredEngine/` | Loopback gateway on `127.0.0.1:8787`; Ollama/OpenAI-compatible routing |
-| Website/API | `apps/website/` | Public site, analyzer, catalog/downloads, Pages Functions API, `/ops` |
-| Android Admin 2.3.0 | `apps/admin-android/` | Private Compose client, uploads, live operations, exports, command terminal |
-| Desktop Admin | `apps/admin-android/tools/windows-admin/`, `apps/admin-desktop/` | Live admin controls plus local archive management |
-| FORGE bridge 1.1.0 | `integrations/forge/` | Credential-free discovery, bounded current export mirror, archive pointers |
-| Archive schema 1.0.0 | `tools/aifred-archive.mjs` | Verified gzip JSONL cold storage under ignored `runtime/aifred-archive/` |
+Build/test/release from this repository:
 
-## Runtime flow
-
-```text
-VST3 -> AifredEngine (127.0.0.1:8787) -> Ollama (127.0.0.1:11434)
-                                      -> configured OpenAI-compatible provider
-
-Browser / Android / Desktop -> https://www.north3rnlight3r.com
-                            -> Cloudflare Pages + Functions
-                            -> KV activity/reference data + private R2 objects
-
-FORGE -> latest/current sanitized exports
-      -> configurable 25 MB active threshold
-      -> verified desktop/local archive
-      -> lightweight manifest retained for bounded retrieval
+```powershell
+pwsh -NoProfile -File scripts/windows/build.ps1 -Action release
 ```
 
-The plugin is intentionally local-first and does not require Cloudflare. Admin clients use the production API and do not need direct Cloudflare credentials.
+Prerequisites and configure/build/test actions: [BUILD](docs/BUILD.md). Output: out/windows-x64/current. Installation is separate: [INSTALLATION](docs/INSTALLATION.md). Read [DISTRIBUTION](docs/DISTRIBUTION.md) before packaging or replacing artifacts and [COEXISTENCE](docs/COEXISTENCE.md) before installing either channel. Both currently use the shared Aifred.vst3 slot and gateway port 8787.
 
-## Production
+[ARCHITECTURE](docs/ARCHITECTURE.md) maps current folders/runtime ownership. [DEVELOPMENT](docs/DEVELOPMENT.md) explains configuration and contribution boundaries. [TESTING](docs/TESTING.md) lists actual tests and release gates. [Documentation index](docs/README.md) links specialized component contracts.
 
-- Pages project: `aifred-site`
-- Domains: `north3rnlight3r.com`, `www.north3rnlight3r.com`, and the protected Pages hostname
-- Canonical public API: `/health`, `/v1/models`, `/v1/chat/completions`
-- Protected administration: `/api/v1/admin/*`, `/api/v1/command/run`
-- Free downloads: R2-backed plugin packages and catalog media; PayPal routes are retired
-
-## Build and validation
-
-```sh
-cmake -S . -B build/aifred -DCMAKE_BUILD_TYPE=Release
-cmake --build build/aifred --config Release --parallel
-npm ci --prefix apps
-npm --prefix apps run website:check
-node --test tests/aifred-archive.test.mjs
-bash tools/release/aifred_monorepo_validate.sh
-```
-
-Android requires SDK 35 and JDK 17. The macOS Desktop Admin is built locally with `./apps/admin-desktop/macos/build.sh`; generated bundles are ignored. See the component READMEs and [Developer Guide](docs/DEVELOPER_GUIDE.md).
-
-## Documentation
-
-Start with the [documentation index](docs/README.md). Historical consolidation and preview reports under `docs/operations/` preserve decision evidence but are not current runtime authority.
+PLANNED / UNIMPLEMENTED: shared aifred_engine -> BufferHunter -> aifred_filter, selectable DSP profiles and matching controls. Existing DSP/model/GUI behavior remains unchanged. Official owns the new shared design; Beta will integrate a versioned adapter, never an absolute sibling source tree. Local default model routing remains aifred:latest; compatible provider configuration includes gpt-5.6-luna where configured. Future LLM/context tools begin only after analyzer validation.

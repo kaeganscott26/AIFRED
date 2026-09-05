@@ -14,7 +14,10 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <AifredPackagePath Condition="'$(AifredPackagePath)' == ''">$(MSBuildThisFileDirectory)../../out/windows-x64/stage/AIFRED-VST3-windows.zip</AifredPackagePath>
+  </PropertyGroup>
   <ItemGroup>
-    <EmbeddedResource Include="..\..\dist\AIFRED-VST3-windows.zip" LogicalName="AIFRED-VST3-windows.zip" />
+    <EmbeddedResource Include="$(AifredPackagePath)" LogicalName="AIFRED-VST3-windows.zip" />
   </ItemGroup>
 </Project>

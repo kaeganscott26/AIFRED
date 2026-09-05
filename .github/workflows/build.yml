@@ -33,45 +33,42 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
-      - name: Configure
-        run: cmake -S . -B build/aifred -DCMAKE_BUILD_TYPE=Release
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
-      - name: Build
-        run: cmake --build build/aifred --config Release --parallel
-
-      - name: Package VST3
+      - name: Windows build, test and validated release
         if: runner.os == 'Windows'
         shell: pwsh
-        run: ./tools/package-aifred.ps1 -BuildRoot build/aifred -OutputDir dist -Platform ${{ matrix.package_platform }}
+        run: ./scripts/windows/build.ps1 -Action release
 
-      - name: Package macOS VST3
+      - name: macOS candidate build and package
         if: runner.os == 'macOS'
         run: |
-          BUILD_ROOT="$PWD/build/aifred" DIST_DIR="$PWD/dist/macos" RUNTIME=osx-arm64 tools/macos/package-aifred-macos.sh
+          sh scripts/macos/build.sh build
+          sh scripts/macos/build.sh test
+          sh tools/macos/package-aifred-macos.sh
 
-      - name: Build Windows one-click installer
+      - name: Upload Windows release
         if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          dotnet publish tools/AifredWindowsInstaller/AifredWindowsInstaller.csproj -c Release -o dist/installer/windows
-          dotnet publish tools/AifredWindowsUninstaller/AifredWindowsUninstaller.csproj -c Release -o dist/uninstaller/windows
-          Copy-Item dist/installer/windows/AIFRED-VST3-Setup.exe AIFRED-VST3-Setup.exe
-          Copy-Item dist/uninstaller/windows/AIFRED-Uninstall.exe AIFRED-Uninstall.exe
-
-      - name: Stage release artifacts
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path release-assets | Out-Null
-          if (Test-Path dist/AIFRED-VST3-${{ matrix.package_platform }}.zip) { Copy-Item dist/AIFRED-VST3-${{ matrix.package_platform }}.zip release-assets/ }
-          if (Test-Path dist/macos/AIFRED-VST3-macOS.pkg) { Copy-Item dist/macos/AIFRED-VST3-macOS.pkg release-assets/ }
-          if (Test-Path AIFRED-VST3-Setup.exe) { Copy-Item AIFRED-VST3-Setup.exe release-assets/ }
-          if (Test-Path AIFRED-Uninstall.exe) { Copy-Item AIFRED-Uninstall.exe release-assets/ }
-
-      - name: Upload VST3 package
         uses: actions/upload-artifact@v4
         with:
-          name: AIFRED-VST3-${{ matrix.name }}
-          path: release-assets/*
+          name: AIFRED-VST3-windows
+          path: |
+            out/windows-x64/current/AIFRED-VST3-windows.zip
+            out/windows-x64/current/installer/AIFRED-VST3-Setup.exe
+            out/windows-x64/current/uninstaller/AIFRED-Uninstall.exe
+          if-no-files-found: error
+
+      - name: Upload macOS candidate
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: AIFRED-VST3-macOS
+          path: out/macos-arm64/stage/AIFRED-VST3-macOS.pkg
           if-no-files-found: error
 
   website:
@@ -123,7 +120,7 @@ jobs:
           else
             gh release create "${GITHUB_REF_NAME}" release-assets/* \
               --title "AIFRED ${GITHUB_REF_NAME}" \
-              --notes-file docs/RELEASE_NOTES.md
+              --notes-file apps/website/assets/docs/aifred-beta-release-notes.txt
           fi
 
   deploy-website:

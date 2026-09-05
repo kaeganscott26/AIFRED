@@ -1,6 +1,6 @@
 param(
-  [string] $BuildRoot = "build",
-  [string] $OutputDir = "dist",
+  [string] $BuildRoot = "out/windows-x64/build",
+  [string] $OutputDir = "out/windows-x64/stage",
   [string] $Platform = $([System.Runtime.InteropServices.RuntimeInformation]::OSDescription -replace '[^A-Za-z0-9._-]', '-')
 )
 
@@ -11,23 +11,20 @@ $buildPath = Join-Path $repoRoot $BuildRoot
 $distPath = Join-Path $repoRoot $OutputDir
 New-Item -ItemType Directory -Force -Path $distPath | Out-Null
 
-$plugin = Get-ChildItem -LiteralPath $buildPath -Recurse -Filter "Aifred.vst3" -ErrorAction SilentlyContinue | Where-Object { $_.PSIsContainer } | Select-Object -First 1
-if (-not $plugin) {
-  throw "Aifred.vst3 was not found under $buildPath"
+$pluginPath = Join-Path $buildPath 'plugin-aifred/Aifred_artefacts/Release/VST3/Aifred.vst3'
+if (!(Test-Path -LiteralPath (Join-Path $pluginPath 'Contents/x86_64-win/Aifred.vst3'))) {
+  throw "Exact Windows VST3 target missing: $pluginPath"
 }
 
 $safePlatform = $Platform -replace '[^A-Za-z0-9._-]', '-'
 $zipPath = Join-Path $distPath "AIFRED-VST3-$safePlatform.zip"
 $packagePath = Join-Path $distPath "AIFRED-VST3-$safePlatform"
-if (Test-Path -LiteralPath $zipPath) {
-  Remove-Item -LiteralPath $zipPath -Force
-}
-if (Test-Path -LiteralPath $packagePath) {
-  Remove-Item -LiteralPath $packagePath -Recurse -Force
+if ((Test-Path -LiteralPath $zipPath) -or (Test-Path -LiteralPath $packagePath)) {
+  throw 'Stage is not empty. Use scripts/windows/build.ps1 to prepare a recoverable candidate.'
 }
 
 New-Item -ItemType Directory -Force -Path $packagePath | Out-Null
-Copy-Item -LiteralPath $plugin.FullName -Destination (Join-Path $packagePath "Aifred.vst3") -Recurse -Force
+Copy-Item -LiteralPath $pluginPath -Destination (Join-Path $packagePath "Aifred.vst3") -Recurse -Force
 
 $productRoot = Join-Path $packagePath "Aifred"
 New-Item -ItemType Directory -Force -Path (Join-Path $productRoot "bin") | Out-Null

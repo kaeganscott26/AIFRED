@@ -50,4 +50,5 @@ elseif(UNIX)
   set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "AIFRED install path" FORCE)
 endif()
 
+set(CPACK_PACKAGE_DIRECTORY "${CMAKE_BINARY_DIR}/packaging")
 include(CPack)

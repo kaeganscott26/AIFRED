@@ -2,7 +2,7 @@
 set -eu
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/../../.." && pwd)
-APP="$REPO_ROOT/apps/admin-desktop/build/AIFRED Admin.app"
+APP="$REPO_ROOT/out/macos-arm64/build/admin/AIFRED Admin.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 swiftc "$SCRIPT_DIR/AIFREDAdmin.swift" -framework Cocoa -framework WebKit -o "$APP/Contents/MacOS/AIFREDAdmin"
 printf '%s\n' "$REPO_ROOT" > "$APP/Contents/Resources/repo-root.txt"

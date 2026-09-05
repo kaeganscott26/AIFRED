@@ -9,4 +9,4 @@ dotnet build tools/AifredEngine/AifredEngine.csproj -c Release
 dotnet build tools/AifredEngine/AifredEngine.Mac.csproj -c Release
 ```
 
-The engine does not serve the production website and the VST does not call Cloudflare directly. See [API Reference](../../docs/API_REFERENCE.md) and [Backend Separation Contract](../../docs/architecture/BACKEND_SEPARATION_CONTRACT.md).
+The engine does not serve the production website and the VST does not call Cloudflare directly. See [API Reference](../../docs/API_REFERENCE.md) and [Backend Separation Contract](../../docs/ARCHITECTURE.md).

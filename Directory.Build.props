@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <AifredPlatform Condition="'$(AifredPlatform)' == '' and $([MSBuild]::IsOSPlatform('Windows'))">windows-x64</AifredPlatform>
+    <AifredPlatform Condition="'$(AifredPlatform)' == '' and $([MSBuild]::IsOSPlatform('OSX'))">macos-arm64</AifredPlatform>
+    <AifredPlatform Condition="'$(AifredPlatform)' == ''">linux-x64</AifredPlatform>
+    <UseArtifactsOutput>true</UseArtifactsOutput>
+    <ArtifactsPath>$(MSBuildThisFileDirectory)out/$(AifredPlatform)/build/dotnet</ArtifactsPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);**/bin/**;**/obj/**</DefaultItemExcludes>
+  </PropertyGroup>
+</Project>

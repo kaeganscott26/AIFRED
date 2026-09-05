@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "product": "AIFRED Beta",
+  "channel": "beta",
+  "platforms": {
+    "windows-x64": {
+      "preset": "windows-release",
+      "architecture": "x64",
+      "plugin": "plugin-aifred/Aifred_artefacts/Release/VST3/Aifred.vst3"
+    },
+    "macos-arm64": {
+      "preset": "macos-release",
+      "architecture": "arm64",
+      "status": "SCAFFOLDED / NOT VALIDATED"
+    },
+    "linux-x64": {
+      "preset": "linux-release",
+      "architecture": "x64",
+      "status": "SCAFFOLDED / NOT VALIDATED"
+    }
+  },
+  "futureSharedDsp": "UNIMPLEMENTED",
+  "dspProfileSchemaVersion": null
+}
