@@ -51,6 +51,8 @@ public:
   BetaView getCompareView() const;
   AnalysisMode getMode() const;
   void setMode(AnalysisMode mode);
+  void setDspProfile(core::ProfileId id) noexcept;
+  void setSpectrumDisplayRange(core::SpectrumDisplayRange range) noexcept;
   PluginSettings getPluginSettings() const;
   void setPluginSettings(const PluginSettings& settings);
   void setReferenceTarget(const ReferenceTarget& target);

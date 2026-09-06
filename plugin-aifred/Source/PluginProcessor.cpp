@@ -61,8 +61,10 @@ juce::AudioProcessorEditor* AifredAudioProcessor::createEditor() {
 
 void AifredAudioProcessor::getStateInformation(juce::MemoryBlock& destData) {
   juce::XmlElement state("AIFRED_STATE");
-  state.setAttribute("version", 3);
+  state.setAttribute("version", 4);
   state.setAttribute("dsp_profile",juce::String(core::profile(analysis_.selectedProfile()).name.data()));
+  state.setAttribute("spectrum_display_range",juce::String(core::spectrumRangeName(analysis_.presentation().spectrumRange).data()));
+  state.setAttribute("presentation_customized",analysis_.presentationCustomized());
   state.setAttribute("mode", mode_.load());
   state.setAttribute("theme", settings_.themeId);
   state.setAttribute("layout", settings_.layoutId);
@@ -78,8 +80,15 @@ void AifredAudioProcessor::getStateInformation(juce::MemoryBlock& destData) {
 void AifredAudioProcessor::setStateInformation(const void* data, int sizeInBytes) {
   auto state = getXmlFromBinary(data, sizeInBytes);
   if (!state || !state->hasTagName("AIFRED_STATE")) return;
-  analysis_.setProfile(core::profileFromName(state->getStringAttribute("dsp_profile").toStdString()));
-  compareAnalysis_.setProfile(analysis_.selectedProfile());
+  setDspProfile(core::profileFromName(state->getStringAttribute("dsp_profile").toStdString()));
+  if(state->hasAttribute("spectrum_display_range")) {
+    const auto range=core::spectrumRangeFromName(state->getStringAttribute("spectrum_display_range").toStdString());
+    const auto customized=state->getBoolAttribute("presentation_customized",false);
+    analysis_.restorePresentation(range,customized);compareAnalysis_.restorePresentation(range,customized);
+  } else {
+    const auto range=core::profile(analysis_.selectedProfile()).presentation.spectrumRange;
+    analysis_.restorePresentation(range,false);compareAnalysis_.restorePresentation(range,false);
+  }
   mode_.store(juce::jlimit(0, 2, state->getIntAttribute("mode", static_cast<int>(AnalysisMode::Analyze))));
   settings_.themeId = 1;
   settings_.layoutId = 3;
@@ -94,14 +103,14 @@ void AifredAudioProcessor::setStateInformation(const void* data, int sizeInBytes
 }
 
 BetaView AifredAudioProcessor::getView() const {
-  auto state = makeBetaView(analysis_.live(),analysis_.observation());
+  auto state = makeBetaView(analysis_.live(),analysis_.observation(),analysis_.presentation());
   state.reference=reference_;state.hasReference=core::Filter::apply(state.observation,&reference_.distribution).referenceCompatible;
   state.mode = getMode();
   return state;
 }
 
 BetaView AifredAudioProcessor::getCompareView() const {
-  auto state = makeBetaView(compareAnalysis_.live(),compareAnalysis_.observation());
+  auto state = makeBetaView(compareAnalysis_.live(),compareAnalysis_.observation(),analysis_.presentation());
   state.mode = AnalysisMode::Compare;
   return state;
 }
@@ -112,6 +121,16 @@ AnalysisMode AifredAudioProcessor::getMode() const {
 
 void AifredAudioProcessor::setMode(AnalysisMode mode) {
   mode_.store(static_cast<int>(mode));
+}
+
+void AifredAudioProcessor::setDspProfile(core::ProfileId id) noexcept {
+  analysis_.setProfile(id);
+  compareAnalysis_.setProfile(id);
+}
+
+void AifredAudioProcessor::setSpectrumDisplayRange(core::SpectrumDisplayRange range) noexcept {
+  analysis_.setSpectrumDisplayRange(range);
+  compareAnalysis_.setSpectrumDisplayRange(range);
 }
 
 PluginSettings AifredAudioProcessor::getPluginSettings() const {

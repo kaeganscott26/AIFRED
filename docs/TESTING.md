@@ -24,7 +24,7 @@ The LRA plateau fixture follows [EBU Tech 3342](https://tech.ebu.ch/docs/tech/te
 2. Use identical audio, insert position, playback region and sample rate in AIFRED and available Waves, SPAN, FabFilter, Ozone or FL Studio meters. Record tool versions/configuration; disable processing between meters.
 3. Compare sample peak/clipping; RMS only with compatible 400 ms rectangular mean-channel/sine calibration; crest with matching operands. Never insert arbitrary offsets.
 4. Reset programmes together. Compare 400 ms momentary, 3 s short-term, integrated gates, true peak and LRA. Record integration boundaries, interpolation factor/filter and gate tolerance. Short-programme LRA is provisional.
-5. Compare tones/broadband frequency placement and relative energy. Match FFT/Hann/overlap, averaging/release/hold and bin-versus-band representation. -24..0 GUI range must not alter context below -24 dB.
+5. Compare tones/broadband frequency placement and relative energy. Match FFT/Hann/overlap, averaging/release/hold and bin-versus-band representation. Change all presentation ranges and confirm they do not alter FFT bins, telemetry, or context.
 6. Test identical, inverted, unrelated and panned channels. Check correlation, balance, M/S and derived width. Diagnostic stereo is 100 ms; other profiles 400 ms. Verify continuous response to Stereo Shaper.
 7. Switch all four profiles; save/reload state; reset; stop/resume; seek/loop >1 s; close/reopen editor; play silence; disconnect provider. Check epochs/freshness and audio glitches.
 8. Confirm separate hosts/instance IDs and “I changed 6 kHz” → “how about now?” context. Test install/update/uninstall in disposable Windows environment.

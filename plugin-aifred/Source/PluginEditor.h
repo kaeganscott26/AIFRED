@@ -49,7 +49,7 @@ private:
   bool analyzeReferenceFile(const juce::File& file, int slot);
   void clearReferenceSlot(int slot);
   void updateReferenceTargetFromSlots();
-  juce::String scoreText(float score, const BetaView& state, Domain domain);
+  juce::String metricText(const BetaView& state, Domain domain);
 
   AifredAudioProcessor& processor_;
   AifredLookAndFeel lookAndFeel_;
@@ -78,6 +78,7 @@ private:
   juce::ComboBox providerMenu_;
   juce::ComboBox genreMenu_;
   juce::ComboBox profileMenu_;
+  juce::ComboBox spectrumRangeMenu_;
   juce::Slider gateSlider_;
   std::array<juce::Slider, 5> referenceVolumeSliders_;
   std::array<juce::String, 5> referenceFileNames_;

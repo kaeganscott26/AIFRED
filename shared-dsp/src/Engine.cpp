@@ -13,7 +13,7 @@ void Engine::reset() noexcept
     ++epoch_; clock_=0; expectedTransport_=-1; blocks_={}; block_={}; filled_=blockPosition_=tickPosition_=0;
     snapshot_={}; snapshot_.epoch=epoch_; snapshot_.sampleRate=rate_; snapshot_.profileId=requestedProfile();
     snapshot_.profileVersion=profile(snapshot_.profileId).version;
-    tickSamples_=static_cast<std::size_t>(rate_>0 ? rate_/10 : 4800);
+    tickSamples_=static_cast<std::size_t>(rate_>0 ? rate_/profile(snapshot_.profileId).measurement.snapshotHz : 4800);
     if(rate_>0)
     {
         spectrum_.prepare(rate_,profile(snapshot_.profileId)); loudness_.prepare(rate_); truePeak_.prepare(rate_);
@@ -52,7 +52,8 @@ void Engine::process(const float* const* data,int channels,int samples,bool know
 void Engine::publish() noexcept
 {
     blocks_[blockPosition_]=block_; blockPosition_=(blockPosition_+1)%blocks_.size(); filled_=std::min(blocks_.size(),filled_+1);
-    const auto window=static_cast<std::size_t>(std::round(profile(snapshot_.profileId).rmsSeconds*10));
+    const auto& configuration=profile(snapshot_.profileId).measurement;
+    const auto window=static_cast<std::size_t>(std::round(configuration.metering.rmsSeconds*configuration.snapshotHz));
     Block sum;
     for(std::size_t i=0;i<std::min(window,filled_);++i)
     {
@@ -70,7 +71,7 @@ void Engine::publish() noexcept
     }
     // Stereo integration is independent of the level window. Diagnostic mode
     // resolves a phase change within 100 ms; loudness and RMS keep their definitions.
-    const auto stereoWindow=static_cast<std::size_t>(std::round(profile(snapshot_.profileId).stereoSeconds*10));
+    const auto stereoWindow=static_cast<std::size_t>(std::round(configuration.metering.stereoSeconds*configuration.snapshotHz));
     if(filled_>=stereoWindow)
     {
         Block stereo;

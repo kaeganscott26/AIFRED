@@ -2,6 +2,7 @@
 #include "Engine.h"
 #include "Filter.h"
 #include <juce_core/juce_core.h>
+#include <atomic>
 #include <deque>
 #include <memory>
 #include <mutex>
@@ -18,8 +19,30 @@ public:
     void prepare(double rate,int channels) noexcept {engine_->prepare(rate,channels);}
     void process(const float* const* data,int channels,int samples,bool known=false,bool playing=false,std::int64_t position=-1) noexcept
     {engine_->process(data,channels,samples,known,playing,position);}
-    void setProfile(ProfileId id) noexcept {engine_->requestProfile(id);}
+    void setProfile(ProfileId id) noexcept
+    {
+        engine_->requestProfile(id);
+        if(!presentationCustomized_.load(std::memory_order_relaxed))
+            displayRange_.store(profile(id).presentation.spectrumRange,std::memory_order_relaxed);
+    }
     ProfileId selectedProfile() const noexcept {return engine_->requestedProfile();}
+    void setSpectrumDisplayRange(SpectrumDisplayRange range) noexcept
+    {
+        displayRange_.store(range,std::memory_order_relaxed);
+        presentationCustomized_.store(true,std::memory_order_relaxed);
+    }
+    void restorePresentation(SpectrumDisplayRange range,bool customized) noexcept
+    {
+        displayRange_.store(range,std::memory_order_relaxed);
+        presentationCustomized_.store(customized,std::memory_order_relaxed);
+    }
+    PresentationConfiguration presentation() const noexcept
+    {
+        auto result=profile(selectedProfile()).presentation;
+        result.spectrumRange=displayRange_.load(std::memory_order_relaxed);
+        return result;
+    }
+    bool presentationCustomized() const noexcept {return presentationCustomized_.load(std::memory_order_relaxed);}
     void reset() noexcept {engine_->requestReset();}
     EngineSnapshot live() const;
     ObservationSnapshot observation() const;
@@ -35,6 +58,8 @@ private:
     EngineSnapshot live_;
     std::string channel_,version_,instanceId_,sessionId_;
     std::deque<juce::var> history_;
+    std::atomic<SpectrumDisplayRange> displayRange_ {SpectrumDisplayRange::db96};
+    std::atomic<bool> presentationCustomized_ {false};
 };
 juce::var filteredContextJson(const FilteredMixContext&);
 }

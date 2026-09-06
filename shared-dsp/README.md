@@ -1,57 +1,101 @@
-# Shared core 1.1.0
+# Shared DSP core 1.2.0
 
-Both products vendor identical shared-dsp and Intelligence Host source. shared-core.lock.json pins a normalized SHA-256 inventory. Canonical tests/releases verify it. `python -B scripts/common/check_shared_core.py --peer <other-clone>` additionally compares explicit clones. Standalone builds have no sibling dependency or new remote. Review/version both copies together.
+Official and Beta vendor identical `shared-dsp`, `AifredIntelligenceHost`, and host contract-test source. [shared-core.lock.json](../shared-core.lock.json) pins a CRLF-normalized SHA-256 inventory. Each repository builds without a sibling checkout. Run `python -B scripts/common/check_shared_core.py --peer <peer>` to compare explicit clones.
 
-```mermaid
-flowchart TD
-  Beta[Beta / DAW audio] --> Engine[aifred_engine]
-  Official[Official / DAW audio] --> Engine
-  Engine --> ES[EngineSnapshot v1]
-  ES --> BH[BufferHunter]
-  BH --> OS[ObservationSnapshot v1]
-  OS --> Filter[aifred_filter]
-  Filter --> Context[FilteredMixContext v1]
-  Context --> Host[AifredIntelligenceHost]
-  Host --> LLM[Configured model]
-  ES --> Live[Live spectrum and stereo meters]
-  OS --> Labels[Observation readouts]
+## Pipeline
+
+```text
+DAW audio
+  -> Engine
+  -> EngineSnapshot
+  -> BufferHunter
+  -> ObservationSnapshot
+  -> Filter
+  -> FilteredMixContext
 ```
 
-Shared source does not mean shared mutable analysis. Each processor owns DSP, publication, observation, client and conversation. Beta Compare owns a separate input pipeline.
+[Contracts](include/aifred/Contracts.h) define physical values, profiles, measurement configuration, presentation configuration, identities, and metadata. [Pipeline](src/Pipeline.cpp) adapts processor-owned realtime publication to observation and filtered JSON.
 
-## Measurement definitions
+## Measurement algorithms
 
-- Sample peak: maximum absolute channel sample over the RMS window; 20 log10 conversion. Unrounded magnitude >=1 drives sample-over detection; cumulative count resets with epoch.
-- RMS: mean channel energy over a rectangular 400 ms window; full-scale sine is -3.0103 dBFS. Broadband crest is sample peak minus RMS over that same window.
-- True peak: reconstructed programme maximum, 64-tap Blackman-windowed sinc phase interpolation, 4x below 96 kHz, 2x below 192 kHz, 1x at 192 kHz; 32-sample delay. This uses the oversampled-reconstruction approach of BS.1770 Annex 2, without certification. Finite-filter, start/end and high-rate under-read limits remain to be validated. No linear interpolation/calibration offset.
-- Loudness: BS.1770 K-weighting shelf/RLB, channel energy summation; 400 ms momentary and 3 s short-term. Integrated: 400 ms blocks every 100 ms, -70 LUFS absolute then -10 LU relative gates, programme energy accumulation. LRA: 3 s values at 10 Hz, -70 LUFS/-20 LU gates, P95-P10. Bounded 0.01 LU histograms retain full-precision power sums; gating/percentile discretization is limited by that resolution. Programme measures remain independent of BufferHunter. Short-programme LRA is provisional; no full EBU Mode certification.
-- Stereo: sum(LR)/sqrt(sum(LL)sum(RR)), unavailable with silent denominators. Channel energies and R/L dB balance use the stereo window. Mid=(L+R)/2; Side=(L-R)/2. Width=100*SideEnergy/(MidEnergy+SideEnergy), a documented presentation scale, not an industry standard. Vectorscope pairs are bounded sampled L/R data.
-- Spectrum: radix-2 real-input STFT, periodic Hann, 75% overlap. Separate channel powers are averaged; one-sided normalization N*sum(window squared), doubled interior bins, obeys Parseval. Exponential power averaging and separate peak hold/release. Hero retains 1025/4097 bins. Only rendering clips to -24..0 dB.
-- Telemetry: geometric-midpoint regions around 30 AIFRED centres, including 850 Hz at index 16. Fractional FFT-bin-cell overlap accumulates power before dB conversion. Regions beyond Nyquist are unavailable. These are AIFRED centres, not a metering standard or replacement FFT.
+### Level and crest
 
-Mono/stereo input supports finite 32–192 kHz rates divisible by 10, including normal 44.1/48/88.2/96/176.4/192 kHz. Unsupported configuration is unavailable; nonfinite samples reset measurement without changing pass-through audio.
+- Sample peak: maximum absolute sample per channel over the profile RMS window. The unrounded magnitude drives clip detection.
+- RMS: rectangular mean-channel energy over 400 ms. A full-scale sine reads `-3.0103 dBFS`.
+- Crest: sample peak minus RMS from the same 400 ms interval.
+
+### True peak
+
+[TruePeak.h](include/aifred/TruePeak.h) performs causal 64-tap Blackman-windowed sinc reconstruction. It uses 4x phases below 96 kHz, 2x below 192 kHz, and sample evaluation at 192 kHz. The filter delay is 32 input samples. This follows the oversampled-reconstruction approach in BS.1770 Annex 2 without claiming certification. Finite-filter edge behavior and the full official test set still require validation.
+
+### Loudness
+
+[Loudness.cpp](src/Loudness.cpp) implements BS.1770 K weighting, channel energy summation, 400 ms momentary loudness, and 3 s short-term loudness. Integrated loudness uses 400 ms blocks at 100 ms cadence with the `-70 LUFS` absolute gate and `-10 LU` relative gate. LRA samples 3 s loudness at 10 Hz, applies `-70 LUFS` and `-20 LU` gates, and reports P95 minus P10.
+
+Bounded 0.01 LU histograms retain full-precision power sums. BufferHunter observation duration does not change programme integrated loudness or LRA.
+
+### Stereo
+
+- Correlation: `sum(L*R) / sqrt(sum(L*L)*sum(R*R))`, clamped to `-1..1`; silent denominators are unavailable.
+- Balance: `10log10(right_energy/left_energy)`; positive values indicate more right-channel energy.
+- Mid/Side: `M=(L+R)/2`, `S=(L-R)/2` with measured mean-square energy.
+- Side-to-mid: `10log10(side_energy/mid_energy)`.
+- Width: `100*side_energy/(mid_energy+side_energy)`. This is a documented AIFRED presentation scale, not an industry standard.
+- Vectorscope: bounded sampled L/R pairs, with no derived quality score.
+
+The active profile configures stereo integration. Stereo Phase Diagnostic uses 100 ms. Other profiles use 400 ms.
+
+### High-resolution spectrum
+
+[Spectrum.cpp](src/Spectrum.cpp) implements a radix-2 real-input STFT with a periodic Hann window and 75% overlap. It averages separate channel powers. One-sided normalization uses `N*sum(window^2)` and doubles interior bins, preserving Parseval energy. Power averaging and peak hold/release operate in the power domain.
+
+The engine publishes all 1025 bins for a 2048 FFT or all 4097 bins for an 8192 FFT. It also publishes instantaneous, averaged, and peak power. No display floor changes those arrays. The frontend maps them into the selected `-120`, `-96`, `-72`, or `-48 dBFS` viewport.
+
+### 30-band telemetry
+
+The exact centres are:
+
+```text
+20, 30, 40, 50, 60, 70, 80, 90, 100, 150,
+200, 250, 350, 450, 600, 750, 850, 1000, 1500, 2000,
+3000, 4000, 6000, 8000, 10000, 12000, 14000, 16000, 18000, 20000 Hz
+```
+
+`850 Hz` is index 16. No `300 Hz` centre exists. [Spectrum::extractBands](src/Spectrum.cpp) forms geometric-midpoint regions, computes fractional overlap with FFT bin cells, accumulates power, then converts the result to dB. It does not sample the nearest bin. A region that extends beyond Nyquist remains unavailable.
 
 ## Profiles
 
-| ID | Revision | FFT | RMS / stereo | Average / release / hold | Observation |
-|---|---:|---:|---|---|---|
-| MIX_BALANCED | 1 | 2048 | 400 / 400 ms | 0.4 / 0.5 / 2 s | 15 s |
-| SPECTRUM_SURGICAL | 1 | 8192 | 400 / 400 ms | 2 / 1.5 / 4 s | 20 s |
-| MASTERING_PRECISION | 1 | 8192 | 400 / 400 ms | 3 / 2 / 5 s | 25 s |
-| STEREO_PHASE_DIAGNOSTIC | 2 | 2048 | 400 / 100 ms | 0.4 / 0.5 / 2 s | 15 s |
+[DSP Configuration](../docs/DSP_CONFIGURATION.md) provides the complete table and rationale. The four profiles configure one algorithm library:
 
-All configure one algorithm library. Snapshots publish at 10 Hz; consumer service is 20 ms. Diagnostic phase reversal resolves within 100 ms. GUI positions are continuous float32 with short interpolation. Correlation/width use live DSP; other engineering meters use unrounded observations. Text/model precision is separate: whole dBFS/LUFS/dB/percent summaries, 0.1 dBTP, approximately 0.01 correlation. DSP/observations retain double precision.
+- `MIX_BALANCED.r1`
+- `SPECTRUM_SURGICAL.r1`
+- `MASTERING_PRECISION.r1`
+- `STEREO_PHASE_DIAGNOSTIC.r2`
 
-## Lifetime and context
+There is no separate HQ or Linear Phase mode.
 
-Audio performs bounded DSP and one SPSC push. Eight slots provide seven usable snapshots. Full queues drop publication and count it; no retry, lock, I/O, JSON, reference lookup or aggregation occurs in audio. Consumer drains at most seven; missing coverage closes the observation epoch. UI locks are outside realtime.
+## Realtime publication
 
-BufferHunter stores at most 300 frames and publishes median, P10/P90, extrema, coverage/count and conservative regression trend. Integrated/LRA/true peak keep latest programme values. Silence retains useful observation with inactive signal; freshness expires one second after active input/stalled publication. Stop/resume retains accumulation. Seek/loop jumps >1 s reset programme. Profile/revision, rate/channel, manual reset and incompatible gaps create new epochs. Editor lifetime has no effect.
+The engine publishes at 10 Hz through an eight-slot SPSC queue with seven usable entries. A full queue drops the new publication and increments a counter. The consumer drains at most seven items per 20 ms service callback. Any resulting sample-coverage gap starts a new observation epoch.
 
-Filter preserves explicit metric/unit/frequency/validity/freshness/duration. References require matching schema, profile/revision and sample rate; missing/incompatible data stays unavailable. There is no universal spectral/music-loudness target, quality score, frequency-specific broadband crest conclusion or measured mastered boolean. Standard relationships remain unavailable without an implemented delivery policy.
+## Precision and formatting
 
-Only aifred.filtered-mix.v1 reaches the model, with channel/version, instance/session IDs and profile. Four previous observation/question/response records are bounded per processor; stated actions are unverified DAW actions. Host validates/routes Ollama or OpenAI-compatible transport and echoes identity; it never reinterprets DSP.
+Engine and observation calculations use `double`. Vectorscope and GUI positions use continuous float32. Text/model formatting rounds only at publication: whole dBFS/LUFS/dB/percent for most summaries, `0.1 dBTP`, and about `0.01` correlation. Raw snapshots keep full precision.
 
-Future, unexposed: TRACKING_FAST, REFERENCE_LONG_TERM, LOUDNESS_COMPLIANCE, K-System, SOUL.md/HEARTBEAT.md/SKILLS.md/MEMORIES.md, FORGE-style audio tools, topology/inventory/web tools and long-term memory.
+## Supported input
 
-Sources: [ITU-R BS.1770](https://www.itu.int/rec/R-REC-BS.1770), [EBU Tech 3341](https://tech.ebu.ch/docs/tech/tech3341.pdf), [EBU Tech 3342](https://tech.ebu.ch/docs/tech/tech3342.pdf). [Testing](../docs/TESTING.md) records validation limits.
+The engine accepts mono or stereo, finite sample rates from 32 to 192 kHz that are divisible by 10, including 44.1, 48, 88.2, 96, 176.4, and 192 kHz. Invalid configuration or nonfinite samples invalidate/reset analysis without changing audio pass-through.
+
+## Standards references
+
+- [ITU-R BS.1770](https://www.itu.int/rec/R-REC-BS.1770)
+- [EBU Tech 3341](https://tech.ebu.ch/docs/tech/tech3341.pdf)
+- [EBU Tech 3342](https://tech.ebu.ch/docs/tech/tech3342.pdf)
+
+## Related
+
+- [Architecture](../docs/ARCHITECTURE.md)
+- [DSP Configuration](../docs/DSP_CONFIGURATION.md)
+- [BufferHunter](../docs/BUFFER_HUNTER.md)
+- [AIFRED Filter](../docs/AIFRED_FILTER.md)
+- [Testing](../docs/TESTING.md)

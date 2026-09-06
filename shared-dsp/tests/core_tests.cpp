@@ -52,6 +52,27 @@ struct Fixture
 int main()
 {
     const auto start=std::chrono::steady_clock::now();
+    const auto& mix=profile(ProfileId::mixBalanced);
+    const auto& surgical=profile(ProfileId::spectrumSurgical);
+    const auto& mastering=profile(ProfileId::masteringPrecision);
+    const auto& stereoProfile=profile(ProfileId::stereoPhase);
+    require(profileSchemaVersion==2,"typed profile schema revision");
+    require(profileFromName("UNKNOWN")==ProfileId::mixBalanced,"unknown profile falls back to mix balanced");
+    require(mix.measurement.spectrum.fftSize==2048&&mix.measurement.observation.durationSeconds==15,"mix balanced moderate defaults");
+    require(mix.cpuCost==CpuCost::moderate&&mix.reactionSpeed==ReactionSpeed::balanced,"mix balanced cost and response");
+    require(surgical.measurement.spectrum.fftSize==maximumFftSize,"surgical maximum FFT resolution");
+    require(surgical.measurement.spectrum.averageSeconds>mix.measurement.spectrum.averageSeconds&&surgical.presentation.showPeakTrace,"surgical stable average and peak trace");
+    require(mastering.metrics.isRequired(MetricId::truePeak)&&mastering.metrics.isRequired(MetricId::momentary)&&mastering.metrics.isRequired(MetricId::shortTerm)&&mastering.metrics.isRequired(MetricId::integrated)&&mastering.metrics.isRequired(MetricId::lra),"mastering required loudness and true-peak suite");
+    require(mastering.measurement.observation.durationSeconds==25&&mastering.measurement.metering.shortTermSeconds==3,"mastering observation is separate from programme windows");
+    require(stereoProfile.measurement.metering.stereoSeconds==.1&&stereoProfile.measurement.metering.rmsSeconds==.4,"stereo diagnostic fast stereo and standard RMS");
+    require(stereoProfile.metrics.isRequired(MetricId::correlation)&&stereoProfile.metrics.isRequired(MetricId::width),"stereo diagnostic required metrics");
+    for(const auto& configured:profiles)
+    {
+        require(configured.measurement.spectrum.window==SpectrumWindow::periodicHann,"profile window is explicit periodic Hann");
+        require(configured.measurement.spectrum.overlap==.75&&configured.measurement.snapshotHz==10,"profile overlap and publication cadence");
+        require(configured.metrics.enabled==allMetrics,"all core engineering metrics remain enabled");
+        require(configured.presentation.spectrumRange==SpectrumDisplayRange::db96,"professional default spectrum viewport");
+    }
     auto f=std::make_unique<Fixture>();
     f->tone(.3,.5);
     require(!f->latest.get(MetricId::rms).valid,"RMS full-window warmup");
@@ -175,6 +196,19 @@ int main()
     near(observed.get(MetricId::shortTerm).typical,-11,.01,"median typical loudness");
     near(observed.correlationBelowZeroSeconds,15,1e-6,"negative correlation persistence");
     require(hunter->storedFrames()==150,"bounded rolling storage");
+    for(const auto& configured:profiles)
+    {
+        BufferHunter profileHunter;EngineSnapshot frame;frame.sampleRate=48000;frame.epoch=1;frame.profileId=configured.id;
+        frame.profileVersion=configured.version;frame.valid=frame.signalActive=true;frame.get(MetricId::rms)={-20,true};
+        const auto frameCount=static_cast<std::uint64_t>(configured.measurement.observation.durationSeconds*10+5);
+        for(std::uint64_t i=1;i<=frameCount;++i)
+        {
+            frame.sequence=i;frame.sampleStart=(i-1)*4800;frame.sampleEnd=i*4800;profileHunter.consume(frame,static_cast<double>(i)/10);
+        }
+        const auto profileObservation=profileHunter.snapshot(static_cast<double>(frameCount)/10);
+        require(profileObservation.sufficient,"profile observation reaches configured sufficiency");
+        near(profileObservation.durationSeconds,configured.measurement.observation.durationSeconds,1e-6,"profile observation duration is enforced");
+    }
     hunter->consume(*measured,20.1);
     require(hunter->snapshot(20.1).id==observed.id,"repeated snapshot is not re-counted");
     measured->sequence++;measured->sampleStart=measured->sampleEnd;measured->sampleEnd+=4800;measured->signalActive=false;
@@ -194,6 +228,7 @@ int main()
     require(context.metrics[0].reference==Relationship::noReference,"no invented reference target");
     ReferenceDistribution reference;reference.available=true;reference.sampleRate=48000;reference.profileId=ProfileId::masteringPrecision;
     require(!Filter::apply(observed,&reference).referenceCompatible,"incompatible profile reference unavailable");
+    require(Filter::apply(observed,&reference).referenceCompatibility==ReferenceCompatibility::profileMismatch,"profile incompatibility is explicit");
     reference.profileId=observed.profileId;reference.metrics[index(MetricId::rms)]={true,-52,-55,-50};
     require(Filter::apply(observed,&reference).metrics[index(MetricId::rms)].reference==Relationship::inside,"compatible distribution comparison");
     measured->epoch++;measured->profileId=ProfileId::spectrumSurgical;measured->sequence++;measured->signalActive=true;measured->sampleStart=0;measured->sampleEnd=4800;
@@ -215,4 +250,3 @@ int main()
     while(!complete||expected<=100000) if(queue.pop(value)) {require(value==expected,"SPSC ordering");++expected;}
     std::cout<<"PASS "<<checks<<" checks; seconds="<<std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count()<<'\n';
 }
-

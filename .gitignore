@@ -35,6 +35,7 @@ tools/**/obj/
 .forge/backups/
 **/.forge/backups/
 .smart-env
+.obsidian/plugins/obsidian-local-rest-api/data.json
 
 integrations/forge/exports/latest/
 integrations/forge/exports/history/

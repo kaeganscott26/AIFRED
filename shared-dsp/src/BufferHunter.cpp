@@ -24,7 +24,7 @@ void BufferHunter::consume(const EngineSnapshot& s,double now) noexcept
     if(!s.signalActive) return;
     lastActive_=now;
     frames_[position_]={s.sampleStart,s.sampleEnd,s.metrics,s.bands};position_=(position_+1)%capacity;count_=std::min(capacity,count_+1);
-    const double windowSamples=profile(s.profileId).observationSeconds*s.sampleRate;
+    const double windowSamples=profile(s.profileId).measurement.observation.durationSeconds*s.sampleRate;
     while(count_>0)
     {
         const auto oldest=(position_+capacity-count_)%capacity;
@@ -84,14 +84,15 @@ void BufferHunter::summarize() noexcept
     for(auto id:{MetricId::integrated,MetricId::lra,MetricId::truePeak})
         observation_.metrics[index(id)].typical=observation_.metrics[index(id)].latest;
     observation_.valid=true;
-    observation_.sufficient=observation_.durationSeconds+1e-6>=profile(observation_.profileId).observationSeconds;
+    observation_.sufficient=observation_.durationSeconds+1e-6>=profile(observation_.profileId).measurement.observation.durationSeconds;
 }
 ObservationSnapshot BufferHunter::snapshot(double now) const noexcept
 {
     auto out=observation_;
     out.ageSeconds=lastActive_<0 ? 0 : std::max(0.0,now-lastActive_);
-    out.fresh=lastActive_>=0&&out.ageSeconds<=1&&lastUpdate_>=0&&now-lastUpdate_<=1;
-    if(lastUpdate_<0||now-lastUpdate_>1) out.signalActive=false;
+    const auto freshness=profile(out.profileId).measurement.observation.freshnessSeconds;
+    out.fresh=lastActive_>=0&&out.ageSeconds<=freshness&&lastUpdate_>=0&&now-lastUpdate_<=freshness;
+    if(lastUpdate_<0||now-lastUpdate_>freshness) out.signalActive=false;
     return out;
 }
 }

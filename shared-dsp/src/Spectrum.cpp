@@ -6,22 +6,26 @@ namespace aifred::core
 {
 void Spectrum::prepare(double rate, const DspProfile& p) noexcept
 {
-    rate_ = rate; size_ = p.fftSize; hop_ = static_cast<std::size_t>(static_cast<double>(size_) * (1-p.overlap));
+    const auto& configuration=p.measurement.spectrum;
+    rate_ = rate; size_ = configuration.fftSize; hop_ = static_cast<std::size_t>(static_cast<double>(size_) * (1-configuration.overlap));
     position_ = filled_ = sinceHop_ = 0; averaged_ = false;
     left_.fill(0); right_.fill(0); average_.fill(0); peak_.fill(0); hold_.fill(0);
     double windowEnergy = 0;
     for (std::size_t i = 0; i < size_; ++i)
     {
         const double phase = 2 * std::numbers::pi * static_cast<double>(i) / static_cast<double>(size_);
-        window_[i] = .5 - .5 * std::cos(phase);
+        switch(configuration.window)
+        {
+            case SpectrumWindow::periodicHann: window_[i] = .5 - .5 * std::cos(phase); break;
+        }
         windowEnergy += window_[i]*window_[i];
         roots_[i] = {std::cos(phase), -std::sin(phase)};
     }
     normalization_ = 1 / (static_cast<double>(size_) * windowEnergy);
     const double hopSeconds = static_cast<double>(hop_) / rate;
-    averageAlpha_ = std::exp(-hopSeconds/p.spectrumAverageSeconds);
-    releaseAlpha_ = std::exp(-hopSeconds/p.spectrumReleaseSeconds);
-    holdSeconds_ = p.peakHoldSeconds;
+    averageAlpha_ = std::exp(-hopSeconds/configuration.averageSeconds);
+    releaseAlpha_ = std::exp(-hopSeconds/configuration.releaseSeconds);
+    holdSeconds_ = configuration.peakHoldSeconds;
 }
 
 void Spectrum::transform(std::array<std::complex<double>, maximumFftSize>& data) noexcept

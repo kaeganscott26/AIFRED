@@ -1,8 +1,8 @@
 # AIFRED Beta 0.3.6
 
-Independently buildable Windows x64 VST3, using **aifred_engine → EngineSnapshot → BufferHunter → ObservationSnapshot → aifred_filter → FilteredMixContext → AifredIntelligenceHost → LLM**. Shared core 1.1.0 is vendored and checksum-verified. DSP works without a provider.
+Independently buildable Windows x64 VST3, using **aifred_engine → EngineSnapshot → BufferHunter → ObservationSnapshot → aifred_filter → FilteredMixContext → AifredIntelligenceHost → LLM**. Shared core 1.2.0 and profile schema 2 are vendored and checksum-verified. DSP works without a provider.
 
-The existing frontend exposes MIX_BALANCED, SPECTRUM_SURGICAL, MASTERING_PRECISION and STEREO_PHASE_DIAGNOSTIC, persisted in plugin state. Full-resolution FFT remains authoritative; telemetry includes 850 Hz. Live correlation/width use continuous engine values. Other engineering meters use unrounded observation values; text/model rounding is separate. Spectrum display range is -24..0 dB only at rendering.
+The existing frontend exposes MIX_BALANCED, SPECTRUM_SURGICAL, MASTERING_PRECISION and STEREO_PHASE_DIAGNOSTIC, persisted in plugin state. Full-resolution FFT remains authoritative; telemetry includes 850 Hz. Live correlation/width use continuous engine values. Other engineering meters use unrounded observation values; text/model rounding is separate. The default `-96..0 dBFS` viewport and optional `-120`, `-72`, or `-48 dBFS` floors affect presentation only.
 
 ## Build and test
 
@@ -47,4 +47,4 @@ Native/module-load, DSP/context, runtime and release checks are automated. Manua
 
 Existing global-slot installations need explicit migration: [coexistence](docs/COEXISTENCE.md). Compatibility IDs are preserved; old global files/settings are not silently deleted. Official catalog records without matching DSP definitions remain metadata, with comparison unavailable. Beta local references are measured by the same core. Future profiles, personality files and DAW/MCP/long-term-memory tooling are unimplemented.
 
-[Architecture](docs/ARCHITECTURE.md) · [DSP contracts](shared-dsp/README.md) · [Build](docs/BUILD.md) · [Testing](docs/TESTING.md) · [Install](docs/INSTALLATION.md) · [Distribution](docs/DISTRIBUTION.md) · [Development](docs/DEVELOPMENT.md)
+[Architecture](docs/ARCHITECTURE.md) · [DSP configuration](docs/DSP_CONFIGURATION.md) · [DSP contracts](shared-dsp/README.md) · [BufferHunter](docs/BUFFER_HUNTER.md) · [Filter](docs/AIFRED_FILTER.md) · [Build](docs/BUILD.md) · [Testing](docs/TESTING.md) · [Install](docs/INSTALLATION.md) · [Distribution](docs/DISTRIBUTION.md) · [Development](docs/DEVELOPMENT.md)

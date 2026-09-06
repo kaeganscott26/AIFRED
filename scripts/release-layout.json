@@ -19,8 +19,8 @@
       "status": "SCAFFOLDED / NOT VALIDATED"
     }
   },
-  "dspProfileSchemaVersion": 1,
-  "sharedCoreVersion": "1.1.0",
+  "dspProfileSchemaVersion": 2,
+  "sharedCoreVersion": "1.2.0",
   "contextSchema": "aifred.filtered-mix.v1",
   "runtimeChannel": "beta",
   "hostPort": 8787,

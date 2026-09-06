@@ -18,7 +18,13 @@ double Filter::published(double value,int decimals) noexcept
 FilteredMixContext Filter::apply(const ObservationSnapshot& o,const ReferenceDistribution* reference)
 {
     FilteredMixContext context;context.observation=o;
-    context.referenceCompatible=reference&&reference->available&&reference->schema==o.schema&&reference->profileId==o.profileId&&reference->profileVersion==o.profileVersion&&reference->sampleRate==o.sampleRate;
+    if(!reference) context.referenceCompatibility=ReferenceCompatibility::noReference;
+    else if(!reference->available) context.referenceCompatibility=ReferenceCompatibility::unavailable;
+    else if(reference->schema!=o.schema) context.referenceCompatibility=ReferenceCompatibility::schemaMismatch;
+    else if(reference->profileId!=o.profileId||reference->profileVersion!=o.profileVersion) context.referenceCompatibility=ReferenceCompatibility::profileMismatch;
+    else if(reference->sampleRate!=o.sampleRate) context.referenceCompatibility=ReferenceCompatibility::sampleRateMismatch;
+    else context.referenceCompatibility=ReferenceCompatibility::compatible;
+    context.referenceCompatible=context.referenceCompatibility==ReferenceCompatibility::compatible;
     if(reference)context.referenceId=reference->id.substr(0,128);
     const auto relate=[&](FilteredMetric& metric,const MetricObservation* r)
     {
@@ -31,12 +37,13 @@ FilteredMixContext Filter::apply(const ObservationSnapshot& o,const ReferenceDis
     for(std::size_t i=0;i<metricCount;++i)
     {
         auto& m=context.metrics[i];const auto& d=metricDefinitions[i];
-        m.name=d.name;m.unit=d.unit;m.definition=d.definition;m.decimals=d.decimals;m.observation=o.metrics[i];
+        m.name=d.name;m.displayName=d.displayName;m.unit=d.unit;m.definition=d.definition;m.decimals=d.decimals;m.source=d.source;m.emphasizedBy=d.emphasizedBy;m.observation=o.metrics[i];
         relate(m,reference?&reference->metrics[i]:nullptr);
     }
     for(std::size_t i=0;i<30;++i)
     {
-        auto& b=context.bands[i];b.name="band_energy";b.unit="dBFS";b.definition="integrated mean-channel FFT power over geometric midpoint region";
+        auto& b=context.bands[i];b.name="band_energy";b.displayName="Spectrum Band";b.unit="dBFS";b.definition="integrated mean-channel FFT power over geometric midpoint region";
+        b.source=MetricSource::observed;b.emphasizedBy=ProfileId::spectrumSurgical;
         b.observation=o.bands[i];b.centreHz=bandCentres[i];b.region=frequencyRegion(b.centreHz);
         b.lowerHz=i==0?bandCentres[0]*std::sqrt(bandCentres[0]/bandCentres[1]):std::sqrt(bandCentres[i-1]*bandCentres[i]);
         b.upperHz=i==29?bandCentres[29]*std::sqrt(bandCentres[29]/bandCentres[28]):std::sqrt(bandCentres[i]*bandCentres[i+1]);

@@ -7,13 +7,16 @@ int main()
 {
     juce::ScopedJuceInitialiser_GUI runtime;
     auto original=std::make_unique<aifred::AifredAudioProcessor>();
+    original->setSpectrumDisplayRange(aifred::core::SpectrumDisplayRange::db72);
     for(const auto& profile:aifred::core::profiles)
     {
-        original->pipeline().setProfile(profile.id);
+        original->setDspProfile(profile.id);
         juce::MemoryBlock state;original->getStateInformation(state);
         auto restored=std::make_unique<aifred::AifredAudioProcessor>();
         restored->setStateInformation(state.getData(),static_cast<int>(state.getSize()));
         check(restored->pipeline().selectedProfile()==profile.id,"profile state roundtrip");
+        check(restored->comparePipeline().selectedProfile()==profile.id,"compare pipeline profile roundtrip");
+        check(restored->pipeline().presentation().spectrumRange==aifred::core::SpectrumDisplayRange::db72&&restored->pipeline().presentationCustomized(),"presentation state roundtrip");
         restored->prepareToPlay(48000,256);
         juce::AudioBuffer<float> audio(2,256);audio.clear();audio.setSample(0,50,.375f);audio.setSample(1,50,-.25f);
         juce::MidiBuffer midi;restored->processBlock(audio,midi);
@@ -25,5 +28,6 @@ int main()
     juce::MemoryBlock oldState;juce::AudioProcessor::copyXmlToBinary(prior,oldState);
     original->setStateInformation(oldState.getData(),static_cast<int>(oldState.getSize()));
     check(original->pipeline().selectedProfile()==aifred::core::ProfileId::mixBalanced,"state without profile defaults safely");
+    check(original->pipeline().presentation().spectrumRange==aifred::core::SpectrumDisplayRange::db96&&!original->pipeline().presentationCustomized(),"state without presentation defaults safely");
     std::cout<<"Plugin state and pass-through contracts: PASS\n";
 }

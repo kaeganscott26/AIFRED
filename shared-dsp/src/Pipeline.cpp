@@ -9,7 +9,10 @@ juce::var number(double value,int decimals) {return std::isfinite(value)?juce::v
 juce::var metricJson(const FilteredMetric& m)
 {
     auto* obj=new juce::DynamicObject;juce::var value(obj);
-    obj->setProperty("metric",text(m.name));obj->setProperty("unit",text(m.unit));obj->setProperty("definition",text(m.definition));
+    obj->setProperty("metric",text(m.name));obj->setProperty("display_name",text(m.displayName));obj->setProperty("unit",text(m.unit));obj->setProperty("definition",text(m.definition));
+    obj->setProperty("context_value_source","observed");
+    obj->setProperty("frontend_live_source",m.source==MetricSource::live);
+    obj->setProperty("emphasized_by_profile",text(profile(m.emphasizedBy).name));
     obj->setProperty("available",m.observation.valid);obj->setProperty("publication_decimals",m.decimals);
     obj->setProperty("typical",m.observation.valid?number(m.observation.typical,m.decimals):juce::var());
     obj->setProperty("observed_p10",m.observation.valid?number(m.observation.low,m.decimals):juce::var());
@@ -17,10 +20,14 @@ juce::var metricJson(const FilteredMetric& m)
     obj->setProperty("minimum",m.observation.valid?number(m.observation.minimum,m.decimals):juce::var());
     obj->setProperty("maximum",m.observation.valid?number(m.observation.maximum,m.decimals):juce::var());
     obj->setProperty("coverage_seconds",number(m.observation.coverageSeconds,1));obj->setProperty("count",static_cast<int>(m.observation.count));
-    constexpr std::array<const char*,4> trends {"unavailable","stable","trend_rising","trend_falling"};
+    constexpr std::array<const char*,4> trends {"unavailable","stable","rising","falling"};
     obj->setProperty("trend",trends[static_cast<std::size_t>(m.observation.trend)]);
     constexpr std::array<const char*,6> relations {"unavailable","no_reference_available","insufficient_observation","inside_reference_distribution","below_reference_distribution","above_reference_distribution"};
     obj->setProperty("reference_relationship",relations[static_cast<std::size_t>(m.reference)]);
+    const auto semantic=m.reference==Relationship::inside?"inside_reference_distribution":
+        m.reference==Relationship::below||m.reference==Relationship::above?"outside_reference_distribution":
+        m.reference==Relationship::insufficient?"insufficient_observation":"unavailable";
+    obj->setProperty("semantic_state",semantic);
     obj->setProperty("reference_low",m.referenceLow.valid?number(m.referenceLow.value,m.decimals):juce::var());
     obj->setProperty("reference_high",m.referenceHigh.valid?number(m.referenceHigh.value,m.decimals):juce::var());
     obj->setProperty("standard_relationship","unavailable");
@@ -36,9 +43,12 @@ juce::var filteredContextJson(const FilteredMixContext& c)
     auto* obj=new juce::DynamicObject;juce::var result(obj);const auto& o=c.observation;
     obj->setProperty("schema",text(c.schema));obj->setProperty("shared_core_version",text(coreVersion));
     obj->setProperty("observation_id",juce::String(o.id));obj->setProperty("observation_epoch",juce::String(o.epoch));obj->setProperty("engine_epoch",juce::String(o.engineEpoch));
-    obj->setProperty("profile_id",text(profile(o.profileId).name));obj->setProperty("profile_version",static_cast<int>(o.profileVersion));
-    obj->setProperty("rms_window_seconds",profile(o.profileId).rmsSeconds);
-    obj->setProperty("stereo_window_seconds",profile(o.profileId).stereoSeconds);
+    const auto& activeProfile=profile(o.profileId);
+    obj->setProperty("profile_id",text(activeProfile.name));obj->setProperty("profile_version",static_cast<int>(o.profileVersion));
+    obj->setProperty("measurement_configuration_id",text(activeProfile.identity));
+    obj->setProperty("profile_schema_version",static_cast<int>(profileSchemaVersion));
+    obj->setProperty("rms_window_seconds",activeProfile.measurement.metering.rmsSeconds);
+    obj->setProperty("stereo_window_seconds",activeProfile.measurement.metering.stereoSeconds);
     obj->setProperty("lra_provisional",o.sampleRate<=0||static_cast<double>(o.sampleEnd)/o.sampleRate<60);
     obj->setProperty("sample_rate_hz",o.sampleRate);obj->setProperty("sample_start",juce::String(o.sampleStart));obj->setProperty("sample_end",juce::String(o.sampleEnd));
     obj->setProperty("observation_seconds",number(o.durationSeconds,1));obj->setProperty("age_seconds",number(o.ageSeconds,1));
@@ -46,6 +56,9 @@ juce::var filteredContextJson(const FilteredMixContext& c)
     obj->setProperty("transport_known",o.transportKnown);obj->setProperty("transport_playing",o.transportKnown?juce::var(o.transportPlaying):juce::var());
     obj->setProperty("correlation_below_zero_seconds",number(o.correlationBelowZeroSeconds,1));
     obj->setProperty("reference_id",text(c.referenceId));obj->setProperty("reference_compatible",c.referenceCompatible);
+    constexpr std::array<const char*,6> compatibility {"no_reference","compatible","reference_unavailable","schema_mismatch","profile_mismatch","sample_rate_mismatch"};
+    obj->setProperty("reference_compatibility",compatibility[static_cast<std::size_t>(c.referenceCompatibility)]);
+    obj->setProperty("observation_state",!o.valid?"unavailable":!o.signalActive?"signal_inactive":!o.sufficient?"insufficient_observation":"available");
     juce::Array<juce::var> metrics,bands;
     for(const auto& m:c.metrics)metrics.add(metricJson(m));for(const auto& b:c.bands)bands.add(metricJson(b));
     obj->setProperty("metrics",metrics);obj->setProperty("bands",bands);return result;
@@ -89,4 +102,3 @@ void Pipeline::recordResponse(const juce::String& response)
     std::lock_guard lock(mutex_);if(!history_.empty())history_.back().getDynamicObject()->setProperty("assistant_response",response.substring(0,4096));
 }
 }
-
