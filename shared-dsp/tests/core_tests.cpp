@@ -122,6 +122,44 @@ int main()
     near(f->latest.get(MetricId::correlation).value,-1,1e-10,"phase reversal resolves in 100 ms");
     near(f->latest.get(MetricId::width).value,100,1e-10,"live side share follows phase reversal");
     require(f->latest.profileVersion==2,"changed stereo integration has a new profile revision");
+    // Fixed independent pseudo-random streams test neutrality without a platform-dependent distribution.
+    std::mt19937 leftNoise(12345),rightNoise(67890);
+    std::array<float,480> noiseL {},noiseR {};
+    const float* noise[]={noiseL.data(),noiseR.data()};
+    for(int block=0;block<100;++block)
+    {
+        for(std::size_t i=0;i<noiseL.size();++i)
+        {
+            noiseL[i]=static_cast<float>(static_cast<double>(leftNoise())/4294967295.0-.5);
+            noiseR[i]=static_cast<float>(static_cast<double>(rightNoise())/4294967295.0-.5);
+        }
+        f->engine->process(noise,2,480);
+        while(f->engine->pop(f->latest)) {}
+    }
+    near(f->latest.get(MetricId::correlation).value,0,.05,"unrelated signals have neutral correlation");
+    near(f->latest.get(MetricId::width).value,50,3,"unrelated signals have equal mid/side share");
+    auto transport=std::make_unique<Fixture>();
+    noiseL.fill(.1f);noiseR.fill(.1f);
+    std::int64_t position=0;
+    const auto transportBlocks=[&](bool playing,int count)
+    {
+        for(int i=0;i<count;++i)
+        {
+            transport->engine->process(noise,2,480,true,playing,position);
+            if(playing)position+=480;
+            while(transport->engine->pop(transport->latest)) {}
+        }
+    };
+    transportBlocks(true,40);
+    const auto transportEpoch=transport->latest.epoch;
+    noiseL.fill(0);noiseR.fill(0);transportBlocks(false,10);
+    require(transport->latest.epoch==transportEpoch&&!transport->latest.transportPlaying,"stop retains engine epoch");
+    noiseL.fill(.1f);noiseR.fill(.1f);transportBlocks(true,10);
+    require(transport->latest.epoch==transportEpoch&&transport->latest.transportPlaying,"resume retains compatible programme");
+    position+=96000;transportBlocks(true,10);
+    require(transport->latest.epoch>transportEpoch,"major transport seek starts epoch");
+    transport->engine->requestReset();const auto seekEpoch=transport->latest.epoch;transportBlocks(true,10);
+    require(transport->latest.epoch>seekEpoch,"manual reset starts epoch");
     auto hunter=std::make_unique<BufferHunter>();
     auto measured=std::make_unique<EngineSnapshot>();
     measured->sampleRate=48000;measured->epoch=1;measured->valid=measured->signalActive=true;
@@ -143,6 +181,10 @@ int main()
     hunter->consume(*measured,20.1);
     require(hunter->snapshot(20.1).get(MetricId::rms).typical==-52,"silence retains observation");
     require(!hunter->snapshot(22).fresh&&!hunter->snapshot(22).signalActive,"halted host becomes stale");
+    const auto retainedEpoch=hunter->snapshot(22).epoch;
+    measured->sequence++;measured->sampleStart=measured->sampleEnd;measured->sampleEnd+=4800;measured->signalActive=true;
+    measured->transportKnown=measured->transportPlaying=true;hunter->consume(*measured,22.1);
+    require(hunter->snapshot(22.1).fresh&&hunter->snapshot(22.1).epoch==retainedEpoch,"resume refreshes compatible retained observation");
     auto context=Filter::apply(observed);
     require(context.metrics[index(MetricId::rms)].observation.typical<0,"negative dBFS ordering");
     require(context.metrics[index(MetricId::shortTerm)].unit=="LUFS","LUFS remains LUFS");
@@ -162,6 +204,11 @@ int main()
     near(Filter::published(-10.719438876073538,0),-11,0,"human-scale loudness precision");
     near(Filter::published(-.84,1),-.8,1e-9,"true peak tenth precision");
     SpscQueue<std::uint64_t,8> queue;
+    for(std::uint64_t i=1;i<=7;++i)require(queue.push(i),"bounded queue usable capacity");
+    require(!queue.push(8),"full queue rejects without overwriting or waiting");
+    std::uint64_t retained=0;
+    for(std::uint64_t i=1;i<=7;++i)require(queue.pop(retained)&&retained==i,"full queue preserves published order");
+    require(!queue.pop(retained),"empty queue returns immediately");
     std::atomic<bool> complete=false;
     std::jthread producer([&]{for(std::uint64_t i=1;i<=100000;++i) {while(!queue.push(i))std::this_thread::yield();}complete=true;});
     std::uint64_t expected=1,value=0;

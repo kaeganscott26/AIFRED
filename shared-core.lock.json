@@ -20,7 +20,7 @@
     "shared-dsp/src/Loudness.cpp": "be5d9a1cb2d6c61509271e11e1563afb677986e57889822c82131ea4e0e38bea",
     "shared-dsp/src/Pipeline.cpp": "0f866ae7264b163c9c8cb1ec4ed19b6713be28d425b856ae3c1a6b8bee9ff963",
     "shared-dsp/src/Spectrum.cpp": "b20648366f95ee86292f03f1e2106168f64ae654ebf4a8e0d8ea505fd98fda54",
-    "shared-dsp/tests/core_tests.cpp": "38943b0b28d86eb0dedc18b89ddff2f3171249a19ca586c62634b52af1469106",
+    "shared-dsp/tests/core_tests.cpp": "84b69935797f2d7f2ecf1efab164457558543de97db3d7f17b9604a7481f128e",
     "shared-dsp/tests/fixture_meter.cpp": "a7231dd5802170c135fdd219bdb46e364872dbdbb9e0a30f5bc464b740ed1724",
     "tools/AifredIntelligenceHost.Tests/AifredIntelligenceHost.ContractTests.csproj": "222e60406659e41d612e313bd5ec8db3f87ede8f37fb9ed48235f13278a8c3b6",
     "tools/AifredIntelligenceHost.Tests/Program.cs": "29c327bf4c5e1865bf2f498aa9d9140170c6348fea4e3b09b5b088d57421c9a9",
