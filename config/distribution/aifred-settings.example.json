@@ -1,0 +1,7 @@
+{
+  "provider": "ollama",
+  "endpoint": "http://127.0.0.1:11434",
+  "model": "aifred:latest",
+  "api_key": "",
+  "timeout_ms": 180000
+}
