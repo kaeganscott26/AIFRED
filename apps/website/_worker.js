@@ -1,5 +1,6 @@
 import { onRequest as apiV1 } from "./functions/api/v1/[[path]].js";
 import { onRequest as apiLegacy } from "./functions/api/[[path]].js";
+import { onRequest as referencePool } from "./functions/api/v1/reference/pool.js";
 import { onRequest as wsChat } from "./functions/ws/chat.js";
 
 const ALLOWED_ORIGINS = new Set([
@@ -7,7 +8,9 @@ const ALLOWED_ORIGINS = new Set([
   "https://www.north3rnlight3r.com",
   "https://aifred-site.pages.dev",
   "http://localhost:8787",
-  "http://127.0.0.1:8787"
+  "http://127.0.0.1:8787",
+  "http://localhost:8788",
+  "http://127.0.0.1:8788"
 ]);
 
 function withCors(request, response) {
@@ -37,6 +40,10 @@ export default {
 
     if (request.method === "OPTIONS" && (path === "health" || path.startsWith("v1/") || path.startsWith("api/"))) {
       return withCors(request, new Response(null, { status: 204, headers: { "cache-control": "no-store" } }));
+    }
+
+    if ((path === "api/v1/reference/pool" || path === "v1/reference/pool") && (request.method === "GET" || request.method === "HEAD")) {
+      return apiResponse(referencePool, { request, env, ctx, params: {} });
     }
 
     if (path === "health" || path.startsWith("v1/")) {
