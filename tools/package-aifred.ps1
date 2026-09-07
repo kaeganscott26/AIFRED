@@ -12,5 +12,9 @@ Copy-Item -LiteralPath $plugin -Destination (Join-Path $package 'Aifred.vst3') -
 & dotnet publish (Join-Path $repoRoot 'tools/AifredIntelligenceHost/AifredIntelligenceHost.csproj') -c Release -r win-x64 --self-contained false -o (Join-Path $package 'AifredIntelligenceHost')
 if ($LASTEXITCODE -ne 0) { throw 'Intelligence Host publish failed.' }
 '{"channel":"beta"}' | Set-Content -Encoding utf8 (Join-Path $package 'AifredIntelligenceHost/channel.json')
+$configurationRoot = Join-Path $package 'Configuration'
+New-Item -ItemType Directory -Force -Path $configurationRoot | Out-Null
+Copy-Item -LiteralPath (Join-Path $repoRoot 'config/distribution/aifred-settings.example.json') -Destination (Join-Path $configurationRoot 'aifred-settings.example.json')
+Copy-Item -LiteralPath (Join-Path $repoRoot 'config/distribution/README.md') -Destination (Join-Path $configurationRoot 'README.md')
 Copy-Item -LiteralPath (Join-Path $repoRoot 'README.md') -Destination (Join-Path $package 'README.md')
 Compress-Archive -Path (Join-Path $package '*') -DestinationPath (Join-Path $stage 'AIFRED-VST3-windows.zip')
