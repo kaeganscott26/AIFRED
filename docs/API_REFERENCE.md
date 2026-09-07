@@ -1,6 +1,6 @@
 # AIFRED API Reference
 
-Production origin: `https://www.north3rnlight3r.com`. Function responses use JSON and `Cache-Control: no-store` unless a download/media handler explicitly supplies cache/range headers. `/api/*` is a compatibility shim to the canonical `/api/v1/*` implementation.
+Production origin: `https://www.north3rnlight3r.com`. Function responses use JSON. Administrative/chat responses use `Cache-Control: no-store`; the sanitized shared reference pool may use short public/edge caching. `/api/*` is a compatibility shim to the canonical `/api/v1/*` implementation.
 
 ## Canonical public contract
 
@@ -9,6 +9,8 @@ Production origin: `https://www.north3rnlight3r.com`. Function responses use JSO
 | GET | `/health` | No | API health and contract version |
 | GET | `/v1/models` | No | OpenAI-compatible model list; may be empty when no provider is configured |
 | POST | `/v1/chat/completions` | Provider-dependent | OpenAI-compatible chat; supports JSON or SSE with `stream: true` |
+| GET/HEAD | `/api/v1/reference/pool` | No | Sanitized shared reference/analysis measurements for Beta and AIFRED 4; licensed audio and owner secrets are never returned |
+| GET/HEAD | `/v1/reference/pool` | No | Alias of the sanitized shared reference pool |
 | POST | `/api/v1/analysis/submit` | No | Browser analysis/reference gate submission |
 | POST | `/api/v1/analyzer/submit` | No | Alias of analysis submission |
 | GET | `/api/v1/catalog/list` | No | Catalog with controlled media URLs |
@@ -20,6 +22,12 @@ Production origin: `https://www.north3rnlight3r.com`. Function responses use JSO
 | GET | `/api/v1/chat/settings` | No | Non-secret client chat settings |
 
 `/v1/embeddings` and `/v1/responses` are reserved and return 501; they are not implemented capabilities.
+
+## Reference-pool public schema
+
+`GET /api/v1/reference/pool` returns `aifred.reference-pool.public.v1` with a bounded `records` array. Each record may expose the reference ID, timestamp, duration, measurement payload and sanitized classification/utility fields. It intentionally omits licensed audio objects, repository credentials, storage credentials, admin secrets and original private storage paths.
+
+The source of truth is the Cloudflare `AIFRED_REFERENCE_POOL` KV binding. Both Beta and AIFRED 4 consume the same contract rather than maintaining channel-specific cloud copies.
 
 ## Admin session and operations
 
