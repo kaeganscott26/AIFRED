@@ -1,4 +1,4 @@
-# Shared DSP core 1.2.0
+# Shared DSP core 1.2.1
 
 Official and Beta vendor identical `shared-dsp`, `AifredIntelligenceHost`, and host contract-test source. [shared-core.lock.json](../shared-core.lock.json) pins a CRLF-normalized SHA-256 inventory. Each repository builds without a sibling checkout. Run `python -B scripts/common/check_shared_core.py --peer <peer>` to compare explicit clones.
 

@@ -115,8 +115,22 @@ public sealed class ProviderRouter
                     new JsonObject { ["role"] = "user", ["content"] = userPayload }
                 }
             };
-            using var compatibleResponse = await client.PostAsync(settings.Endpoint + "/chat/completions",
-                JsonContent(compatibleBody), token);
+            using var compatibleRequest = new HttpRequestMessage(
+                HttpMethod.Post, settings.Endpoint + "/chat/completions")
+            {
+                Content = JsonContent(compatibleBody)
+            };
+            compatibleRequest.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString("N"));
+            compatibleRequest.Headers.Add("X-AIFRED-Client",
+                ContextContract.Text(context, "plugin_instance_id"));
+            compatibleRequest.Headers.Add("X-AIFRED-Product", "aifred");
+            compatibleRequest.Headers.Add("X-AIFRED-Channel",
+                ContextContract.Text(context, "product_channel"));
+            compatibleRequest.Headers.Add("X-AIFRED-Version",
+                ContextContract.Text(context, "product_version"));
+            compatibleRequest.Headers.Add("X-AIFRED-Purpose", "user-chat");
+            using var compatibleResponse = await client.SendAsync(
+                compatibleRequest, HttpCompletionOption.ResponseHeadersRead, token);
             if (!compatibleResponse.IsSuccessStatusCode)
                 return new(false, "", "OpenAI-compatible request failed.");
             var compatibleRoot = JsonNode.Parse(

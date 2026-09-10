@@ -1,9 +1,9 @@
 {
-  "version": "1.2.0",
+  "version": "1.2.1",
   "normalization": "CRLF to LF",
   "files": {
     "shared-dsp/CMakeLists.txt": "b984c722be38446c981e501b6c9eee44431756ad716a022d6ca40d7977f7223c",
-    "shared-dsp/README.md": "5a55a30a60c26e3d07f0edce96daf13a3bd4f5215cdd053c96c83fa2a967c7fb",
+    "shared-dsp/README.md": "d1364c37eb462e697882be4e63271996744038360ae74813114203e41fab625f",
     "shared-dsp/include/aifred/BufferHunter.h": "44ca51541f0cb5acff4a711cdb77b9de17f5bebc59b5230fea6ba36271125a57",
     "shared-dsp/include/aifred/Contracts.h": "087daadc8b49dc9ee9c1159e078701c1b582f176af3f686ab70bed4df3af3df6",
     "shared-dsp/include/aifred/Engine.h": "cc13803f9f26d5946756b8b479c0d5261acc21b1f9e5fa44d8978ac379ca95da",
@@ -28,6 +28,6 @@
     "tools/AifredIntelligenceHost/ContextContract.cs": "789e4001cdc6cc6432bff055fde4b380134f227e58e34df88e4bd868447dafa2",
     "tools/AifredIntelligenceHost/HostSettings.cs": "7ca8f73416e71c322a47ef437bedafc6bdf05087e2a989840764081357c282ce",
     "tools/AifredIntelligenceHost/Program.cs": "4ac0f659cc7b8c23dde516ec47bdfc072254ee40615dec2be56c722a9ff36d6e",
-    "tools/AifredIntelligenceHost/ProviderRouter.cs": "77250168d23013d09796068bb64b443e764d790599b1f6fd7a7853f000c2e927"
+    "tools/AifredIntelligenceHost/ProviderRouter.cs": "0aabcf86729f9469eac7f57b43af356186735dce24408fd32d10f42f697f5fea"
   }
 }

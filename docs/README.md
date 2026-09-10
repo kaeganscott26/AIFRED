@@ -10,6 +10,8 @@
 | --- | --- |
 | understand the whole runtime | [Architecture](ARCHITECTURE.md) |
 | understand the repository layout | [Repository Map](REPOSITORY_MAP.md) |
+| understand backend ownership and migration | [Backend Map](../backend_map.md) |
+| understand website and Cloudflare ownership | [Website Map](../website_map.md) |
 | inspect measurement/observation/filter truth | [Shared DSP](../shared-dsp/README.md) |
 | understand the four analysis profiles | [DSP Configuration](DSP_CONFIGURATION.md) |
 | understand temporal observation | [BufferHunter](BUFFER_HUNTER.md) |
@@ -17,6 +19,7 @@
 | build the Beta | [Build](BUILD.md) |
 | understand what has actually been validated | [Testing](TESTING.md) |
 | install/update/uninstall | [Installation](INSTALLATION.md) |
+| follow the complete plugin lifecycle | [User Guide](USER_GUIDE.md) |
 | understand artifacts/promotion | [Distribution](DISTRIBUTION.md) |
 | keep Beta and Official separated | [Coexistence](COEXISTENCE.md) |
 | contribute safely | [Development](DEVELOPMENT.md) |
@@ -78,4 +81,4 @@ No documentation example should contain a real provider key, Cloudflare token, o
 
 # Main Doorways
 
-**[Product README](../README.md)** · **[Repository Map](REPOSITORY_MAP.md)** · **[Architecture](ARCHITECTURE.md)** · **[Shared DSP](../shared-dsp/README.md)** · **[DSP Configuration](DSP_CONFIGURATION.md)** · **[BufferHunter](BUFFER_HUNTER.md)** · **[AIFRED Filter](AIFRED_FILTER.md)** · **[Build](BUILD.md)** · **[Testing](TESTING.md)** · **[Installation](INSTALLATION.md)** · **[Distribution](DISTRIBUTION.md)** · **[Coexistence](COEXISTENCE.md)** · **[Development](DEVELOPMENT.md)** · **[Future](FUTURE.md)**
+**[Product README](../README.md)** · **[User Guide](USER_GUIDE.md)** · **[Repository Map](REPOSITORY_MAP.md)** · **[Backend Map](../backend_map.md)** · **[Architecture](ARCHITECTURE.md)** · **[Shared DSP](../shared-dsp/README.md)** · **[DSP Configuration](DSP_CONFIGURATION.md)** · **[BufferHunter](BUFFER_HUNTER.md)** · **[AIFRED Filter](AIFRED_FILTER.md)** · **[Build](BUILD.md)** · **[Testing](TESTING.md)** · **[Installation](INSTALLATION.md)** · **[Distribution](DISTRIBUTION.md)** · **[Coexistence](COEXISTENCE.md)** · **[Development](DEVELOPMENT.md)** · **[Future](FUTURE.md)** · **[Changelog](../CHANGELOG.md)**

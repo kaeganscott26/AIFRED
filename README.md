@@ -4,7 +4,7 @@
 
 AIFRED Beta is the public Windows x64 VST3 channel. It measures the audio actually playing in the DAW, keeps high-frequency measurement separate from sustained observation, and exposes deterministic mix context without modifying the audio stream.
 
-Current source identity: **0.3.6 Beta** · shared core **1.2.0** · profile schema **2** · Windows channel host **8787**.
+Current source identity: **0.3.6 Beta** · shared core **1.2.1** · profile schema **2** · Windows channel host **8787**.
 
 ```text
 DAW audio
@@ -31,6 +31,9 @@ If you only open a few files, use these doorways:
 - **[Build](docs/BUILD.md)** — exact Windows build output and prerequisites.
 - **[Testing](docs/TESTING.md)** — what automation proves and what still requires manual validation.
 - **[Installation](docs/INSTALLATION.md)** — owned Beta install/runtime locations.
+- **[User guide](docs/USER_GUIDE.md)** — dependency setup and plugin lifecycle.
+- **[Backend map](backend_map.md)** — current fallback and future ownership boundary.
+- **[Website map](website_map.md)** — Pages, Worker, R2, and source-authority migration.
 - **[Repository map](docs/REPOSITORY_MAP.md)** — how the public tree fits together.
 
 ---
@@ -93,9 +96,9 @@ Full-resolution FFT power remains authoritative. The 30-band telemetry view is d
 
 ---
 
-# Build the current Beta
+# Install dependencies and build the current Beta
 
-Prerequisites: Visual Studio 2022 C++ x64 + Windows SDK, CMake, Ninja, PowerShell 7, Python 3, and .NET 10 SDK/runtime.
+Install Visual Studio 2022 with Desktop development with C++ and a Windows SDK, CMake, Ninja, PowerShell 7, Python 3, the .NET 10 SDK/runtime, and Git. Node.js 22 or newer is required for the website/backend checks that run in the Beta test pipeline, not for loading the VST3. The [user guide](docs/USER_GUIDE.md) includes verification commands.
 
 ```powershell
 pwsh -NoProfile -File scripts/windows/build.ps1 -Action configure
@@ -126,19 +129,16 @@ Release/package inventory also includes the Windows ZIP, installer, uninstaller,
 
 # Install / update
 
-Close the DAW and use elevated PowerShell 7 for installation ownership:
+Close the DAW and use elevated PowerShell 7. The supported first-install and update path is:
 
 ```powershell
-pwsh -NoProfile -File scripts/windows/install.ps1
-pwsh -NoProfile -File scripts/windows/start-host.ps1
+pwsh -NoProfile -File scripts/windows/lifecycle.ps1 -Action update
 ```
 
-Normal source update:
+This builds, tests, releases, verifies, installs, registers and starts the Beta host. To uninstall only the Beta channel while retaining settings and provider data:
 
 ```powershell
-git switch main
-git pull --ff-only origin main
-pwsh -NoProfile -File scripts/windows/lifecycle.ps1 -Action update
+pwsh -NoProfile -File scripts/windows/lifecycle.ps1 -Action uninstall
 ```
 
 Owned Beta locations:
@@ -220,4 +220,4 @@ If a document contradicts current source, investigate the mismatch rather than i
 
 # Documentation Index
 
-**[Documentation Hub](docs/README.md)** · **[Architecture](docs/ARCHITECTURE.md)** · **[Repository Map](docs/REPOSITORY_MAP.md)** · **[Shared DSP](shared-dsp/README.md)** · **[DSP Configuration](docs/DSP_CONFIGURATION.md)** · **[BufferHunter](docs/BUFFER_HUNTER.md)** · **[Filter](docs/AIFRED_FILTER.md)** · **[Build](docs/BUILD.md)** · **[Testing](docs/TESTING.md)** · **[Installation](docs/INSTALLATION.md)** · **[Distribution](docs/DISTRIBUTION.md)** · **[Coexistence](docs/COEXISTENCE.md)** · **[Development](docs/DEVELOPMENT.md)** · **[Future](docs/FUTURE.md)**
+**[Documentation Hub](docs/README.md)** · **[User Guide](docs/USER_GUIDE.md)** · **[Architecture](docs/ARCHITECTURE.md)** · **[Repository Map](docs/REPOSITORY_MAP.md)** · **[Backend Map](backend_map.md)** · **[Website Map](website_map.md)** · **[Shared DSP](shared-dsp/README.md)** · **[DSP Configuration](docs/DSP_CONFIGURATION.md)** · **[BufferHunter](docs/BUFFER_HUNTER.md)** · **[Filter](docs/AIFRED_FILTER.md)** · **[Build](docs/BUILD.md)** · **[Testing](docs/TESTING.md)** · **[Installation](docs/INSTALLATION.md)** · **[Distribution](docs/DISTRIBUTION.md)** · **[Coexistence](docs/COEXISTENCE.md)** · **[Development](docs/DEVELOPMENT.md)** · **[Future](docs/FUTURE.md)** · **[Changelog](CHANGELOG.md)**
