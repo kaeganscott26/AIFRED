@@ -96,3 +96,8 @@ docs/                          current Beta documentation
 ```
 
 Generated artifacts belong under `out/` and remain untracked. The source-of-truth DSP rule is unchanged: measurements come from `aifred_engine`, observation from BufferHunter, and interpretation begins in `aifred_filter` or later.
+
+
+THIS REPO IS PUBLIC AND IS OPEN-SOURCE and FREE to use for private purposes only.
+ALL CODE IS OWNED BY NORTH3RNLIGHTR and IN NO WAY GRANT PERMISSION TO USE or COPY CODE for profitable gain, commercial, or otherwise in any way that 
+the codebase within this repository be used against the intent of the OWNER and Sole Proprieter of North3rnLight3rLLC and all Intellectual Property held within the NORTH3RNLIGHT3R estate
