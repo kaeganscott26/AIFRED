@@ -8,9 +8,9 @@ await tests.RunAsync();
 
 sealed class IntelligenceHostContractTests
 {
-    static JsonObject Envelope(JsonObject context)
+    static JsonObject Envelope(JsonObject context, string channel = "official")
     {
-        context["schema"]="aifred.filtered-mix.v1";context["product_channel"]="beta";context["product_version"]="0.3.6-beta-stable";context["plugin_instance_id"]="instance-1";context["session_id"]="session-1";
+        context["schema"]="aifred.filtered-mix.v1";context["product_channel"]=channel;context["product_version"]=channel=="beta"?"0.3.6-beta-stable":"4.0.0-alpha.2";context["plugin_instance_id"]="instance-1";context["session_id"]="session-1";
         context["profile_id"]="MIX_BALANCED";context["profile_version"]=1;context["observation_id"]="1";
         var metrics=new JsonArray();foreach(var metric in ContextContract.Metrics)metrics.Add(new JsonObject{["metric"]=metric.Name,["unit"]=metric.Unit,["available"]=false});
         var bands=new JsonArray();foreach(var hz in ContextContract.Centres)bands.Add(new JsonObject{["metric"]="band_energy",["unit"]="dBFS",["available"]=false,["centre_hz"]=hz});
@@ -35,7 +35,10 @@ sealed class IntelligenceHostContractTests
         Expect(ContextContract.Validate(new JsonObject())!=null,"raw snapshot rejected");
         var current=Envelope(new JsonObject());
         Expect(ContextContract.Validate(current)==null,"filtered contract accepted");
-        Expect(ContextContract.Validate(current,"official")!=null,"cross-channel request rejected");
+        Expect(ContextContract.Validate(current,"beta")!=null,"cross-channel request rejected");
+        var beta=Envelope(new JsonObject(),"beta");
+        Expect(ContextContract.Validate(beta,"beta")==null,"Beta filtered contract accepted");
+        Expect(ContextContract.Validate(beta,"official")!=null,"Beta cross-channel request rejected");
         current["profile_id"]="TRACKING_FAST";
         Expect(ContextContract.Validate(current)!=null,"unimplemented profile rejected");
         if (failures != 0)
@@ -136,8 +139,11 @@ sealed class IntelligenceHostContractTests
         Expect((await router.CheckAsync(settings)).Available, "canonical API model discovery must be available");
         Expect((await router.ChatAsync(settings, "Check the mix.", Envelope(new JsonObject()))).Success,
             "canonical API chat must be available");
+        Expect((await router.ChatAsync(settings, "Check the Beta mix.", Envelope(new JsonObject(), "beta"))).Success,
+            "canonical API chat must accept the Beta contract");
         Expect(capture.Paths.Contains("/api/v1/models"), "model discovery must use /api/v1/models");
         Expect(capture.Paths.Contains("/api/v1/chat/completions"), "chat must use /api/v1/chat/completions");
+        Expect(capture.Channels.Contains("official"), "Flagship requests must identify the official channel");
         Expect(capture.Channels.Contains("beta"), "Beta requests must identify the beta channel");
     }
 

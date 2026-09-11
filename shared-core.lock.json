@@ -1,5 +1,5 @@
 {
-  "version": "1.2.1",
+  "version": "1.2.2",
   "normalization": "CRLF to LF",
   "files": {
     "shared-dsp/CMakeLists.txt": "b984c722be38446c981e501b6c9eee44431756ad716a022d6ca40d7977f7223c",
@@ -23,10 +23,10 @@
     "shared-dsp/tests/core_tests.cpp": "87e9e03cbb5f01929c68e3773bc35e441948d44871477f93ad2760f285ee49e9",
     "shared-dsp/tests/fixture_meter.cpp": "a7231dd5802170c135fdd219bdb46e364872dbdbb9e0a30f5bc464b740ed1724",
     "tools/AifredIntelligenceHost.Tests/AifredIntelligenceHost.ContractTests.csproj": "222e60406659e41d612e313bd5ec8db3f87ede8f37fb9ed48235f13278a8c3b6",
-    "tools/AifredIntelligenceHost.Tests/Program.cs": "29c327bf4c5e1865bf2f498aa9d9140170c6348fea4e3b09b5b088d57421c9a9",
+    "tools/AifredIntelligenceHost.Tests/Program.cs": "9414fc39ab401d77a164f528379f6721df75674be1a4596e20be5b84601f0b11",
     "tools/AifredIntelligenceHost/AifredIntelligenceHost.csproj": "73e0dd08783ec91a53c2acb6a4a303ee5fd6966f0d82a7904c40e6a07e0629c4",
     "tools/AifredIntelligenceHost/ContextContract.cs": "789e4001cdc6cc6432bff055fde4b380134f227e58e34df88e4bd868447dafa2",
-    "tools/AifredIntelligenceHost/HostSettings.cs": "7ca8f73416e71c322a47ef437bedafc6bdf05087e2a989840764081357c282ce",
+    "tools/AifredIntelligenceHost/HostSettings.cs": "76ba9422c17d2d25b8f6b443bdf5fff27e95ff768feecc680c56e22231bc94ca",
     "tools/AifredIntelligenceHost/Program.cs": "4ac0f659cc7b8c23dde516ec47bdfc072254ee40615dec2be56c722a9ff36d6e",
     "tools/AifredIntelligenceHost/ProviderRouter.cs": "0aabcf86729f9469eac7f57b43af356186735dce24408fd32d10f42f697f5fea"
   }

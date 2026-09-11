@@ -15,7 +15,7 @@ try {
     Initialize-AifredMsvc
     Invoke-Checked cmake @('--preset','windows-release')
     if ($Action -eq 'configure') { return }
-    $targets = @('Aifred_VST3','aifred_frontend_contract_tests','aifred_fixture_meter','aifred_state_contract_tests','aifred_core_tests')
+    $targets = @('Aifred_VST3','aifred_frontend_contract_tests','aifred_fixture_meter','aifred_state_contract_tests','aifred_core_tests','aifred_reference_pool_contract_tests')
     Invoke-Checked cmake (@('--build','--preset','windows-release','--target') + $targets)
     if ($Action -eq 'build') { return }
     Invoke-Checked python @('-B','scripts/common/check_repository.py')

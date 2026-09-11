@@ -4,6 +4,7 @@
 
 
 #include "PluginProcessor.h"
+#include "ReferencePoolClient.h"
 
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <array>
@@ -92,6 +93,8 @@ private:
   juce::String chatOutputText_;
   juce::String apiStatus_ = "API route not connected.";
   juce::String referenceStatus_ = "No reference file selected.";
+  juce::String officialReferencePoolStatus_ = "Official pool not loaded.";
+  std::uint64_t officialReferencePoolRevision_ = 0;
   juce::String compareStatus_ = "No compare file selected.";
   juce::String chatFileStatus_ = "No chat file selected.";
   bool showTutorial_ = true;

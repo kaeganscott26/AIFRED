@@ -252,7 +252,10 @@ AifredAudioProcessorEditor::~AifredAudioProcessorEditor() {
 
 void AifredAudioProcessorEditor::buttonClicked(juce::Button* button) {
   if (button == &analyzeButton_) processor_.setMode(AnalysisMode::Analyze);
-  if (button == &referenceButton_) processor_.setMode(AnalysisMode::Reference);
+  if (button == &referenceButton_) {
+    processor_.setMode(AnalysisMode::Reference);
+    ReferencePoolClient::instance().refreshAsync();
+  }
   if (button == &compareButton_) processor_.setMode(AnalysisMode::Compare);
   if (button == &optionsButton_) showOptions_ = !showOptions_;
   if (button == &centerModeButton_) haloCenterMode_ = (haloCenterMode_ + 1) % 3;
@@ -362,6 +365,12 @@ void AifredAudioProcessorEditor::timerCallback() {
     state_.metrics.widthScale = state_.metrics.stereoWidth;
   }
   compareState_ = processor_.getCompareView();
+
+  const auto officialPool = ReferencePoolClient::instance().state();
+  if (officialPool.revision != officialReferencePoolRevision_) {
+    officialReferencePoolRevision_ = officialPool.revision;
+    officialReferencePoolStatus_ = juce::String(officialPool.message);
+  }
 
   if (juce::Time::getMillisecondCounter() % 3000 < 40) {
     processor_.intelligence().pingHealthAsync();
@@ -653,7 +662,7 @@ void AifredAudioProcessorEditor::drawHeader(juce::Graphics& g, juce::Rectangle<i
   g.drawText("AIFRED VST", text.removeFromTop(34), juce::Justification::centredLeft);
   g.setFont(juce::FontOptions(13.0f));
   g.setColour(Colours::green);
-  g.drawFittedText(juce::String(genreName(genreMenu_.getSelectedId())) + " / " + referenceStatus_, text, juce::Justification::centredLeft, 1);
+  g.drawFittedText(juce::String(genreName(genreMenu_.getSelectedId())) + " / " + referenceStatus_ + " / " + officialReferencePoolStatus_, text, juce::Justification::centredLeft, 1);
 
   auto info = bounds.removeFromRight(260).reduced(8, 13);
   g.setFont(juce::FontOptions(11.5f));

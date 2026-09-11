@@ -42,6 +42,7 @@ target_sources(Aifred PRIVATE
   Source/PluginProcessor.cpp
   Source/PluginEditor.cpp
   Source/AifredLookAndFeel.cpp
+  Source/ReferencePoolClient.cpp
 )
 
 target_include_directories(Aifred PRIVATE Source)
@@ -52,6 +53,7 @@ target_compile_definitions(Aifred
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
     AIFRED_VERSION_STRING="${PROJECT_VERSION}"
+    AIFRED_REFERENCE_POOL_URL="https://north3rnlight3r.com/api/v1/reference/pool"
 )
 
 target_link_libraries(Aifred
