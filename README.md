@@ -99,5 +99,5 @@ Generated artifacts belong under `out/` and remain untracked. The source-of-trut
 
 
 THIS REPO IS PUBLIC AND IS OPEN-SOURCE and FREE to use for private purposes only.
-ALL CODE IS OWNED BY NORTH3RNLIGHTR and IN NO WAY GRANT PERMISSION TO USE or COPY CODE for profitable gain, commercial, or otherwise in any way that 
-the codebase within this repository be used against the intent of the OWNER and Sole Proprieter of North3rnLight3rLLC and all Intellectual Property held within the NORTH3RNLIGHT3R estate
+ALL CODE IS OWNED BY NORTH3RNLIGHTR and IN NO WAY GRANT PERMISSION TO USE or COPY CODE for profitable gain, commercial use or distribution, or in any way that 
+violates the intent of the OWNER and Sole Proprieter of North3rnLight3rLLC and all Intellectual Property held within the NORTH3RNLIGHT3R estate
