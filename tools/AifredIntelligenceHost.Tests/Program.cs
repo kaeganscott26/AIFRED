@@ -10,7 +10,7 @@ sealed class IntelligenceHostContractTests
 {
     static JsonObject Envelope(JsonObject context)
     {
-        context["schema"]="aifred.filtered-mix.v1";context["product_channel"]="official";context["product_version"]="4.0.0-alpha.2";context["plugin_instance_id"]="instance-1";context["session_id"]="session-1";
+        context["schema"]="aifred.filtered-mix.v1";context["product_channel"]="beta";context["product_version"]="0.3.6-beta-stable";context["plugin_instance_id"]="instance-1";context["session_id"]="session-1";
         context["profile_id"]="MIX_BALANCED";context["profile_version"]=1;context["observation_id"]="1";
         var metrics=new JsonArray();foreach(var metric in ContextContract.Metrics)metrics.Add(new JsonObject{["metric"]=metric.Name,["unit"]=metric.Unit,["available"]=false});
         var bands=new JsonArray();foreach(var hz in ContextContract.Centres)bands.Add(new JsonObject{["metric"]="band_energy",["unit"]="dBFS",["available"]=false,["centre_hz"]=hz});
@@ -22,8 +22,10 @@ sealed class IntelligenceHostContractTests
     {
         await OllamaRoutePreservesQuestionAndContext();
         await OpenAiCompatibleRouteIsSelectable();
+        await CanonicalApiRoutesHaveExpectedPaths();
         await MissingProviderIsCleanlyUnavailable();
         PublicSettingsHideSecrets();
+        LegacyWebsiteBasesNormalizeToCanonicalApiV1();
         var wrongUnit=Envelope(new JsonObject());wrongUnit["metrics"]![3]!["unit"]="dBFS";
         Expect(ContextContract.Validate(wrongUnit)!=null,"LUFS cannot be relabelled dBFS");
         var wrongBand=Envelope(new JsonObject());wrongBand["bands"]![16]!["centre_hz"]=300.0;
@@ -33,7 +35,7 @@ sealed class IntelligenceHostContractTests
         Expect(ContextContract.Validate(new JsonObject())!=null,"raw snapshot rejected");
         var current=Envelope(new JsonObject());
         Expect(ContextContract.Validate(current)==null,"filtered contract accepted");
-        Expect(ContextContract.Validate(current,"beta")!=null,"cross-channel request rejected");
+        Expect(ContextContract.Validate(current,"official")!=null,"cross-channel request rejected");
         current["profile_id"]="TRACKING_FAST";
         Expect(ContextContract.Validate(current)!=null,"unimplemented profile rejected");
         if (failures != 0)
@@ -117,6 +119,57 @@ sealed class IntelligenceHostContractTests
             "public settings payload must not expose provider secrets");
     }
 
+    async Task CanonicalApiRoutesHaveExpectedPaths()
+    {
+        var capture = new RequestCapture();
+        var router = new ProviderRouter(() => new HttpClient(new MockHandler(capture, request =>
+            request.RequestUri?.AbsolutePath.EndsWith("/models", StringComparison.Ordinal) == true
+                ? Json(HttpStatusCode.OK, """{"data":[{"id":"aifred:latest"}]}""")
+                : Json(HttpStatusCode.OK, """{"choices":[{"message":{"content":"Canonical reply."}}]}"""))));
+        var settings = HostSettings.FromJson(new JsonObject
+        {
+            ["provider"] = "openai-compatible",
+            ["endpoint"] = "https://north3rnlight3r.com/v1",
+            ["model"] = "aifred:latest",
+            ["api_key"] = "test-only-key"
+        });
+        Expect((await router.CheckAsync(settings)).Available, "canonical API model discovery must be available");
+        Expect((await router.ChatAsync(settings, "Check the mix.", Envelope(new JsonObject()))).Success,
+            "canonical API chat must be available");
+        Expect(capture.Paths.Contains("/api/v1/models"), "model discovery must use /api/v1/models");
+        Expect(capture.Paths.Contains("/api/v1/chat/completions"), "chat must use /api/v1/chat/completions");
+        Expect(capture.Channels.Contains("beta"), "Beta requests must identify the beta channel");
+    }
+
+    void LegacyWebsiteBasesNormalizeToCanonicalApiV1()
+    {
+        foreach (var endpoint in new[]
+                 {
+                     "https://north3rnlight3r.com",
+                     "https://north3rnlight3r.com/api",
+                     "https://north3rnlight3r.com/api/v1",
+                     "https://north3rnlight3r.com/v1"
+                 })
+        {
+            var settings = HostSettings.FromJson(new JsonObject
+            {
+                ["provider"] = "openai-compatible",
+                ["endpoint"] = endpoint,
+                ["model"] = "aifred:latest"
+            });
+            Expect(settings.Endpoint == "https://north3rnlight3r.com/api/v1",
+                $"legacy website base {endpoint} must normalize to the canonical API v1 route");
+        }
+        var external = HostSettings.FromJson(new JsonObject
+        {
+            ["provider"] = "openai-compatible",
+            ["endpoint"] = "https://provider.invalid/custom/v1",
+            ["model"] = "mix-model"
+        });
+        Expect(external.Endpoint == "https://provider.invalid/custom/v1",
+            "non-AIFRED compatible providers must keep their configured endpoint");
+    }
+
     void Expect(bool condition, string message)
     {
         if (condition) return;
@@ -134,6 +187,8 @@ sealed class RequestCapture
 {
     public string LastBody { get; set; } = "";
     public bool SawBearerToken { get; set; }
+    public List<string> Paths { get; } = [];
+    public List<string> Channels { get; } = [];
 }
 
 sealed class MockHandler(RequestCapture capture,
@@ -144,6 +199,9 @@ sealed class MockHandler(RequestCapture capture,
                                                                   CancellationToken cancellationToken)
     {
         capture.SawBearerToken |= request.Headers.Authorization?.Scheme == "Bearer";
+        capture.Paths.Add(request.RequestUri?.AbsolutePath ?? "");
+        if (request.Headers.TryGetValues("X-AIFRED-Channel", out var channels))
+            capture.Channels.AddRange(channels);
         if (request.Content != null)
             capture.LastBody = await request.Content.ReadAsStringAsync(cancellationToken);
         return responseFactory(request);

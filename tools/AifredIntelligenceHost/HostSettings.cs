@@ -36,6 +36,7 @@ public sealed record HostSettings(
         if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri)
             || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
             throw new InvalidOperationException("provider endpoint must be an absolute HTTP or HTTPS URL");
+        endpoint = NormalizeAifredProviderEndpoint(provider, endpoint);
 
         return new HostSettings(provider, endpoint, model, apiKey,
             Math.Clamp(timeout, 1_000, 420_000), Math.Clamp(port, 1024, 65_535));
@@ -47,10 +48,12 @@ public sealed record HostSettings(
         var endpoint = Environment.GetEnvironmentVariable("AIFRED_PROVIDER_ENDPOINT")?.Trim();
         var model = Environment.GetEnvironmentVariable("AIFRED_PROVIDER_MODEL")?.Trim();
         var apiKey = Environment.GetEnvironmentVariable("AIFRED_PROVIDER_API_KEY")?.Trim();
+        var effectiveProvider = string.IsNullOrWhiteSpace(provider) ? Provider : provider;
+        var effectiveEndpoint = string.IsNullOrWhiteSpace(endpoint) ? Endpoint : endpoint.TrimEnd('/');
         return this with
         {
-            Provider = string.IsNullOrWhiteSpace(provider) ? Provider : provider,
-            Endpoint = string.IsNullOrWhiteSpace(endpoint) ? Endpoint : endpoint.TrimEnd('/'),
+            Provider = effectiveProvider,
+            Endpoint = NormalizeAifredProviderEndpoint(effectiveProvider, effectiveEndpoint),
             Model = string.IsNullOrWhiteSpace(model) ? Model : model,
             ApiKey = string.IsNullOrWhiteSpace(apiKey) ? ApiKey : apiKey
         };
@@ -75,6 +78,21 @@ public sealed record HostSettings(
         ["timeout_ms"] = TimeoutMs,
         ["port"] = Port
     };
+
+    internal static string NormalizeAifredProviderEndpoint(string provider, string endpoint)
+    {
+        if (provider.Equals("ollama", StringComparison.OrdinalIgnoreCase)
+            || !Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
+            return endpoint.TrimEnd('/');
+        var host = uri.Host.ToLowerInvariant();
+        var isAifredSite = host is "north3rnlight3r.com" or "www.north3rnlight3r.com" or "aifred-site.pages.dev"
+            || host.EndsWith(".aifred-site.pages.dev", StringComparison.Ordinal);
+        if (!isAifredSite) return endpoint.TrimEnd('/');
+        var path = uri.AbsolutePath.TrimEnd('/').ToLowerInvariant();
+        if (path is not ("" or "/api" or "/api/v1" or "/v1")) return endpoint.TrimEnd('/');
+        var builder = new UriBuilder(uri) { Path = "/api/v1", Query = "", Fragment = "" };
+        return builder.Uri.AbsoluteUri.TrimEnd('/');
+    }
 
     static string Text(JsonObject json,string key,string fallback) => json[key] is JsonValue value && value.TryGetValue<string>(out var text)?text:fallback;
     static int Integer(JsonObject json,string key,int fallback) => json[key] is JsonValue value && value.TryGetValue<int>(out var number)?number:fallback;
