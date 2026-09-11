@@ -1,6 +1,6 @@
 # Testing
 
-Run `pwsh -NoProfile -File scripts/windows/build.ps1 -Action test`. It builds the plugin/tests, runs CTest, Intelligence Host contracts, shared checksums, repository links and Python release-safety tests. Beta additionally runs API/archive Node suites and website checks. Python owns release validation only.
+Run `pwsh -NoProfile -File scripts/windows/build.ps1 -Action test`. It builds the plugin and client tests, runs CTest, IntelligenceHost contracts, shared checksums, repository links, and Python release-safety tests. It has no website, backend, admin, Cloudflare, Wrangler, or Node.js dependency. Python owns release validation only.
 
 ```powershell
 ctest --preset windows-release
@@ -8,13 +8,14 @@ dotnet run --project tools/AifredIntelligenceHost.Tests/AifredIntelligenceHost.C
 python -B -m unittest discover -s scripts/tests
 python -B scripts/common/check_shared_core.py
 python -B scripts/common/validate_meter_reference.py
+out/windows-x64/build/aifred_reference_pool_contract_tests.exe --live https://north3rnlight3r.com/api/v1/reference/pool
 ```
 
 The last command requires FFmpeg and compares identical generated 48 kHz stereo audio against its ebur128 implementation. Exact values/version go to out/windows-x64/build/reports/meter-reference.json. Tolerances: 0.15 LU integrated, 0.3 dBTP peak, 1 LU LRA. This is independent implementation comparison, not proprietary-meter or full standards certification.
 
 Executed independent result (FFmpeg 9.0, generated 40 s plateau fixture): AIFRED integrated -22.58966596 LUFS versus FFmpeg -22.6; true peak -19.99999987 dBTP versus -20.0; LRA 10 LU in both. Both channels produced identical results. This limited fixture passed the stated tolerances.
 
-C++ tests cover peak/RMS/crest, clipping/silence, timing/gating/reset, analytic intersample peak, FFT mapping/Parseval/850 Hz/high resolution, stereo phase/energy, profiles/sample rates, bounded observation statistics/freshness/epochs, filter units/frequency/reference facts, concurrent SPSC ordering, real plugin profile-state roundtrip/backward default and audio pass-through, fractional GUI projection and previous observation/action/response continuity. Host tests use strict FilteredMixContext and mocked providers; no paid request is required. Release tests exercise failure preservation, recovery and path ownership.
+C++ tests cover peak/RMS/crest, clipping/silence, timing/gating/reset, analytic intersample peak, FFT mapping/Parseval/850 Hz/high resolution, stereo phase/energy, profiles/sample rates, bounded observation statistics/freshness/epochs, filter units/frequency/reference facts, concurrent SPSC ordering, real plugin profile-state roundtrip/backward default and audio pass-through, fractional GUI projection, previous observation/action/response continuity, and the Official reference-pool contract. Host tests prove both product channels use the same `/api/v1/models` and `/api/v1/chat/completions` request contract with mocked providers; no paid request is required. Release tests exercise failure preservation, recovery and path ownership.
 
 The LRA plateau fixture follows [EBU Tech 3342](https://tech.ebu.ch/docs/tech/tech3342.pdf). The full [EBU test set](https://tech.ebu.ch/publications/ebu_loudness_test_set) remains unvalidated.
 

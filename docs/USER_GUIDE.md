@@ -2,7 +2,7 @@
 
 ## Install the development dependencies
 
-The supported build and install path is Windows x64. Install Visual Studio 2022 with Desktop development with C++, MSVC x64 tools, and a Windows 10 or 11 SDK. Also install CMake, Ninja, PowerShell 7, Python 3, the .NET 10 SDK/runtime, Git, and Node.js 22 or newer. Node is needed for repository website/backend tests, not for loading the VST3.
+The supported build and install path is Windows x64. Install Visual Studio 2022 with Desktop development with C++, MSVC x64 tools, and a Windows 10 or 11 SDK. Also install CMake, Ninja, PowerShell 7, Python 3, the .NET 10 SDK/runtime, and Git.
 
 Verify the command-line tools in PowerShell 7:
 
@@ -13,8 +13,6 @@ ninja --version
 pwsh --version
 python --version
 dotnet --list-sdks
-node --version
-npm --version
 ```
 
 The build script locates Visual Studio and imports its x64 developer environment.
@@ -57,4 +55,4 @@ Select MIX_BALANCED for general mixing, SPECTRUM_SURGICAL for detailed FFT, MAST
 
 Analyze observes Mix A; Reference uses compatible locally measured reference files; Compare has independent Mix A/B input pipelines. The first enabled reference slot supplies the selected distribution; slot controls do not average LUFS or fabricate FFT data. Chat sends explicit filtered observations only when asked. Four recent observation/question/response records support follow-up questions. Stated actions are not verified DAW edits.
 
-The plugin does not require Cloudflare to measure audio. Website, Android/desktop administration and archive features have separate [admin](ADMIN_GUIDE.md), [API](API_REFERENCE.md) and [archive](ARCHIVE_GUIDE.md) contracts. Plugin observation history is bounded in memory, not a long-term session archive.
+The plugin does not require Cloudflare to measure audio. Selecting Reference performs one explicit read of the Official metadata pool; configuring the Official API as an OpenAI-compatible provider routes user-triggered model discovery and Chat through `https://north3rnlight3r.com/api/v1`. The production server, website, downloads, telemetry, and administrator software are not part of this repository. Plugin observation history is bounded in memory, not a long-term session archive.

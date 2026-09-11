@@ -154,7 +154,9 @@ sealed class IntelligenceHostContractTests
                      "https://north3rnlight3r.com",
                      "https://north3rnlight3r.com/api",
                      "https://north3rnlight3r.com/api/v1",
-                     "https://north3rnlight3r.com/v1"
+                     "https://north3rnlight3r.com/v1",
+                     "https://aifred-site.pages.dev/v1",
+                     "https://dead-preview.aifred-site.pages.dev/api/v1"
                  })
         {
             var settings = HostSettings.FromJson(new JsonObject

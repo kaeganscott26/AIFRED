@@ -1,6 +1,6 @@
 # Beta build
 
-Install Visual Studio 2022 Desktop development with C++ and a Windows SDK, CMake, Ninja, PowerShell 7, Python 3, the .NET 10 SDK/runtime, Git, and Node.js 22 or newer. Verify them with the commands in the [user guide](USER_GUIDE.md).
+Install Visual Studio 2022 Desktop development with C++ and a Windows SDK, CMake, Ninja, PowerShell 7, Python 3, the .NET 10 SDK/runtime, and Git. Verify them with the commands in the [user guide](USER_GUIDE.md).
 
 Canonical entry: `pwsh -NoProfile -File scripts/windows/build.ps1 -Action release`. Actions configure/build/test/stage/package/release share incremental `out/windows-x64/build`. Stage/package assemble and verify without promotion; release promotes after validation.
 

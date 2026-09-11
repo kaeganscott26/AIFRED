@@ -11,4 +11,3 @@ Only `aifred.filtered-mix.v1` reaches AifredIntelligenceHost. The host validates
 - [Architecture](ARCHITECTURE.md)
 - [BufferHunter](BUFFER_HUNTER.md)
 - [DSP Configuration](DSP_CONFIGURATION.md)
-- [Future](FUTURE.md)

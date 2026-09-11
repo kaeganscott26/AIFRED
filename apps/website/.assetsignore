@@ -1,4 +1,0 @@
-.dev.vars*
-.forge/**
-assets/.forge/**
-wrangler.toml

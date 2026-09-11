@@ -1,3 +1,0 @@
-AIFRED Beta installation
-
-Build and install the verified out/windows-x64/current release using scripts/windows/install.ps1. Host port 8787; .NET 10 runtime and configured model provider required. VST3 lives under CommonProgramFiles/VST3/AIFRED Beta/Aifred.vst3. Host/settings/logs are channel-owned. See repository README and docs/INSTALLATION.md. Old global-slot migration and DAW validation require explicit inspection.

@@ -50,7 +50,7 @@ def main() -> int:
             payload = json.loads(response.read().decode("utf-8"))
         if payload.get("host_identity") != "AifredIntelligenceHost" or payload.get("product_channel") != "beta":
             return fail("engine health returned ok=false")
-        pass_line(f"engine health ok; model_loaded={payload.get('model_loaded')}")
+        pass_line(f"host health ok; ai_available={payload.get('ai_available')}")
     except Exception as exc:
         print(f"WARN engine health unavailable: {exc}")
 

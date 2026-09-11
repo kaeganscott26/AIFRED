@@ -4,4 +4,4 @@
 
 Manifest v2 includes product/channel/version, Git/source-tree identity, shared core version, DSP profile schema/revisions, context schema, port and exact paths. Prior manifest-v1 releases are inventory-verified only for safe promotion; no old runtime is packaged. Never commit generated output, recovery archives or credentials.
 
-Beta additionally builds ZIP and Windows installer/uninstaller with channel ownership and retained settings. Signing, website publication and installed/DAW testing are separate gates. Website downloads are not published by this task. macOS/Linux distribution: SCAFFOLDED / NOT VALIDATED.
+Beta additionally builds ZIP and Windows installer/uninstaller with channel ownership and retained settings. A Git tag publishes the validated artifacts to this repository's GitHub Releases. The Official backend owns website/R2 download publication. Signing and installed/DAW testing are separate gates. macOS/Linux distribution: SCAFFOLDED / NOT VALIDATED.

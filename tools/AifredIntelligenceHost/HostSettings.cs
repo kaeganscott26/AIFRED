@@ -85,11 +85,13 @@ public sealed record HostSettings(
             || !Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
             return endpoint.TrimEnd('/');
         var host = uri.Host.ToLowerInvariant();
-        var isAifredSite = host is "north3rnlight3r.com" or "www.north3rnlight3r.com" or "aifred-site.pages.dev"
+        var isAifredSite = host is "north3rnlight3r.com" or "www.north3rnlight3r.com";
+        var isLegacyPages = host == "aifred-site.pages.dev"
             || host.EndsWith(".aifred-site.pages.dev", StringComparison.Ordinal);
-        if (!isAifredSite) return endpoint.TrimEnd('/');
+        if (!isAifredSite && !isLegacyPages) return endpoint.TrimEnd('/');
         var path = uri.AbsolutePath.TrimEnd('/').ToLowerInvariant();
         if (path is not ("" or "/api" or "/api/v1" or "/v1")) return endpoint.TrimEnd('/');
+        if (isLegacyPages) return "https://north3rnlight3r.com/api/v1";
         var builder = new UriBuilder(uri) { Path = "/api/v1", Query = "", Fragment = "" };
         return builder.Uri.AbsoluteUri.TrimEnd('/');
     }
