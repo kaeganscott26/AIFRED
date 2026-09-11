@@ -20,7 +20,7 @@ sealed class IntelligenceHostContractTests
 
     public async Task RunAsync()
     {
-        await OllamaRoutePreservesQuestionAndContext();
+        await OllamaRouteBuildsMixOrientedPrompt();
         await OpenAiCompatibleRouteIsSelectable();
         await CanonicalApiRoutesHaveExpectedPaths();
         await MissingProviderIsCleanlyUnavailable();
@@ -50,7 +50,7 @@ sealed class IntelligenceHostContractTests
         Console.WriteLine("AifredIntelligenceHost contract tests: PASS");
     }
 
-    async Task OllamaRoutePreservesQuestionAndContext()
+    async Task OllamaRouteBuildsMixOrientedPrompt()
     {
         var capture = new RequestCapture();
         var router = new ProviderRouter(() => new HttpClient(new MockHandler(capture, request =>
@@ -67,16 +67,30 @@ sealed class IntelligenceHostContractTests
         const string question = "Why does my chorus feel wider but weaker?";
         var context = new JsonObject { ["mode"] = "Analyze" };
         Envelope(context);
+        context["metrics"]![1] = new JsonObject
+        {
+            ["metric"] = "rms", ["display_name"] = "RMS", ["unit"] = "dBFS", ["available"] = true,
+            ["typical"] = -12.5, ["minimum"] = -14.0, ["maximum"] = -10.0,
+            ["latest"] = -11.0, ["trend"] = "stable"
+        };
         var reply = await router.ChatAsync(settings, question, context);
         Expect(reply.Success && reply.Response == "A natural mocked reply.",
             "mocked Ollama response must pass through");
         var outbound = JsonNode.Parse(capture.LastBody)!.AsObject();
         var userContent = outbound["messages"]?[1]?["content"]?.GetValue<string>() ?? "";
-        var userPayload = JsonNode.Parse(userContent)!.AsObject();
-        Expect(userPayload["message"]?.GetValue<string>() == question,
-            "arbitrary user question must be passed through unchanged");
-        Expect(userPayload["context"]?["mode"]?.GetValue<string>() == "Analyze",
-            "authoritative context must accompany the question");
+        Expect(userContent.Contains("PRODUCER QUESTION", StringComparison.Ordinal)
+               && userContent.Contains(question, StringComparison.Ordinal),
+            "producer question must remain the actual user prompt");
+        Expect(userContent.Contains("AUTHORITATIVE MEASURED CONTEXT", StringComparison.Ordinal)
+               && userContent.Contains("RMS [dBFS]: available; typical=-12.5", StringComparison.Ordinal),
+            "validated measurements must be presented as mix evidence");
+        Expect(userContent.Contains("REFERENCE STATE", StringComparison.Ordinal)
+               && userContent.Contains("PROVENANCE, EVIDENCE, CONFIDENCE, AND AVAILABILITY", StringComparison.Ordinal),
+            "reference and evidence sections must be explicit");
+        Expect(!userContent.TrimStart().StartsWith("{", StringComparison.Ordinal)
+               && !userContent.Contains("\"message\"", StringComparison.Ordinal)
+               && !userContent.Contains("\"context\"", StringComparison.Ordinal),
+            "provider user content must not be raw transport JSON");
     }
 
     async Task OpenAiCompatibleRouteIsSelectable()

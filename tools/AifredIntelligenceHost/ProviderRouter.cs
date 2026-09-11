@@ -9,13 +9,6 @@ public sealed record ProviderReply(bool Success, string Response, string? Error)
 
 public sealed class ProviderRouter
 {
-    const string SystemIdentity =
-        "You are AIFRED, a knowledgeable mix-engineering assistant embedded in the producer's workflow. " +
-        "Use only the authoritative measured context supplied with the user's question. Answer naturally and " +
-        "respect the producer's judgment; there is not one objectively correct mix. Do not claim you listened " +
-        "to audio, invent measurements or references, turn every answer into a diagnosis, or treat unavailable " +
-        "data as zero. Explain uncertainty when the measurements cannot support a conclusion.";
-
     readonly Func<HttpClient> clientFactory;
 
     public ProviderRouter(Func<HttpClient>? clientFactory = null)
@@ -75,11 +68,7 @@ public sealed class ProviderRouter
         try
         {
             using var client = CreateClient(settings);
-            var userPayload = new JsonObject
-            {
-                ["message"] = message,
-                ["context"] = context.DeepClone()
-            }.ToJsonString();
+            var userPrompt = IntelligencePrompt.Build(message, context);
 
             if (IsOllama(settings.Provider))
             {
@@ -89,8 +78,8 @@ public sealed class ProviderRouter
                     ["stream"] = false,
                     ["messages"] = new JsonArray
                     {
-                        new JsonObject { ["role"] = "system", ["content"] = SystemIdentity },
-                        new JsonObject { ["role"] = "user", ["content"] = userPayload }
+                        new JsonObject { ["role"] = "system", ["content"] = IntelligencePrompt.System },
+                        new JsonObject { ["role"] = "user", ["content"] = userPrompt }
                     }
                 };
                 using var response = await client.PostAsync(settings.Endpoint + "/api/chat",
@@ -111,8 +100,8 @@ public sealed class ProviderRouter
                 ["model"] = settings.Model,
                 ["messages"] = new JsonArray
                 {
-                    new JsonObject { ["role"] = "system", ["content"] = SystemIdentity },
-                    new JsonObject { ["role"] = "user", ["content"] = userPayload }
+                    new JsonObject { ["role"] = "system", ["content"] = IntelligencePrompt.System },
+                    new JsonObject { ["role"] = "user", ["content"] = userPrompt }
                 }
             };
             using var compatibleRequest = new HttpRequestMessage(

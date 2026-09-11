@@ -86,4 +86,15 @@ inline BetaView makeBetaView(const core::EngineSnapshot& live,const core::Observ
     }
     return view;
 }
+inline void applyCandleHistory(BetaView& view,const core::CandleHistorySnapshot& history)
+{
+    view.metrics.sessionCandleOpen=history.sessionOpen;view.metrics.sessionCandleHigh=history.sessionHigh;
+    view.metrics.sessionCandleLow=history.sessionLow;view.metrics.sessionCandleClose=history.sessionClose;
+    view.metrics.minuteCandleOpen=history.minuteOpen;view.metrics.minuteCandleHigh=history.minuteHigh;
+    view.metrics.minuteCandleLow=history.minuteLow;view.metrics.minuteCandleClose=history.minuteClose;
+    view.metrics.liveCandleOpen=history.liveOpen;view.metrics.liveCandleHigh=history.liveHigh;
+    view.metrics.liveCandleLow=history.liveLow;view.metrics.liveCandleClose=history.liveClose;
+    view.metrics.sessionCandleCount=history.sessionCount;view.metrics.minuteCandleCount=history.minuteCount;
+    view.metrics.liveCandleCount=history.liveCount;
+}
 }

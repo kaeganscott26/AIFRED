@@ -18,7 +18,7 @@ bool gTutorialShownThisSession = false;
 float gLayoutScale = 1.0f;
 float gFontScale = 1.0f;
 float gPaddingScale = 1.0f;
-constexpr int kRightCardHeight = 64;
+constexpr int kRightCardHeight = 76;
 constexpr int kReferenceMixerHeight = 180;
 
 void updateUiScale(juce::Rectangle<int> bounds) {
@@ -144,6 +144,11 @@ juce::String AifredAudioProcessorEditor::metricText(const BetaView& state,Domain
   for(std::size_t i=0;i<core::profiles.size();++i)profileMenu_.addItem(juce::String(core::profiles[i].name.data()).replaceCharacter('_',' '),static_cast<int>(i)+1);
   profileMenu_.setSelectedId(static_cast<int>(processor_.pipeline().selectedProfile())+1,juce::dontSendNotification);
   profileMenu_.onChange=[this]{processor_.setDspProfile(static_cast<core::ProfileId>(profileMenu_.getSelectedId()-1));};
+  addAndMakeVisible(officialReferenceMenu_);
+  officialReferenceMenu_.setTooltip("Official reference pool. Only compatible DSP reference data can affect the reference target.");
+  officialReferenceMenu_.addItem("No Official Reference", 1);
+  officialReferenceMenu_.setSelectedId(1, juce::dontSendNotification);
+  officialReferenceMenu_.onChange=[this]{selectOfficialReference(officialReferenceMenu_.getSelectedId()-2);};
   addAndMakeVisible(spectrumRangeMenu_);
   spectrumRangeMenu_.setTooltip("Presentation-only spectrum viewport; authoritative FFT values are unchanged.");
   spectrumRangeMenu_.addItem("DISPLAY -120 TO 0 dB",1);
@@ -231,6 +236,7 @@ juce::String AifredAudioProcessorEditor::metricText(const BetaView& state,Domain
   setSize(1360, 820);
   showTutorial_ = !processor_.isSessionInitialized() && !gTutorialShownThisSession;
   processor_.intelligence().pingHealthAsync();
+  ReferencePoolClient::instance().refreshAsync();
   startTimerHz(30);
 }
 
@@ -316,6 +322,8 @@ void AifredAudioProcessorEditor::buttonClicked(juce::Button* button) {
             if (!file.existsAsFile()) return;
             if (analyzeReferenceFile(file, i)) {
               referenceFileNames_[static_cast<size_t>(i)] = file.getFileName();
+              selectedOfficialReferenceId_.clear();
+              officialReferenceMenu_.setSelectedId(1, juce::dontSendNotification);
             }
             repaint();
           });
@@ -354,22 +362,15 @@ void AifredAudioProcessorEditor::sliderValueChanged(juce::Slider* slider) {
 }
 
 void AifredAudioProcessorEditor::timerCallback() {
-  const auto previousMetrics = state_.metrics;
-  const bool previousValid = state_.valuesValid;
   state_ = processor_.getView();
-  // A short display response follows continuous live measurements. The observation
-  // attached to this view remains untouched for reasoning and history.
-  if (previousValid && state_.valuesValid) {
-    state_.metrics.correlation = previousMetrics.correlation + 0.4f * (state_.metrics.correlation - previousMetrics.correlation);
-    state_.metrics.stereoWidth = previousMetrics.stereoWidth + 0.4f * (state_.metrics.stereoWidth - previousMetrics.stereoWidth);
-    state_.metrics.widthScale = state_.metrics.stereoWidth;
-  }
   compareState_ = processor_.getCompareView();
+  if (isShowing()) ambientPhase_ = std::fmod(ambientPhase_ + 0.018f, juce::MathConstants<float>::twoPi);
 
   const auto officialPool = ReferencePoolClient::instance().state();
   if (officialPool.revision != officialReferencePoolRevision_) {
     officialReferencePoolRevision_ = officialPool.revision;
     officialReferencePoolStatus_ = juce::String(officialPool.message);
+    updateOfficialReferenceMenu(officialPool);
   }
 
   if (juce::Time::getMillisecondCounter() % 3000 < 40) {
@@ -469,9 +470,57 @@ void AifredAudioProcessorEditor::clearReferenceSlot(int slot) {
   updateReferenceTargetFromSlots();
 }
 
-void AifredAudioProcessorEditor::updateReferenceTargetFromSlots() {
+  void AifredAudioProcessorEditor::updateReferenceTargetFromSlots() {
+    if (!selectedOfficialReferenceId_.empty()) {
+      const auto pool = ReferencePoolClient::instance().state();
+      const auto found = std::find_if(pool.entries.begin(), pool.entries.end(), [this](const auto& entry) {
+        return entry.id == selectedOfficialReferenceId_;
+      });
+      if (found != pool.entries.end()) {
+        ReferenceTarget target;
+        target.distribution.id = found->id;
+        target.distribution.available = false;
+        target.poolSize = static_cast<int>(pool.entries.size());
+        target.label = "Official / " + found->name;
+        processor_.setReferenceTarget(target);
+        referenceStatus_ = "Selected: " + juce::String(target.label) + " (catalog only)";
+        return;
+      }
+      selectedOfficialReferenceId_.clear();
+      officialReferenceMenu_.setSelectedId(1, juce::dontSendNotification);
+    }
     for(std::size_t i=0;i<referenceTargets_.size();++i)if(referenceTargetValid_[i]&&referenceVolumeSliders_[i].getValue()>0){processor_.setReferenceTarget(referenceTargets_[i]);referenceStatus_="Selected: "+juce::String(referenceTargets_[i].label);return;}
     processor_.clearReferenceTarget();referenceStatus_="No compatible reference selected.";
+  }
+
+  void AifredAudioProcessorEditor::updateOfficialReferenceMenu(const ReferencePoolSnapshot& pool) {
+    const auto selected = selectedOfficialReferenceId_;
+    officialReferenceMenu_.clear(juce::dontSendNotification);
+    officialReferenceMenu_.addItem("No Official Reference", 1);
+    int selectedId = 1;
+    for (std::size_t i = 0; i < pool.entries.size(); ++i) {
+      const auto& entry = pool.entries[i];
+      officialReferenceMenu_.addItem(juce::String(entry.name), static_cast<int>(i) + 2);
+      if (entry.id == selected) selectedId = static_cast<int>(i) + 2;
+    }
+    officialReferenceMenu_.setSelectedId(selectedId, juce::dontSendNotification);
+    if (selectedId == 1 && !selected.empty()) {
+      selectedOfficialReferenceId_.clear();
+      updateReferenceTargetFromSlots();
+    }
+  }
+
+  void AifredAudioProcessorEditor::selectOfficialReference(int index) {
+    const auto pool = ReferencePoolClient::instance().state();
+    if (index < 0 || index >= static_cast<int>(pool.entries.size())) {
+      selectedOfficialReferenceId_.clear();
+      updateReferenceTargetFromSlots();
+      repaint();
+      return;
+    }
+    selectedOfficialReferenceId_ = pool.entries[static_cast<std::size_t>(index)].id;
+    updateReferenceTargetFromSlots();
+    repaint();
   }
 
   void AifredAudioProcessorEditor::paint(juce::Graphics& g) {
@@ -484,6 +533,7 @@ void AifredAudioProcessorEditor::updateReferenceTargetFromSlots() {
   g.setGradientFill(juce::ColourGradient(juce::Colour(0xff07111d), 0, 0,
                                          juce::Colour(0xff02060b), static_cast<float>(getWidth()), static_cast<float>(getHeight()), false));
   g.fillRect(bounds);
+  drawAmbientBackground(g, bounds, accent);
 
   for (int x = 0; x < getWidth(); x += 44) {
     g.setColour(accent.withAlpha(0.035f));
@@ -554,7 +604,6 @@ void AifredAudioProcessorEditor::updateReferenceTargetFromSlots() {
 }
 
 void AifredAudioProcessorEditor::resized() {
-  profileMenu_.setBounds(getWidth()-270,30,240,26);
   updateUiScale(getLocalBounds());
   chatInput_.applyFontToAllText(juce::Font(uiFont(14.0f, 13.5f)));
   chatOutput_.applyFontToAllText(juce::Font(uiFont(14.0f, 13.5f)));
@@ -563,15 +612,19 @@ void AifredAudioProcessorEditor::resized() {
   aiModel_.applyFontToAllText(juce::Font(uiFont(13.5f, 13.0f)));
 
   auto header = getLocalBounds().removeFromTop(scaledInt(88)).reduced(scaledInt(18), scaledInt(12));
-  auto modes = header.removeFromRight(scaledInt(390)).reduced(scaledInt(4), scaledInt(14));
+  auto topRow = header.removeFromTop(scaledInt(30));
+  auto modes = topRow.removeFromRight(scaledInt(390)).reduced(scaledInt(2), 0);
   analyzeButton_.setBounds(modes.removeFromLeft(scaledInt(122)).reduced(scaledInt(5), 0));
   referenceButton_.setBounds(modes.removeFromLeft(scaledInt(132)).reduced(scaledInt(5), 0));
   compareButton_.setBounds(modes.removeFromLeft(scaledInt(122)).reduced(scaledInt(5), 0));
-  auto leftTools = header.removeFromRight(scaledInt(220)).reduced(scaledInt(4), scaledInt(14));
-  auto centerTool = header.removeFromRight(scaledInt(100)).reduced(scaledInt(4), scaledInt(14));
-  centerModeButton_.setBounds(centerTool.reduced(scaledInt(5), 0));
-  optionsButton_.setBounds(leftTools.removeFromLeft(scaledInt(104)).reduced(scaledInt(5), 0));
-  tutorialButton_.setBounds(leftTools.removeFromLeft(scaledInt(112)).reduced(scaledInt(5), 0));
+  auto bottomRow = header;
+  bottomRow.removeFromLeft(scaledInt(300));
+  profileMenu_.setBounds(bottomRow.removeFromLeft(scaledInt(184)).reduced(2, 0));
+  officialReferenceMenu_.setBounds(bottomRow.removeFromLeft(scaledInt(184)).reduced(2, 0));
+  auto tools = bottomRow.removeFromRight(scaledInt(270));
+  tutorialButton_.setBounds(tools.removeFromRight(scaledInt(90)).reduced(scaledInt(3), 0));
+  centerModeButton_.setBounds(tools.removeFromRight(scaledInt(90)).reduced(scaledInt(3), 0));
+  optionsButton_.setBounds(tools.removeFromRight(scaledInt(90)).reduced(scaledInt(3), 0));
 
   const auto mode = processor_.getMode();
   auto body = getLocalBounds().withTrimmedTop(scaledInt(88)).reduced(scaledInt(18), scaledInt(10));
@@ -656,18 +709,43 @@ void AifredAudioProcessorEditor::drawHeader(juce::Graphics& g, juce::Rectangle<i
                       juce::RectanglePlacement::centred | juce::RectanglePlacement::onlyReduceInSize);
   }
 
-  auto text = bounds.removeFromLeft(520);
+  auto text = bounds.removeFromLeft(470);
   g.setFont(juce::FontOptions(26.0f, juce::Font::bold));
   g.setColour(Colours::ink);
   g.drawText("AIFRED VST", text.removeFromTop(34), juce::Justification::centredLeft);
   g.setFont(juce::FontOptions(13.0f));
   g.setColour(Colours::green);
-  g.drawFittedText(juce::String(genreName(genreMenu_.getSelectedId())) + " / " + referenceStatus_ + " / " + officialReferencePoolStatus_, text, juce::Justification::centredLeft, 1);
+  g.drawFittedText(juce::String(genreName(genreMenu_.getSelectedId())) + " / " + referenceStatus_ + " / " + officialReferencePoolStatus_, text.removeFromTop(24).withWidth(250), juce::Justification::centredLeft, 1);
 
   auto info = bounds.removeFromRight(260).reduced(8, 13);
   g.setFont(juce::FontOptions(11.5f));
   g.setColour(Colours::muted);
   g.drawFittedText(juce::String("v" AIFRED_VERSION_STRING " / center ") + juce::String(haloCenterMode_ + 1), info, juce::Justification::centredRight, 1);
+}
+
+void AifredAudioProcessorEditor::drawAmbientBackground(juce::Graphics& g, juce::Rectangle<int> bounds, juce::Colour accent) {
+  const auto width = static_cast<float>(bounds.getWidth());
+  const auto height = static_cast<float>(bounds.getHeight());
+  const auto phase = ambientPhase_;
+  const std::array<juce::Point<float>, 3> centres {
+    juce::Point<float>(width * (0.18f + 0.05f * std::sin(phase * 0.71f)), height * (0.30f + 0.06f * std::cos(phase * 0.53f))),
+    juce::Point<float>(width * (0.72f + 0.07f * std::cos(phase * 0.43f)), height * (0.20f + 0.08f * std::sin(phase * 0.61f))),
+    juce::Point<float>(width * (0.55f + 0.08f * std::sin(phase * 0.37f)), height * (0.82f + 0.04f * std::cos(phase * 0.83f)))
+  };
+  const std::array<juce::Colour, 3> colours {accent, Colours::violet, Colours::green};
+  const std::array<float, 3> sizes {260.0f, 220.0f, 180.0f};
+  for (std::size_t i = 0; i < centres.size(); ++i) {
+    const auto size = sizes[i] * gLayoutScale;
+    g.setColour(colours[i].withAlpha(0.035f));
+    g.fillEllipse(centres[i].x - size * 0.5f, centres[i].y - size * 0.5f, size, size);
+  }
+  for (int i = 0; i < 12; ++i) {
+    const auto t = phase * (0.17f + static_cast<float>(i % 3) * 0.03f) + static_cast<float>(i) * 1.7f;
+    const auto x = width * (0.08f + 0.84f * (0.5f + 0.5f * std::sin(t * 0.73f + i)));
+    const auto y = height * (0.10f + 0.82f * (0.5f + 0.5f * std::cos(t * 0.57f + i * 0.4f)));
+    g.setColour(colours[static_cast<std::size_t>(i) % colours.size()].withAlpha(0.055f));
+    g.fillEllipse(x, y, 2.0f + static_cast<float>(i % 2), 2.0f + static_cast<float>(i % 2));
+  }
 }
 
 void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int> bounds, const BetaView& state, const char* title, bool referenceOverlay) {
@@ -677,13 +755,18 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
   const auto radius = std::min(area.getWidth(), area.getHeight()) * 0.36f;
   const auto hasValidLiveData = state.hasSignal && state.valuesValid;
   auto accent = referenceOverlay ? genreColour(genreMenu_.getSelectedId()) : accentForMode(processor_.getMode());
-  const auto dynamics01 = hasValidLiveData ? clamp01((state.metrics.crestDb - 3.0f) / 12.0f) : 0.0f;
+  const auto dynamics01 = hasValidLiveData ? state.metrics.crestScale : 0.0f;
   const auto rmsScale = hasValidLiveData ? clamp01(state.metrics.rmsScale) : 0.0f;
   const auto truePeak01 =
       hasValidLiveData
           ? clamp01((state.metrics.truePeakDb + 24.0f) / 18.0f)
           : 0.0f;
   const auto widthScale = hasValidLiveData ? clamp01(state.metrics.stereoWidth) : 0.0f;
+  const auto canonicalLabel = [&](core::MetricId id) {
+    const auto& detail = state.metricDetails[core::index(id)];
+    if (!detail.valid) return juce::String(detail.displayName.data()) + " —";
+    return juce::String(detail.displayName.data()) + " " + juce::String(detail.displayedValue, detail.id == core::MetricId::correlation ? 2 : static_cast<int>(core::metricDefinitions[core::index(id)].decimals)) + " " + juce::String(detail.unit.data());
+  };
   const std::array<float, 4> values { 
     dynamics01,
     rmsScale,
@@ -700,10 +783,10 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
 
   const std::array<juce::Colour, 4> colours {Colours::cyan, Colours::green, Colours::yellow, Colours::violet};
   const std::array<juce::String, 4> labels {
-    hasValidLiveData ? "CREST " + juce::String(state.metrics.crestDb, 1) + " dB" : "CREST —",
-    hasValidLiveData ? "RMS " + juce::String(state.metrics.rmsDb, 0)+" dBFS" : "TILT —",
-    hasValidLiveData ? "TP " + juce::String(state.metrics.truePeakDb, 1) + " dBTP" : "TP —",
-    hasValidLiveData ? "WIDTH " + juce::String(state.metrics.stereoWidth, 2) : "WIDTH —"
+    canonicalLabel(core::MetricId::crest),
+    canonicalLabel(core::MetricId::rms),
+    canonicalLabel(core::MetricId::truePeak),
+    canonicalLabel(core::MetricId::width)
   };
   for (int i = 0; i < 4; ++i) {
     const auto lane = static_cast<float>(i);
@@ -737,30 +820,30 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
     g.drawText(labels[static_cast<size_t>(i)], juce::Rectangle<float>(labelCentre.x - 65.0f, labelCentre.y - 10.0f, 130.0f, 20.0f).toNearestInt(), juce::Justification::centred);
   }
 
-  for (int tick = 0; tick < 40; ++tick) {
-    const auto angle = juce::degreesToRadians(-180.0f + static_cast<float>(tick) * 9.0f);
-    const auto major = tick % 5 == 0;
-    const auto inner = radius + (major ? 78.0f : 84.0f);
-    const auto outer = radius + 92.0f;
-    g.setColour((major ? Colours::ink : Colours::muted).withAlpha(major ? 0.62f : 0.34f));
-    g.drawLine(centre.x + std::cos(angle) * inner, centre.y + std::sin(angle) * inner,
-               centre.x + std::cos(angle) * outer, centre.y + std::sin(angle) * outer,
-               major ? 1.5f : 1.0f);
+  for (int lane = 0; lane < 4; ++lane) {
+    const auto start = -150.0f + static_cast<float>(lane) * 90.0f;
+    for (int tick = 0; tick <= 4; ++tick) {
+      const auto angle = juce::degreesToRadians(start + 72.0f * static_cast<float>(tick) / 4.0f);
+      const auto major = tick == 0 || tick == 2 || tick == 4;
+      const auto inner = radius + (major ? 78.0f : 83.0f);
+      const auto outer = radius + 92.0f;
+      g.setColour((major ? Colours::ink : Colours::muted).withAlpha(major ? 0.62f : 0.34f));
+      g.drawLine(centre.x + std::cos(angle) * inner, centre.y + std::sin(angle) * inner,
+                 centre.x + std::cos(angle) * outer, centre.y + std::sin(angle) * outer,
+                 major ? 1.5f : 1.0f);
+    }
   }
 
   struct ScaleLabel { float angle; juce::String text; juce::Colour colour; };
   const std::array<ScaleLabel, 8> scaleLabels {{
-    {-150.0f, "0 dB crest", Colours::cyan},
-    {-78.0f, "24 dB crest", Colours::cyan},
-    
-    {-60.f, "-60 dBFS", Colours::green},
+    {-150.0f, "0 dB", Colours::cyan},
+    {-78.0f, "24 dB", Colours::cyan},
+    {-60.0f, "-60 dBFS", Colours::green},
     {12.0f, "0 dBFS", Colours::green},
-
     {30.0f, "-24 dBTP", Colours::yellow},
     {102.0f, "-6 dBTP", Colours::yellow},
-
-    {120.0f, "MONO", Colours::violet},
-    {192.0f, "STEREO", Colours::violet}
+    {120.0f, "0%", Colours::violet},
+    {192.0f, "100%", Colours::violet}
   }};
   for (const auto& item : scaleLabels) {
     const auto angle = juce::degreesToRadians(item.angle);
@@ -846,9 +929,21 @@ void AifredAudioProcessorEditor::drawHaloSpectrometer(juce::Graphics& g, juce::R
 }
 
 void AifredAudioProcessorEditor::drawDomainCard(juce::Graphics& g,juce::Rectangle<int> bounds,const char* name,Domain domain,const BetaView& state) {
-    drawPanel(g,bounds.toFloat(),8);auto inner=bounds.reduced(12,8);g.setColour(Colours::green);g.setFont(juce::FontOptions(13.0f,juce::Font::bold));g.drawText(name,inner.removeFromTop(20),juce::Justification::centredLeft);
-    g.setColour(Colours::ink);g.setFont(juce::FontOptions(22.0f));g.drawText(metricText(state,domain),inner.removeFromTop(34),juce::Justification::centredLeft);
-    g.setFont(juce::FontOptions(11.0f));g.setColour(Colours::muted);
+    drawPanel(g,bounds.toFloat(),8);
+    auto inner=bounds.reduced(12,8);
+    const auto id=domain==Domain::Tone?core::MetricId::rms:domain==Domain::Stereo?core::MetricId::width:domain==Domain::Dynamics?core::MetricId::crest:core::MetricId::shortTerm;
+    const auto detail=state.metricDetails[core::index(id)];
+    const auto scale=domain==Domain::Tone?state.metrics.rmsScale:domain==Domain::Stereo?state.metrics.widthScale:domain==Domain::Dynamics?state.metrics.crestScale:state.metrics.loudnessScale;
+    const auto colour=domain==Domain::Tone?Colours::green:domain==Domain::Stereo?Colours::violet:domain==Domain::Dynamics?Colours::yellow:Colours::cyan;
+    g.setColour(colour);g.setFont(juce::FontOptions(13.0f,juce::Font::bold));g.drawText(name,inner.removeFromTop(20),juce::Justification::centredLeft);
+    g.setColour(Colours::ink);g.setFont(juce::FontOptions(20.0f));g.drawText(metricText(state,domain),inner.removeFromTop(28),juce::Justification::centredLeft);
+    auto bar=inner.removeFromTop(10).reduced(0,2).toFloat();
+    g.setColour(Colours::line.withAlpha(0.45f));g.fillRoundedRectangle(bar,4.0f);
+    if(detail.valid) {
+      const auto pulse=0.84f+0.12f*std::sin(ambientPhase_*1.4f+static_cast<float>(core::index(id)));
+      g.setColour(colour.withAlpha(pulse));g.fillRoundedRectangle(bar.withWidth(bar.getWidth()*clamp01(scale)),4.0f);
+    }
+    g.setFont(juce::FontOptions(10.0f));g.setColour(Colours::muted);
     g.drawText(juce::String(state.observation.durationSeconds,1)+" s / "+(state.isStale?"retained / stale":state.observation.sufficient?"observed":"collecting"),inner,juce::Justification::centredLeft);
   }
 
@@ -915,19 +1010,19 @@ void AifredAudioProcessorEditor::drawCandleStrip(
 
   switch (type) {
     case CandleStripType::Session:
-      title = "10 SESSION";
-      emptyMessage = "no saved sessions";
+      title = "CURRENT SESSION";
+      emptyMessage = "waiting for session data";
       count = state.metrics.sessionCandleCount;
       break;
 
     case CandleStripType::Minute:
-      title = "10 MIN";
+      title = "10 MINUTE";
       emptyMessage = "no minute candles yet";
       count = state.metrics.minuteCandleCount;
       break;
 
     case CandleStripType::Live:
-      title = "10 LIVE - 3 SEC EACH";
+      title = "10 LIVE · 3 SEC EACH";
       emptyMessage = "waiting for live candles";
       count = state.metrics.liveCandleCount;
       break;
@@ -1002,7 +1097,9 @@ void AifredAudioProcessorEditor::drawCandleStrip(
         + candleWidth * 0.5f;
 
     const auto mapY = [&](float value) {
-      return plot.getBottom() - clamp01(value) * plot.getHeight();
+      // Candle values are the published RMS dBFS observations. This only maps
+      // that value to the stable presentation scale used by the RMS card.
+      return plot.getBottom() - clamp01((value + 60.0f) / 60.0f) * plot.getHeight();
     };
 
     const auto openY = mapY(open);

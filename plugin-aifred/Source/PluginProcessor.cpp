@@ -104,6 +104,7 @@ void AifredAudioProcessor::setStateInformation(const void* data, int sizeInBytes
 
 BetaView AifredAudioProcessor::getView() const {
   auto state = makeBetaView(analysis_.live(),analysis_.observation(),analysis_.presentation());
+  applyCandleHistory(state,analysis_.candleHistory());
   state.reference=reference_;state.hasReference=core::Filter::apply(state.observation,&reference_.distribution).referenceCompatible;
   state.mode = getMode();
   return state;
@@ -111,6 +112,7 @@ BetaView AifredAudioProcessor::getView() const {
 
 BetaView AifredAudioProcessor::getCompareView() const {
   auto state = makeBetaView(compareAnalysis_.live(),compareAnalysis_.observation(),analysis_.presentation());
+  applyCandleHistory(state,compareAnalysis_.candleHistory());
   state.mode = AnalysisMode::Compare;
   return state;
 }

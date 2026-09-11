@@ -1,5 +1,8 @@
 #include "aifred/Pipeline.h"
 
+#include <algorithm>
+#include <cmath>
+
 namespace aifred::core
 {
 namespace
@@ -81,9 +84,75 @@ void Pipeline::hiResTimerCallback()
                 + " revision=" + juce::String(live_.profileVersion) + " epoch=" + juce::String(live_.epoch));
         hunter_.consume(live_,now());
     }
+    const auto timestamp=now();
+    const auto observed=hunter_.snapshot(timestamp);
+    updateCandleHistory(observed,timestamp);
 }
 EngineSnapshot Pipeline::live() const {std::lock_guard lock(mutex_);return live_;}
 ObservationSnapshot Pipeline::observation() const {std::lock_guard lock(mutex_);return hunter_.snapshot(now());}
+CandleHistorySnapshot Pipeline::candleHistory() const
+{
+    std::lock_guard lock(mutex_);
+    CandleHistorySnapshot result;
+    copySeries(sessionCandles_,result.sessionOpen,result.sessionHigh,result.sessionLow,result.sessionClose,result.sessionCount);
+    copySeries(minuteCandles_,result.minuteOpen,result.minuteHigh,result.minuteLow,result.minuteClose,result.minuteCount);
+    copySeries(liveCandles_,result.liveOpen,result.liveHigh,result.liveLow,result.liveClose,result.liveCount);
+    return result;
+}
+void Pipeline::updateCandleHistory(const ObservationSnapshot& observed,double timestamp) noexcept
+{
+    const auto delta=lastCandleUpdate_<0?0.0:std::clamp(timestamp-lastCandleUpdate_,0.0,.25);
+    lastCandleUpdate_=timestamp;
+    const auto& rms=observed.get(MetricId::rms);
+    updateSeries(sessionCandles_,rms,delta,0.0,false);
+    updateSeries(minuteCandles_,rms,delta,60.0,true);
+    updateSeries(liveCandles_,rms,delta,3.0,true);
+}
+void Pipeline::updateSeries(CandleSeries& series,const MetricObservation& metric,double delta,double period,bool commit) noexcept
+{
+    if(!metric.valid||!std::isfinite(metric.typical)||!std::isfinite(metric.latest))return;
+    const auto high=std::max({metric.typical,metric.latest,metric.high,metric.maximum});
+    const auto low=std::min({metric.typical,metric.latest,metric.low,metric.minimum});
+    if(!series.current.active)series.current={metric.typical,high,low,metric.latest,true};
+    else
+    {
+        series.current.high=std::max(series.current.high,high);
+        series.current.low=std::min(series.current.low,low);
+        series.current.close=metric.latest;
+    }
+    if(!commit)return;
+    series.elapsed+=delta;
+    if(series.elapsed<period)return;
+    series.elapsed=std::fmod(series.elapsed,period);
+    series.committed[static_cast<std::size_t>(series.write)]=series.current;
+    series.write=(series.write+1)%static_cast<int>(series.committed.size());
+    series.count=std::min(static_cast<int>(series.committed.size()),series.count+1);
+    series.current={};
+}
+void Pipeline::copySeries(const CandleSeries& series,std::array<float,10>& opens,std::array<float,10>& highs,
+                           std::array<float,10>& lows,std::array<float,10>& closes,int& count) noexcept
+{
+    opens.fill(0);highs.fill(0);lows.fill(0);closes.fill(0);
+    const auto current=series.current.active?1:0;
+    count=std::min(10,series.count+current);
+    const auto first=std::max(0,series.count-(10-current));
+    auto output=10-count;
+    for(auto i=first;i<series.count;++i)
+    {
+        const auto& frame=series.committed[static_cast<std::size_t>((series.write-series.count+i+20)%10)];
+        opens[static_cast<std::size_t>(output)]=static_cast<float>(frame.open);
+        highs[static_cast<std::size_t>(output)]=static_cast<float>(frame.high);
+        lows[static_cast<std::size_t>(output)]=static_cast<float>(frame.low);
+        closes[static_cast<std::size_t>(output++)]=static_cast<float>(frame.close);
+    }
+    if(series.current.active)
+    {
+        opens[static_cast<std::size_t>(output)]=static_cast<float>(series.current.open);
+        highs[static_cast<std::size_t>(output)]=static_cast<float>(series.current.high);
+        lows[static_cast<std::size_t>(output)]=static_cast<float>(series.current.low);
+        closes[static_cast<std::size_t>(output)]=static_cast<float>(series.current.close);
+    }
+}
 juce::String Pipeline::contextForQuestion(const juce::String& question,const ReferenceDistribution* reference,juce::String mode,const ObservationSnapshot* compare)
 {
     std::lock_guard lock(mutex_);

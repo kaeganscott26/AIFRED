@@ -9,6 +9,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <array>
 #include <memory>
+#include <string>
 
 namespace aifred {
 
@@ -33,6 +34,7 @@ private:
   void sliderValueChanged(juce::Slider*) override;
   
   void drawHeader(juce::Graphics&, juce::Rectangle<int>);
+  void drawAmbientBackground(juce::Graphics&, juce::Rectangle<int>, juce::Colour);
   
   void drawHalo(juce::Graphics&, juce::Rectangle<int>, const BetaView&, const char* title, bool referenceOverlay);
   void drawDomainCard(juce::Graphics&, juce::Rectangle<int>, const char*, Domain, const BetaView&);
@@ -50,6 +52,8 @@ private:
   bool analyzeReferenceFile(const juce::File& file, int slot);
   void clearReferenceSlot(int slot);
   void updateReferenceTargetFromSlots();
+  void updateOfficialReferenceMenu(const ReferencePoolSnapshot&);
+  void selectOfficialReference(int);
   juce::String metricText(const BetaView& state, Domain domain);
 
   AifredAudioProcessor& processor_;
@@ -80,6 +84,7 @@ private:
   juce::ComboBox genreMenu_;
   juce::ComboBox profileMenu_;
   juce::ComboBox spectrumRangeMenu_;
+  juce::ComboBox officialReferenceMenu_;
   juce::Slider gateSlider_;
   std::array<juce::Slider, 5> referenceVolumeSliders_;
   std::array<juce::String, 5> referenceFileNames_;
@@ -101,6 +106,8 @@ private:
   bool showOptions_ = false;
   bool splashDismissedThisEditor_ = false;
   int haloCenterMode_ = 0;
+  float ambientPhase_ = 0.0f;
+  std::string selectedOfficialReferenceId_;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AifredAudioProcessorEditor)
 };
