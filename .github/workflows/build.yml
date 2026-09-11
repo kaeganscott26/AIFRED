@@ -1,4 +1,4 @@
-name: Build AIFRED
+name: Build AIFRED Beta
 
 on:
   push:
@@ -12,15 +12,8 @@ permissions:
 
 jobs:
   vst3:
-    name: VST3 ${{ matrix.name }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: windows
-            os: windows-latest
-            package_platform: windows
+    name: VST3 Windows
+    runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -33,17 +26,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
 
-      - name: Windows build, test and validated release
-        if: runner.os == 'Windows'
+      - name: Build, test, and package Beta
         shell: pwsh
         run: ./scripts/windows/build.ps1 -Action release
 
-      - name: Upload Windows release
-        if: runner.os == 'Windows'
+      - name: Upload validated Beta artifacts
         uses: actions/upload-artifact@v4
         with:
           name: AIFRED-VST3-windows
@@ -53,41 +41,11 @@ jobs:
             out/windows-x64/current/uninstaller/AIFRED-Uninstall.exe
           if-no-files-found: error
 
-      # macOS/Linux distribution remains scaffolded and is not published by this workflow.
-
-  website:
-    name: Website checks
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Install website tooling
-        run: npm ci --prefix apps
-
-      - name: JavaScript syntax
-        run: npm --prefix apps run website:check
-
-      - name: Guard active paths and product names
-        shell: pwsh
-        run: ./tools/check-no-hardcoded-paths.ps1
-
-      - name: Shared architecture and repository contracts
-        run: |
-          python3 -B scripts/common/check_shared_core.py
-          python3 -B scripts/common/check_repository.py
-
-      - name: Monorepo validation
-        run: bash tools/release/aifred_monorepo_validate.sh
-
   release:
-    name: Publish GitHub release
+    name: Publish GitHub Beta release
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
-    needs: [vst3, website]
+    needs: [vst3]
     steps:
       - uses: actions/checkout@v4
 
@@ -104,36 +62,6 @@ jobs:
             gh release upload "${GITHUB_REF_NAME}" release-assets/* --clobber
           else
             gh release create "${GITHUB_REF_NAME}" release-assets/* \
-              --title "AIFRED ${GITHUB_REF_NAME}" \
-              --notes-file apps/website/assets/docs/aifred-beta-release-notes.txt
+              --title "AIFRED Beta ${GITHUB_REF_NAME}" \
+              --notes-file docs/RELEASE_NOTES.md
           fi
-
-  deploy-website:
-    name: Deploy Cloudflare Pages
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    needs: [website]
-    env:
-      CLOUDFLARE_CREDENTIALS_PRESENT: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Skip when Cloudflare token is missing
-        if: env.CLOUDFLARE_CREDENTIALS_PRESENT != 'true'
-        run: echo "Set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repository secrets to enable Cloudflare Pages deployment."
-
-      - uses: actions/setup-node@v4
-        if: env.CLOUDFLARE_CREDENTIALS_PRESENT == 'true'
-        with:
-          node-version: 22
-
-      - name: Install pinned Wrangler
-        if: env.CLOUDFLARE_CREDENTIALS_PRESENT == 'true'
-        run: npm ci --prefix apps
-
-      - name: Deploy to Cloudflare Pages
-        if: env.CLOUDFLARE_CREDENTIALS_PRESENT == 'true'
-        env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: npm --prefix apps run website:deploy

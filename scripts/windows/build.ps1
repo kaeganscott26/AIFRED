@@ -21,14 +21,7 @@ try {
     Invoke-Checked python @('-B','scripts/common/check_repository.py')
     Invoke-Checked python @('-B','-m','unittest','discover','-s','scripts/tests')
     Invoke-Checked dotnet @('run','--project','tools/AifredIntelligenceHost.Tests/AifredIntelligenceHost.ContractTests.csproj','-c','Release')
-    if ($official) {
-        Invoke-Checked ctest @('--preset','windows-release')
-
-    } else {
-        Invoke-Checked ctest @('--preset','windows-release')
-        Invoke-Checked node @('--test','tests/aifred-api.test.mjs','tests/aifred-archive.test.mjs')
-        Invoke-Checked npm @('--prefix','apps','run','website:check')
-    }
+    Invoke-Checked ctest @('--preset','windows-release')
     Invoke-Checked python @('-B','scripts/common/check_shared_core.py')
     if ($Action -eq 'test') { return }
     Invoke-Checked python @('-B','scripts/common/release.py','prepare','--platform','windows-x64')
