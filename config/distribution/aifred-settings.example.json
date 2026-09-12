@@ -1,26 +1,8 @@
 {
-  "provider": "ollama",
-  "endpoint1": "http://127.0.0.1:11434",
-  "endpoint2": "http://127.0.0.1:8787",
+  "provider": "openai-compatible",
+  "endpoint": "https://north3rnlight3r.com/api/v1",
   "model": "aifred:latest",
   "api_key": "",
-  "timeout_ms": 180000
-}
-
-{
-  "provider": "hermes",
-  "endpoint":"http://127.0.0.1:9110",
-  "model": "gemma4:latest",
-  "api_key":"",
-  "timeout_ms: 100000"
-}
-
-{
-  "provider": "north3rnlight3r_api",
-  "endpoint": "https://north3rnlight3r.com/api/v1",
-  "admin-session_token": "North3rnLight3r",
-  "admin_session_secret": "Poohbe@r2009$",
-  "token_secret": "Kaeganscott0826",
-  "model": "aifred:latest",
-  "api-key": "token_secret"
+  "timeout_ms": 180000,
+  "port": 8787
 }

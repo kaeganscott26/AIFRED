@@ -4,6 +4,9 @@ out/
 .vs/
 .idea/
 .vscode/
+.forge/
+.obsidian/
+.wrangler/
 *.user
 *.suo
 *.log
@@ -11,22 +14,19 @@ out/
 *.7z
 *.tar.gz
 node_modules/
-.wrangler/
 .DS_Store
 .dev.vars
-
-tools/**/bin/
-tools/**/obj/
-
 .dev.vars*
 !.dev.vars.example
 .env*
 !.env.example
-.obsidian/plugins/obsidian-local-rest-api/data.json
 coverage/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+tools/**/bin/
+tools/**/obj/
 
 __pycache__/
 *.pyc
