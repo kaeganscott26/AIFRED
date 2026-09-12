@@ -13,6 +13,11 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(JUCE)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../shared-dsp ${CMAKE_BINARY_DIR}/shared-dsp)
+execute_process(COMMAND git rev-parse --short HEAD WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  OUTPUT_VARIABLE AIFRED_BUILD_ID OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+if(NOT AIFRED_BUILD_ID)
+  set(AIFRED_BUILD_ID "unknown")
+endif()
 
 juce_add_plugin(Aifred
   COMPANY_NAME "North3rnLight3r"
@@ -43,6 +48,7 @@ target_sources(Aifred PRIVATE
   Source/PluginEditor.cpp
   Source/AifredLookAndFeel.cpp
   Source/ReferencePoolClient.cpp
+  Source/MixMemoryIndex.cpp
 )
 
 target_include_directories(Aifred PRIVATE Source)
@@ -53,6 +59,7 @@ target_compile_definitions(Aifred
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
     AIFRED_VERSION_STRING="${PROJECT_VERSION}"
+    AIFRED_BUILD_ID="${AIFRED_BUILD_ID}"
     AIFRED_REFERENCE_POOL_URL="https://north3rnlight3r.com/api/v1/reference/pool"
 )
 
@@ -62,6 +69,7 @@ target_link_libraries(Aifred
     aifred_pipeline
     juce::juce_audio_utils
     $<$<PLATFORM_ID:Windows>:winhttp>
+    $<$<PLATFORM_ID:Windows>:winsqlite3>
   PUBLIC
     juce::juce_recommended_config_flags
     juce::juce_recommended_lto_flags

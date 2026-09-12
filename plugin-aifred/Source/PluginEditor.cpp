@@ -10,32 +10,20 @@
 #ifndef AIFRED_VERSION_STRING
 #define AIFRED_VERSION_STRING "dev"
 #endif
+#ifndef AIFRED_BUILD_ID
+#define AIFRED_BUILD_ID "unknown"
+#endif
 
 namespace aifred {
 namespace {
 
-bool gTutorialShownThisSession = false;
-float gLayoutScale = 1.0f;
-float gFontScale = 1.0f;
-float gPaddingScale = 1.0f;
-constexpr int kRightCardHeight = 76;
-constexpr int kReferenceMixerHeight = 180;
-
-void updateUiScale(juce::Rectangle<int> bounds) {
-  constexpr float baseWidth = 1280.0f;
-  constexpr float baseHeight = 760.0f;
-  const float sizeScale = std::min(static_cast<float>(bounds.getWidth()) / baseWidth, static_cast<float>(bounds.getHeight()) / baseHeight);
-  gLayoutScale = juce::jlimit(0.88f, 1.42f, sizeScale);
-  gFontScale = juce::jlimit(1.0f, 1.30f, gLayoutScale);
-  gPaddingScale = juce::jlimit(0.88f, 1.16f, gLayoutScale);
-}
-
-int scaledInt(int value) {
-  return juce::roundToInt(static_cast<float>(value) * gPaddingScale);
-}
+constexpr int kDesignWidth = 1360;
+constexpr int kDesignHeight = 820;
+constexpr int kHeaderHeight = 76;
+constexpr int kRightCardHeight = 54;
 
 juce::FontOptions uiFont(float basePx, float minPx, int style = juce::Font::plain) {
-  return juce::FontOptions(juce::jmax(minPx, basePx * gFontScale), style);
+  return juce::FontOptions(juce::jmax(minPx, basePx), style);
 }
 
 juce::Colour accentForMode(AnalysisMode mode) {
@@ -44,25 +32,23 @@ juce::Colour accentForMode(AnalysisMode mode) {
   return Colours::cyan;
 }
 
-juce::Colour genreColour(int genreId) {
-  switch (genreId) {
+juce::Colour appearanceColour(int appearanceId) {
+  switch (appearanceId) {
     case 2: return juce::Colour(0xffffcf33);
-    case 3: return juce::Colour(0xffff4d5a);
-    case 4: return juce::Colour(0xff23e3ff);
-    case 5: return juce::Colour(0xffb86cff);
-    case 6: return juce::Colour(0xfff7f2e7);
+    case 3: return juce::Colour(0xff23e3ff);
+    case 4: return juce::Colour(0xffb86cff);
+    case 5: return juce::Colour(0xff496170);
     default: return juce::Colour(0xff8cff45);
   }
 }
 
-const char* genreName(int genreId) {
-  switch (genreId) {
-    case 2: return "Boom Bap";
-    case 3: return "Drill / Trap";
-    case 4: return "Electronic / Dubstep";
-    case 5: return "R&B";
-    case 6: return "Same Genre";
-    default: return "Hip-Hop / Trap";
+const char* appearanceName(int appearanceId) {
+  switch (appearanceId) {
+    case 2: return "Pulse";
+    case 3: return "Spectrum Glow";
+    case 4: return "Minimal";
+    case 5: return "Dark / Static";
+    default: return "Aurora";
   }
 }
 
@@ -168,10 +154,8 @@ juce::String AifredAudioProcessorEditor::metricText(const BetaView& state,Domain
     addAndMakeVisible(button);
     button->addListener(this);
   }
-  for (auto& button : referenceFileButtons_) {
-    addAndMakeVisible(button);
-    button.addListener(this);
-  }
+  addAndMakeVisible(localReferenceButton_);
+  localReferenceButton_.addListener(this);
 
   chatInput_.setMultiLine(true);
   chatInput_.setReturnKeyStartsNewLine(true);
@@ -201,40 +185,27 @@ juce::String AifredAudioProcessorEditor::metricText(const BetaView& state,Domain
   providerMenu_.addItem("OpenAI", 1);
   providerMenu_.addItem("OpenAI-compatible", 2);
   providerMenu_.addItem("Ollama / Local", 3);
-  genreMenu_.addItem("Hip-Hop / Trap", 1);
-  genreMenu_.addItem("Boom Bap", 2);
-  genreMenu_.addItem("Drill / Trap", 3);
-  genreMenu_.addItem("Electronic / Dubstep", 4);
-  genreMenu_.addItem("R&B", 5);
-  genreMenu_.addItem("Same Genre", 6);
-  gateSlider_.setRange(0.0, 1.0, 0.01);
-  gateSlider_.setTextValueSuffix(" gate");
+  appearanceMenu_.addItem("Aurora", 1);
+  appearanceMenu_.addItem("Pulse", 2);
+  appearanceMenu_.addItem("Spectrum Glow", 3);
+  appearanceMenu_.addItem("Minimal", 4);
+  appearanceMenu_.addItem("Dark / Static", 5);
+  appearanceMenu_.onChange=[this]{pushSettingsToProcessor();repaint();};
   addAndMakeVisible(providerMenu_);
-  addAndMakeVisible(genreMenu_);
-  addAndMakeVisible(gateSlider_);
-  for (int i = 0; i < static_cast<int>(referenceVolumeSliders_.size()); ++i) {
-    auto& slider = referenceVolumeSliders_[static_cast<size_t>(i)];
-    slider.setRange(0.0, 100.0, 1.0);
-    slider.setValue(i == 0 ? 80.0 : 55.0, juce::dontSendNotification);
-    slider.setSliderStyle(juce::Slider::LinearVertical);
-    slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 46, 18);
-    slider.setTextValueSuffix("%");
-    addAndMakeVisible(slider);
-    slider.addListener(this);
-  }
+  addAndMakeVisible(appearanceMenu_);
 
   const auto settings = processor_.getPluginSettings();
-  genreMenu_.setSelectedId(settings.genreId);
+  appearanceMenu_.setSelectedId(settings.visualizerId,juce::dontSendNotification);
   providerMenu_.setSelectedId(settings.aiProvider == "ollama" ? 3 : (settings.aiProvider == "compatible" ? 2 : 1));
-  gateSlider_.setValue(settings.gate, juce::dontSendNotification);
   apiEndpoint_.setText(settings.apiEndpoint, juce::dontSendNotification);
   apiKey_.setText(settings.apiKey, juce::dontSendNotification);
   aiModel_.setText(settings.aiModel, juce::dontSendNotification);
 
   setResizable(true, true);
-  setResizeLimits(1080, 680, 1820, 1120);
+  setResizeLimits(360, 280, 1920, 1780);
   setSize(1360, 820);
-  showTutorial_ = !processor_.isSessionInitialized() && !gTutorialShownThisSession;
+  showTutorial_ = !processor_.hasSeenHelp();
+  resized();
   processor_.intelligence().pingHealthAsync();
   ReferencePoolClient::instance().refreshAsync();
   startTimerHz(30);
@@ -247,34 +218,30 @@ AifredAudioProcessorEditor::~AifredAudioProcessorEditor() {
   for (auto* button : {&askAiButton_, &saveApiButton_, &chatFileButton_, &compareFileButton_}) {
     button->removeListener(this);
   }
-  for (auto& button : referenceFileButtons_) {
-    button.removeListener(this);
-  }
-  for (auto& slider : referenceVolumeSliders_) {
-    slider.removeListener(this);
-  }
+  localReferenceButton_.removeListener(this);
   setLookAndFeel(nullptr);
 }
 
 void AifredAudioProcessorEditor::buttonClicked(juce::Button* button) {
+  if(showTutorial_)
+  {
+    showTutorial_=false;processor_.markHelpSeen();resized();repaint();return;
+  }
+  if(showOptions_&&button!=&saveApiButton_)
+  {
+    showOptions_=false;resized();repaint();return;
+  }
   if (button == &analyzeButton_) processor_.setMode(AnalysisMode::Analyze);
   if (button == &referenceButton_) {
     processor_.setMode(AnalysisMode::Reference);
     ReferencePoolClient::instance().refreshAsync();
   }
   if (button == &compareButton_) processor_.setMode(AnalysisMode::Compare);
-  if (button == &optionsButton_) showOptions_ = !showOptions_;
+  if (button == &optionsButton_) { showOptions_ = true; showTutorial_ = false; }
   if (button == &centerModeButton_) haloCenterMode_ = (haloCenterMode_ + 1) % 3;
   if (button == &tutorialButton_) {
-    if (showTutorial_) {
-      showTutorial_ = false;
-      splashDismissedThisEditor_ = true;
-      gTutorialShownThisSession = true;
-      processor_.markSessionInitialized();
-    } else {
-      showTutorial_ = true;
-      splashDismissedThisEditor_ = false;
-    }
+    showTutorial_ = true;
+    showOptions_ = false;
   }
   if (button == &askAiButton_) {
     const auto prompt = chatInput_.getText().trim();
@@ -300,6 +267,7 @@ void AifredAudioProcessorEditor::buttonClicked(juce::Button* button) {
                                                      apiKey_.getText(),
                                                      aiModel_.getText().trim());
     apiStatus_ = apiEndpoint_.getText().trim().isNotEmpty() ? "API route set." : "API route not connected.";
+    showOptions_ = false;
   }
   if (button == &chatFileButton_ || button == &compareFileButton_) {
     fileChooser_ = std::make_unique<juce::FileChooser>("Select audio file", juce::File{}, "*.wav;*.aif;*.aiff;*.mp3;*.flac");
@@ -312,59 +280,30 @@ void AifredAudioProcessorEditor::buttonClicked(juce::Button* button) {
         repaint();
       });
   }
-  for (int i = 0; i < static_cast<int>(referenceFileButtons_.size()); ++i) {
-    if (button == &referenceFileButtons_[static_cast<size_t>(i)]) {
-      const auto launchReferenceChooser = [this, i] {
-        fileChooser_ = std::make_unique<juce::FileChooser>("Select reference " + juce::String(i + 1), juce::File{}, "*.wav;*.aif;*.aiff;*.mp3;*.flac");
-        fileChooser_->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-          [this, i](const juce::FileChooser& chooser) {
-            const auto file = chooser.getResult();
-            if (!file.existsAsFile()) return;
-            if (analyzeReferenceFile(file, i)) {
-              referenceFileNames_[static_cast<size_t>(i)] = file.getFileName();
-              selectedOfficialReferenceId_.clear();
-              officialReferenceMenu_.setSelectedId(1, juce::dontSendNotification);
-            }
-            repaint();
-          });
-      };
-
-      if (referenceTargetValid_[static_cast<size_t>(i)] || referenceFileNames_[static_cast<size_t>(i)].isNotEmpty()) {
-        juce::PopupMenu menu;
-        menu.addItem(1, "Load or replace file");
-        menu.addItem(2, "Clear slot");
-        menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(button),
-          [this, i, launchReferenceChooser](int result) {
-            if (result == 1) launchReferenceChooser();
-            if (result == 2) {
-              clearReferenceSlot(i);
-              repaint();
-            }
-          });
-      } else {
-        launchReferenceChooser();
-      }
-    }
+  if (button == &localReferenceButton_) {
+    fileChooser_ = std::make_unique<juce::FileChooser>("Select local reference", juce::File{}, "*.wav;*.aif;*.aiff;*.mp3;*.flac");
+    fileChooser_->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+      [this](const juce::FileChooser& chooser) {
+        const auto file = chooser.getResult();
+        if (!file.existsAsFile()) return;
+        if (analyzeReferenceFile(file)) {
+          referenceFileName_ = file.getFileName();
+          selectedOfficialReferenceId_.clear();
+          officialReferenceMenu_.setSelectedId(1, juce::dontSendNotification);
+        }
+        repaint();
+      });
   }
   pushSettingsToProcessor();
   resized();
   repaint();
 }
 
-void AifredAudioProcessorEditor::sliderValueChanged(juce::Slider* slider) {
-  for (auto& referenceSlider : referenceVolumeSliders_) {
-    if (slider == &referenceSlider) {
-      updateReferenceTargetFromSlots();
-      repaint();
-      return;
-    }
-  }
-}
-
 void AifredAudioProcessorEditor::timerCallback() {
   state_ = processor_.getView();
   compareState_ = processor_.getCompareView();
-  if (isShowing()) ambientPhase_ = std::fmod(ambientPhase_ + 0.018f, juce::MathConstants<float>::twoPi);
+  memoryIndex_.observe(state_,processor_.getMode(),juce::String(state_.reference.label),processor_.intelligence().isAvailable());
+  if (isShowing()&&appearanceMenu_.getSelectedId()!=5) ambientPhase_ = std::fmod(ambientPhase_ + 0.018f, juce::MathConstants<float>::twoPi);
 
   const auto officialPool = ReferencePoolClient::instance().state();
   if (officialPool.revision != officialReferencePoolRevision_) {
@@ -395,8 +334,8 @@ void AifredAudioProcessorEditor::pushSettingsToProcessor() {
   PluginSettings settings;
   settings.themeId = 1;
   settings.layoutId = 3;
-  settings.genreId = genreMenu_.getSelectedId();
-  settings.gate = gateSlider_.getValue();
+  settings.visualizerId = appearanceMenu_.getSelectedId();
+  settings.helpSeen = processor_.hasSeenHelp();
   settings.aiProvider = providerMenu_.getSelectedId() == 3 ? "ollama" : (providerMenu_.getSelectedId() == 2 ? "compatible" : "openai");
   settings.apiEndpoint = apiEndpoint_.getText().trim();
   settings.apiKey = apiKey_.getText();
@@ -404,16 +343,16 @@ void AifredAudioProcessorEditor::pushSettingsToProcessor() {
   processor_.setPluginSettings(settings);
 }
 
-bool AifredAudioProcessorEditor::analyzeReferenceFile(const juce::File& file, int slot) {
+bool AifredAudioProcessorEditor::analyzeReferenceFile(const juce::File& file) {
   juce::AudioFormatManager formats;
   formats.registerBasicFormats();
   std::unique_ptr<juce::AudioFormatReader> reader(formats.createReaderFor(file));
   if (reader == nullptr) {
-    referenceTargetValid_[static_cast<size_t>(slot)] = false;
-    referenceTargets_[static_cast<size_t>(slot)] = {};
-    referenceFileNames_[static_cast<size_t>(slot)] = {};
+    localReferenceValid_ = false;
+    localReferenceTarget_ = {};
+    referenceFileName_.clear();
     referenceStatus_ = "Reference file could not be read.";
-    updateReferenceTargetFromSlots();
+    processor_.clearReferenceTarget();
     return false;
   }
 
@@ -439,11 +378,11 @@ bool AifredAudioProcessorEditor::analyzeReferenceFile(const juce::File& file, in
   const auto observed=hunter->snapshot(static_cast<double>(snapshot->sampleEnd)/reader->sampleRate);
   const auto analyzed=makeBetaView(*snapshot,observed);
   if (!analyzed.hasSignal || !analyzed.valuesValid) {
-    referenceTargetValid_[static_cast<size_t>(slot)] = false;
-    referenceTargets_[static_cast<size_t>(slot)] = {};
-    referenceFileNames_[static_cast<size_t>(slot)] = {};
+    localReferenceValid_ = false;
+    localReferenceTarget_ = {};
+    referenceFileName_.clear();
     referenceStatus_ = "Reference file had no usable signal.";
-    updateReferenceTargetFromSlots();
+    processor_.clearReferenceTarget();
     return false;
   }
 
@@ -456,41 +395,39 @@ bool AifredAudioProcessorEditor::analyzeReferenceFile(const juce::File& file, in
   target.crestDb = analyzed.metrics.crestDb;
   target.poolSize = 1;
   target.label = file.getFileName().toStdString();
-  referenceTargets_[static_cast<size_t>(slot)] = target;
-  referenceTargetValid_[static_cast<size_t>(slot)] = true;
-  updateReferenceTargetFromSlots();
+  localReferenceTarget_ = target;
+  localReferenceValid_ = true;
+  processor_.setReferenceTarget(target);
+  referenceStatus_ = "Selected local: " + file.getFileName();
   return true;
 }
 
-void AifredAudioProcessorEditor::clearReferenceSlot(int slot) {
-  if (slot < 0 || slot >= static_cast<int>(referenceTargets_.size())) return;
-  referenceTargets_[static_cast<size_t>(slot)] = {};
-  referenceTargetValid_[static_cast<size_t>(slot)] = false;
-  referenceFileNames_[static_cast<size_t>(slot)] = {};
-  updateReferenceTargetFromSlots();
+void AifredAudioProcessorEditor::clearLocalReference() {
+  localReferenceTarget_ = {};
+  localReferenceValid_ = false;
+  referenceFileName_.clear();
+  processor_.clearReferenceTarget();
+  referenceStatus_ = "No compatible reference selected.";
 }
 
-  void AifredAudioProcessorEditor::updateReferenceTargetFromSlots() {
-    if (!selectedOfficialReferenceId_.empty()) {
-      const auto pool = ReferencePoolClient::instance().state();
-      const auto found = std::find_if(pool.entries.begin(), pool.entries.end(), [this](const auto& entry) {
-        return entry.id == selectedOfficialReferenceId_;
-      });
-      if (found != pool.entries.end()) {
-        ReferenceTarget target;
-        target.distribution.id = found->id;
-        target.distribution.available = false;
-        target.poolSize = static_cast<int>(pool.entries.size());
-        target.label = "Official / " + found->name;
-        processor_.setReferenceTarget(target);
-        referenceStatus_ = "Selected: " + juce::String(target.label) + " (catalog only)";
-        return;
-      }
+  void AifredAudioProcessorEditor::selectOfficialReference(int index) {
+    const auto pool = ReferencePoolClient::instance().state();
+    if (index < 0 || index >= static_cast<int>(pool.entries.size())) {
       selectedOfficialReferenceId_.clear();
-      officialReferenceMenu_.setSelectedId(1, juce::dontSendNotification);
+      if(localReferenceValid_) { processor_.setReferenceTarget(localReferenceTarget_); referenceStatus_="Selected local: "+referenceFileName_; }
+      else clearLocalReference();
+      repaint();
+      return;
     }
-    for(std::size_t i=0;i<referenceTargets_.size();++i)if(referenceTargetValid_[i]&&referenceVolumeSliders_[i].getValue()>0){processor_.setReferenceTarget(referenceTargets_[i]);referenceStatus_="Selected: "+juce::String(referenceTargets_[i].label);return;}
-    processor_.clearReferenceTarget();referenceStatus_="No compatible reference selected.";
+    selectedOfficialReferenceId_ = pool.entries[static_cast<std::size_t>(index)].id;
+    ReferenceTarget target;
+    target.distribution.id=selectedOfficialReferenceId_;
+    target.distribution.available=false;
+    target.poolSize=static_cast<int>(pool.entries.size());
+    target.label="Official / "+pool.entries[static_cast<std::size_t>(index)].name;
+    processor_.setReferenceTarget(target);
+    referenceStatus_="Selected: "+juce::String(target.label)+" (metadata only; load local audio for measured deltas)";
+    repaint();
   }
 
   void AifredAudioProcessorEditor::updateOfficialReferenceMenu(const ReferencePoolSnapshot& pool) {
@@ -506,199 +443,182 @@ void AifredAudioProcessorEditor::clearReferenceSlot(int slot) {
     officialReferenceMenu_.setSelectedId(selectedId, juce::dontSendNotification);
     if (selectedId == 1 && !selected.empty()) {
       selectedOfficialReferenceId_.clear();
-      updateReferenceTargetFromSlots();
+      if(localReferenceValid_) {processor_.setReferenceTarget(localReferenceTarget_);referenceStatus_="Selected local: "+referenceFileName_;}
+      else clearLocalReference();
     }
   }
 
-  void AifredAudioProcessorEditor::selectOfficialReference(int index) {
-    const auto pool = ReferencePoolClient::instance().state();
-    if (index < 0 || index >= static_cast<int>(pool.entries.size())) {
-      selectedOfficialReferenceId_.clear();
-      updateReferenceTargetFromSlots();
-      repaint();
-      return;
-    }
-    selectedOfficialReferenceId_ = pool.entries[static_cast<std::size_t>(index)].id;
-    updateReferenceTargetFromSlots();
-    repaint();
-  }
-
-  void AifredAudioProcessorEditor::paint(juce::Graphics& g) {
-  auto bounds = getLocalBounds();
+void AifredAudioProcessorEditor::paint(juce::Graphics& g) {
+  auto physicalBounds = getLocalBounds();
   const auto mode = processor_.getMode();
   auto accent = accentForMode(mode);
-  if (mode == AnalysisMode::Reference) accent = genreColour(genreMenu_.getSelectedId());
+  if (mode == AnalysisMode::Reference) accent = appearanceColour(appearanceMenu_.getSelectedId());
 
   g.fillAll(juce::Colour(0xff02060b));
   g.setGradientFill(juce::ColourGradient(juce::Colour(0xff07111d), 0, 0,
                                          juce::Colour(0xff02060b), static_cast<float>(getWidth()), static_cast<float>(getHeight()), false));
-  g.fillRect(bounds);
-  drawAmbientBackground(g, bounds, accent);
+  g.fillRect(physicalBounds);
+  g.saveState();
+  g.addTransform(juce::AffineTransform::scale(designScale_).translated(designOrigin_.x,designOrigin_.y));
+  auto bounds=juce::Rectangle<int>(0,0,kDesignWidth,kDesignHeight);
+  if(appearanceMenu_.getSelectedId()!=5)drawAmbientBackground(g,bounds,accent);
 
-  for (int x = 0; x < getWidth(); x += 44) {
+  for (int x = 0; x < kDesignWidth; x += 44) {
     g.setColour(accent.withAlpha(0.035f));
-    g.drawVerticalLine(x, 0.0f, static_cast<float>(getHeight()));
+    g.drawVerticalLine(x, 0.0f, static_cast<float>(kDesignHeight));
   }
-  for (int y = 0; y < getHeight(); y += 44) {
+  for (int y = 0; y < kDesignHeight; y += 44) {
     g.setColour(Colours::green.withAlpha(0.022f));
-    g.drawHorizontalLine(y, 0.0f, static_cast<float>(getWidth()));
+    g.drawHorizontalLine(y, 0.0f, static_cast<float>(kDesignWidth));
   }
 
-  drawHeader(g, bounds.removeFromTop(scaledInt(88)).reduced(scaledInt(18), scaledInt(12)));
+  drawHeader(g, bounds.removeFromTop(kHeaderHeight).reduced(18,12));
 
-  auto main = bounds.reduced(scaledInt(18), scaledInt(10));
+  auto main = bounds.reduced(18,10);
   if (mode == AnalysisMode::Compare) {
     drawCompare(g, main);
   } else {
-    const auto leftFraction = 0.23f;
-    const auto rightFraction = 0.44f;
-    auto left = main.removeFromLeft(juce::roundToInt(static_cast<float>(main.getWidth()) * leftFraction));
-    auto right = main.removeFromRight(juce::roundToInt(static_cast<float>(main.getWidth()) * rightFraction));
-    auto center = main.reduced(14, 0);
+    auto left = main.removeFromLeft(292);
+    main.removeFromLeft(12);
+    auto right = main.removeFromRight(450);
+    main.removeFromRight(12);
+    auto center = main;
 
-    drawMixSignature(g, left.removeFromTop(210).reduced(0, 0), state_);
-    drawSpectrumMeter(g, left.removeFromTop(134).reduced(0, 10), state_);
-    drawCorrelationMeter(g, left.removeFromTop(74).reduced(0, 10), state_);
-    drawCandles(g, left.reduced(0, 12), state_);
-    drawHalo(g, center.reduced(0, 10), state_, mode == AnalysisMode::Reference ? "REFERENCE HALO" : "ANALYZE HALO", mode == AnalysisMode::Reference);
+    drawMixSignature(g,left.removeFromTop(184),state_);left.removeFromTop(10);
+    drawSpectrumMeter(g,left.removeFromTop(130),state_);left.removeFromTop(10);
+    drawCorrelationMeter(g,left.removeFromTop(70),state_);left.removeFromTop(10);
+    drawCandles(g,left,state_);
+    drawHalo(g,center,state_,mode==AnalysisMode::Reference?"REFERENCE HALO":"ANALYZE HALO",mode==AnalysisMode::Reference);
 
     if (mode == AnalysisMode::Reference) {
-      drawReferenceMixer(g, right.removeFromTop(kReferenceMixerHeight).reduced(0, 0));
+      drawReferencePanel(g,right.removeFromTop(350),state_);right.removeFromTop(10);
     } else {
-      drawDomainCard(g, right.removeFromTop(kRightCardHeight).reduced(0, 0), "RMS", Domain::Tone, state_);
-      drawDomainCard(g, right.removeFromTop(kRightCardHeight).reduced(0, 8), "WIDTH", Domain::Stereo, state_);
+      drawDomainCard(g,right.removeFromTop(kRightCardHeight),"RMS",Domain::Tone,state_);right.removeFromTop(8);
+      drawDomainCard(g,right.removeFromTop(kRightCardHeight),"STEREO",Domain::Stereo,state_);right.removeFromTop(8);
+      drawDomainCard(g,right.removeFromTop(kRightCardHeight),"CREST",Domain::Dynamics,state_);right.removeFromTop(8);
+      drawDomainCard(g,right.removeFromTop(kRightCardHeight),"LOUDNESS",Domain::Loudness,state_);right.removeFromTop(8);
+      drawBrainPanel(g,right.removeFromTop(150));right.removeFromTop(10);
     }
-    drawDomainCard(g, right.removeFromTop(kRightCardHeight).reduced(0, 8), "CREST", Domain::Dynamics, state_);
-    drawDomainCard(g, right.removeFromTop(kRightCardHeight).reduced(0, 8), "LOUDNESS", Domain::Loudness, state_);
-    drawChatPanel(g, right.reduced(0, 8));
+    drawChatPanel(g,right);
   }
 
   if (showOptions_) {
-    auto panel = getLocalBounds().toFloat().withSizeKeepingCentre(560.0f, 420.0f);
+    g.setColour(juce::Colours::black.withAlpha(.66f));g.fillRect(juce::Rectangle<float>(0,0,kDesignWidth,kDesignHeight));
+    auto panel = modalBounds(650.0f,520.0f);
     drawPanel(g, panel, 8.0f);
     auto inner = panel.toNearestInt().reduced(22);
     g.setFont(juce::FontOptions(22.0f, juce::Font::bold));
     g.setColour(Colours::ink);
-    g.drawText("PREFERENCES", inner.removeFromTop(34), juce::Justification::centredLeft);
+    g.drawText("OPTIONS", inner.removeFromTop(34), juce::Justification::centredLeft);
     g.setFont(juce::FontOptions(14.0f));
     g.setColour(Colours::muted);
     const auto& activeProfile=core::profile(processor_.pipeline().selectedProfile());
-    g.drawFittedText("DSP PROFILE: "+juce::String(activeProfile.name.data()).replaceCharacter('_',' ')+"\n"+apiStatus_+"\nLayout: Chat Focus / "+juce::String(genreName(genreMenu_.getSelectedId())),inner.removeFromTop(82),juce::Justification::topLeft,4);
+    g.drawFittedText("DSP profile: "+juce::String(activeProfile.name.data()).replaceCharacter('_',' ')+"\nAppearance: "+juce::String(appearanceName(appearanceMenu_.getSelectedId()))+"\n"+apiStatus_,inner.removeFromTop(82),juce::Justification::topLeft,4);
   }
 
-  if (showTutorial_ && !splashDismissedThisEditor_) {
-    auto panel = getLocalBounds().toFloat().withSizeKeepingCentre(620.0f, 360.0f);
+  if (showTutorial_) {
+    g.setColour(juce::Colours::black.withAlpha(.66f));g.fillRect(juce::Rectangle<float>(0,0,kDesignWidth,kDesignHeight));
+    auto panel = modalBounds(760.0f,590.0f);
     drawPanel(g, panel, 8.0f);
     auto inner = panel.toNearestInt().reduced(24);
-    if (mascot_.isValid()) {
-      auto logo = inner.removeFromLeft(150).reduced(10);
-      g.drawImageWithin(mascot_, logo.getX(), logo.getY(), logo.getWidth(), logo.getHeight(), juce::RectanglePlacement::centred);
-    }
     g.setFont(juce::FontOptions(24.0f, juce::Font::bold));
     g.setColour(Colours::ink);
-    g.drawText("AIFRED START", inner.removeFromTop(36), juce::Justification::centredLeft);
-    g.setFont(juce::FontOptions(14.0f));
+    g.drawText("HELP", inner.removeFromTop(36), juce::Justification::centredLeft);
+    g.setFont(juce::FontOptions(13.0f));
     g.setColour(Colours::muted);
-    g.drawFittedText("Analyze: main input.\nReference: selected target plus reference file.\nCompare: Mix A and Mix B sidechain routing.\nFL Studio compare routing: put AIFRED on the master or a bus, enable the Mix B sidechain input in the wrapper, then route the reference track to that sidechain from the mixer send.", inner, juce::Justification::topLeft, 8);
+    g.drawFittedText("ANALYZE — measures the live Mix A input with the selected DSP profile.\n\nREFERENCE — keeps the live Halo visible and compares it with a compatible analyzed local reference. Official Pool entries identify released references; measured deltas require compatible DSP data.\n\nCOMPARE — measures Mix A and Mix B side by side. DELTA is always A - B.\n\nFL STUDIO ROUTING — insert AIFRED on the master or analysis bus. Route the main mix to Mix A. Enable the wrapper sidechain input, then route the comparison track to Mix B without sending it to the master twice.\n\nINTELLIGENCE — DSP meters remain fully functional without AI. Chat additionally needs AifredIntelligenceHost. Run scripts/windows/start-host.ps1, or launch AifredIntelligenceHost.exe from the installed Runtime folder. For Ollama, start `ollama serve`, install/select a model, use http://127.0.0.1:11434, and leave the key blank. For OpenAI or a compatible provider, verify endpoint, model, key, and network access in OPTIONS.\n\nHEALTH — if chat is unavailable, check the host is running on Beta port 8787, then check Ollama/provider health. A host/provider failure never invalidates the DSP measurements.",inner,juce::Justification::topLeft,28);
   }
+  g.restoreState();
 }
 
 void AifredAudioProcessorEditor::resized() {
-  updateUiScale(getLocalBounds());
-  chatInput_.applyFontToAllText(juce::Font(uiFont(14.0f, 13.5f)));
-  chatOutput_.applyFontToAllText(juce::Font(uiFont(14.0f, 13.5f)));
-  apiEndpoint_.applyFontToAllText(juce::Font(uiFont(13.5f, 13.0f)));
-  apiKey_.applyFontToAllText(juce::Font(uiFont(13.5f, 13.0f)));
-  aiModel_.applyFontToAllText(juce::Font(uiFont(13.5f, 13.0f)));
+  const auto canvas=responsiveCanvas(static_cast<float>(getWidth()),static_cast<float>(getHeight()));
+  designScale_=canvas.scale;designOrigin_={canvas.x,canvas.y};
+  const auto set=[this](juce::Component& component,juce::Rectangle<int> design){component.setBounds(scaledBounds(design));};
+  const auto scaledFont=juce::jmax(4.0f,14.0f*designScale_);
+  chatInput_.applyFontToAllText(juce::Font(juce::FontOptions(scaledFont)));
+  chatOutput_.applyFontToAllText(juce::Font(juce::FontOptions(scaledFont)));
+  apiEndpoint_.applyFontToAllText(juce::Font(juce::FontOptions(scaledFont)));
+  apiKey_.applyFontToAllText(juce::Font(juce::FontOptions(scaledFont)));
+  aiModel_.applyFontToAllText(juce::Font(juce::FontOptions(scaledFont)));
 
-  auto header = getLocalBounds().removeFromTop(scaledInt(88)).reduced(scaledInt(18), scaledInt(12));
-  auto topRow = header.removeFromTop(scaledInt(30));
-  auto modes = topRow.removeFromRight(scaledInt(390)).reduced(scaledInt(2), 0);
-  analyzeButton_.setBounds(modes.removeFromLeft(scaledInt(122)).reduced(scaledInt(5), 0));
-  referenceButton_.setBounds(modes.removeFromLeft(scaledInt(132)).reduced(scaledInt(5), 0));
-  compareButton_.setBounds(modes.removeFromLeft(scaledInt(122)).reduced(scaledInt(5), 0));
-  auto bottomRow = header;
-  bottomRow.removeFromLeft(scaledInt(300));
-  profileMenu_.setBounds(bottomRow.removeFromLeft(scaledInt(184)).reduced(2, 0));
-  officialReferenceMenu_.setBounds(bottomRow.removeFromLeft(scaledInt(184)).reduced(2, 0));
-  auto tools = bottomRow.removeFromRight(scaledInt(270));
-  tutorialButton_.setBounds(tools.removeFromRight(scaledInt(90)).reduced(scaledInt(3), 0));
-  centerModeButton_.setBounds(tools.removeFromRight(scaledInt(90)).reduced(scaledInt(3), 0));
-  optionsButton_.setBounds(tools.removeFromRight(scaledInt(90)).reduced(scaledInt(3), 0));
+  if(!showOptions_&&!showTutorial_){auto nav=juce::Rectangle<int>(470,20,870,36);const int gap=10,buttonWidth=136;
+    set(centerModeButton_,nav.removeFromLeft(buttonWidth));nav.removeFromLeft(gap);
+    set(analyzeButton_,nav.removeFromLeft(buttonWidth));nav.removeFromLeft(gap);
+    set(referenceButton_,nav.removeFromLeft(buttonWidth));nav.removeFromLeft(gap);
+    set(compareButton_,nav.removeFromLeft(buttonWidth));nav.removeFromLeft(gap);
+    set(optionsButton_,nav.removeFromLeft(buttonWidth));nav.removeFromLeft(gap);
+    set(tutorialButton_,nav.removeFromLeft(buttonWidth));}
+  else for(auto* button:{&centerModeButton_,&analyzeButton_,&referenceButton_,&compareButton_,&optionsButton_,&tutorialButton_})button->setBounds({});
 
-  const auto mode = processor_.getMode();
-  auto body = getLocalBounds().withTrimmedTop(scaledInt(88)).reduced(scaledInt(18), scaledInt(10));
-  if (mode != AnalysisMode::Compare) {
-    auto right = body;
-    right.removeFromLeft(juce::roundToInt(static_cast<float>(right.getWidth()) * 0.23f));
-    right = right.removeFromRight(juce::roundToInt(static_cast<float>(right.getWidth()) * 0.44f));
-    if (mode == AnalysisMode::Reference) {
-      auto mixer = right.removeFromTop(kReferenceMixerHeight).reduced(16);
-      mixer.removeFromTop(50); // Header + meta
-      
-      const auto totalLanes = 5;
-      const auto laneW = mixer.getWidth() / totalLanes;
-      
-      auto buttonRow = mixer.removeFromTop(32);
-      auto sliderArea = mixer;
+  for(auto* component:{static_cast<juce::Component*>(&chatInput_),static_cast<juce::Component*>(&chatOutput_),static_cast<juce::Component*>(&askAiButton_),static_cast<juce::Component*>(&chatFileButton_),static_cast<juce::Component*>(&compareFileButton_),static_cast<juce::Component*>(&officialReferenceMenu_),static_cast<juce::Component*>(&localReferenceButton_),static_cast<juce::Component*>(&profileMenu_),static_cast<juce::Component*>(&spectrumRangeMenu_),static_cast<juce::Component*>(&providerMenu_),static_cast<juce::Component*>(&appearanceMenu_),static_cast<juce::Component*>(&apiEndpoint_),static_cast<juce::Component*>(&apiKey_),static_cast<juce::Component*>(&aiModel_),static_cast<juce::Component*>(&saveApiButton_)})component->setBounds({});
 
-      for (int i = 0; i < totalLanes; ++i) {
-        auto laneX = mixer.getX() + (i * laneW);
-        referenceFileButtons_[static_cast<size_t>(i)].setBounds(laneX + 4, buttonRow.getY(), laneW - 8, buttonRow.getHeight());
-        referenceVolumeSliders_[static_cast<size_t>(i)].setBounds(laneX + 4, sliderArea.getY(), laneW - 8, sliderArea.getHeight());
-      }
-    }
-    else {
-      right.removeFromTop(kRightCardHeight);
-      right.removeFromTop(kRightCardHeight);
-      for (auto& button : referenceFileButtons_) button.setBounds({});
-      for (auto& slider : referenceVolumeSliders_) slider.setBounds({});
-    }
-    right.removeFromTop(kRightCardHeight);
-    right.removeFromTop(kRightCardHeight);
-    auto chat = right.reduced(0, 8).reduced(16);
-    chat.removeFromTop(30);
-    auto footer = chat.removeFromBottom(42);
-    juce::ignoreUnused(footer);
-    const auto compact = chat.getHeight() < 190;
-    chatInput_.setBounds(chat.removeFromTop(compact ? 48 : 64));
-    auto buttons = chat.removeFromTop(38);
-    chatFileButton_.setBounds(buttons.removeFromLeft(buttons.getWidth() / 2).reduced(0, 4));
-    askAiButton_.setBounds(buttons.reduced(6, 4));
-    chatOutput_.setBounds(chat.reduced(0, 4));
-  } else {
-    chatInput_.setBounds({});
-    chatOutput_.setBounds({});
-    askAiButton_.setBounds({});
-    chatFileButton_.setBounds({});
-    for (auto& button : referenceFileButtons_) button.setBounds({});
-    auto compareButtonArea = getLocalBounds().withTrimmedTop(104).removeFromRight(210).reduced(18, 0);
-    compareFileButton_.setBounds(compareButtonArea.removeFromTop(36));
-    for (auto& slider : referenceVolumeSliders_) slider.setBounds({});
+  const auto mode=processor_.getMode();
+  if(!showOptions_&&!showTutorial_&&mode!=AnalysisMode::Compare)
+  {
+    int chatY=mode==AnalysisMode::Reference?446:494;
+    if(mode==AnalysisMode::Reference){set(officialReferenceMenu_,{910,128,414,30});set(localReferenceButton_,{910,168,414,32});}
+    auto chat=juce::Rectangle<int>(908,chatY+46,418,820-chatY-72);
+    set(chatInput_,chat.removeFromTop(62));auto buttons=chat.removeFromTop(40);
+    set(chatFileButton_,buttons.removeFromLeft(202).reduced(0,4));set(askAiButton_,buttons.reduced(8,4));
+    chat.removeFromBottom(42);set(chatOutput_,chat.reduced(0,4));
   }
-  if (mode != AnalysisMode::Compare) compareFileButton_.setBounds({});
-
-  if (showOptions_) {
-    auto panel = getLocalBounds().withSizeKeepingCentre(560, 420).reduced(22);
-    panel.removeFromTop(120);
-    spectrumRangeMenu_.setBounds(panel.removeFromTop(32));
-    providerMenu_.setBounds(panel.removeFromTop(30));
-    genreMenu_.setBounds(panel.removeFromTop(34));
-    gateSlider_.setBounds(panel.removeFromTop(42));
-    apiEndpoint_.setBounds(panel.removeFromTop(30));
-    apiKey_.setBounds(panel.removeFromTop(30));
-    aiModel_.setBounds(panel.removeFromTop(30));
-    saveApiButton_.setBounds(panel.removeFromTop(34).reduced(0, 4));
-  } else {
-    spectrumRangeMenu_.setBounds({});
-    providerMenu_.setBounds({});
-    genreMenu_.setBounds({});
-    gateSlider_.setBounds({});
-    apiEndpoint_.setBounds({});
-    apiKey_.setBounds({});
-    aiModel_.setBounds({});
-    saveApiButton_.setBounds({});
+  else if(!showOptions_&&!showTutorial_)
+  {
+    auto chat=juce::Rectangle<int>(928,562,398,222);
+    set(chatInput_,chat.removeFromTop(56));auto buttons=chat.removeFromTop(38);
+    set(chatFileButton_,buttons.removeFromLeft(190).reduced(0,4));set(askAiButton_,buttons.reduced(8,4));
+    chat.removeFromBottom(42);set(chatOutput_,chat.reduced(0,4));
+    set(compareFileButton_,{476,758,408,34});
   }
+
+  if(showOptions_)
+  {
+    auto panel=modalBounds(650,520).toNearestInt().reduced(22);panel.removeFromTop(112);
+    set(profileMenu_,panel.removeFromTop(34));panel.removeFromTop(8);
+    set(spectrumRangeMenu_,panel.removeFromTop(34));panel.removeFromTop(8);
+    set(appearanceMenu_,panel.removeFromTop(34));panel.removeFromTop(8);
+    set(providerMenu_,panel.removeFromTop(34));panel.removeFromTop(8);
+    set(apiEndpoint_,panel.removeFromTop(34));panel.removeFromTop(8);
+    set(apiKey_,panel.removeFromTop(34));panel.removeFromTop(8);
+    set(aiModel_,panel.removeFromTop(34));panel.removeFromTop(8);
+    set(saveApiButton_,panel.removeFromTop(36));
+  }
+}
+
+juce::Rectangle<float> AifredAudioProcessorEditor::modalBounds(float width,float height) const
+{
+  return juce::Rectangle<float>(0,0,width,height).withCentre({kDesignWidth*0.5f,kDesignHeight*0.5f});
+}
+
+juce::Rectangle<int> AifredAudioProcessorEditor::scaledBounds(juce::Rectangle<int> design) const
+{
+  return juce::Rectangle<float>(designOrigin_.x+design.getX()*designScale_,designOrigin_.y+design.getY()*designScale_,
+                                design.getWidth()*designScale_,design.getHeight()*designScale_).toNearestInt();
+}
+
+void AifredAudioProcessorEditor::mouseDown(const juce::MouseEvent& event)
+{
+  const auto designPoint=(event.position-designOrigin_)/designScale_;
+  const auto helpPanel=modalBounds(760,590);const auto optionsPanel=modalBounds(650,520);
+  if(showTutorial_&&modalShouldDismiss(helpPanel.getX(),helpPanel.getY(),helpPanel.getWidth(),helpPanel.getHeight(),designPoint.x,designPoint.y))
+  {
+    showTutorial_=false;processor_.markHelpSeen();resized();repaint();
+  }
+  else if(showOptions_&&modalShouldDismiss(optionsPanel.getX(),optionsPanel.getY(),optionsPanel.getWidth(),optionsPanel.getHeight(),designPoint.x,designPoint.y))
+  {
+    showOptions_=false;resized();repaint();
+  }
+}
+
+bool AifredAudioProcessorEditor::keyPressed(const juce::KeyPress& key)
+{
+  if(key==juce::KeyPress::escapeKey&&(showTutorial_||showOptions_))
+  {
+    if(showTutorial_)processor_.markHelpSeen();
+    showTutorial_=false;showOptions_=false;resized();repaint();return true;
+  }
+  return AudioProcessorEditor::keyPressed(key);
 }
 
 void AifredAudioProcessorEditor::drawHeader(juce::Graphics& g, juce::Rectangle<int> bounds) {
@@ -715,12 +635,7 @@ void AifredAudioProcessorEditor::drawHeader(juce::Graphics& g, juce::Rectangle<i
   g.drawText("AIFRED VST", text.removeFromTop(34), juce::Justification::centredLeft);
   g.setFont(juce::FontOptions(13.0f));
   g.setColour(Colours::green);
-  g.drawFittedText(juce::String(genreName(genreMenu_.getSelectedId())) + " / " + referenceStatus_ + " / " + officialReferencePoolStatus_, text.removeFromTop(24).withWidth(250), juce::Justification::centredLeft, 1);
-
-  auto info = bounds.removeFromRight(260).reduced(8, 13);
-  g.setFont(juce::FontOptions(11.5f));
-  g.setColour(Colours::muted);
-  g.drawFittedText(juce::String("v" AIFRED_VERSION_STRING " / center ") + juce::String(haloCenterMode_ + 1), info, juce::Justification::centredRight, 1);
+  g.drawFittedText(juce::String("BETA v" AIFRED_VERSION_STRING "  " AIFRED_BUILD_ID " / ")+appearanceName(appearanceMenu_.getSelectedId())+" / "+referenceStatus_,text.removeFromTop(24).withWidth(360),juce::Justification::centredLeft,1);
 }
 
 void AifredAudioProcessorEditor::drawAmbientBackground(juce::Graphics& g, juce::Rectangle<int> bounds, juce::Colour accent) {
@@ -735,7 +650,7 @@ void AifredAudioProcessorEditor::drawAmbientBackground(juce::Graphics& g, juce::
   const std::array<juce::Colour, 3> colours {accent, Colours::violet, Colours::green};
   const std::array<float, 3> sizes {260.0f, 220.0f, 180.0f};
   for (std::size_t i = 0; i < centres.size(); ++i) {
-    const auto size = sizes[i] * gLayoutScale;
+    const auto size = sizes[i];
     g.setColour(colours[i].withAlpha(0.035f));
     g.fillEllipse(centres[i].x - size * 0.5f, centres[i].y - size * 0.5f, size, size);
   }
@@ -752,19 +667,16 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
   drawPanel(g, bounds.toFloat(), 8.0f);
   auto area = bounds.reduced(28).toFloat();
   auto centre = area.getCentre();
-  const auto radius = std::min(area.getWidth(), area.getHeight()) * 0.36f;
+  const auto radius = std::min(area.getWidth(), area.getHeight()) * 0.275f;
   const auto hasValidLiveData = state.hasSignal && state.valuesValid;
-  auto accent = referenceOverlay ? genreColour(genreMenu_.getSelectedId()) : accentForMode(processor_.getMode());
+  auto accent = referenceOverlay ? appearanceColour(appearanceMenu_.getSelectedId()) : accentForMode(processor_.getMode());
   const auto dynamics01 = hasValidLiveData ? state.metrics.crestScale : 0.0f;
   const auto rmsScale = hasValidLiveData ? clamp01(state.metrics.rmsScale) : 0.0f;
-  const auto truePeak01 =
-      hasValidLiveData
-          ? clamp01((state.metrics.truePeakDb + 24.0f) / 18.0f)
-          : 0.0f;
-  const auto widthScale = hasValidLiveData ? clamp01(state.metrics.stereoWidth) : 0.0f;
+  const auto truePeak01=hasValidLiveData?truePeakPresentation(state.metrics.truePeakDb):0.0f;
+  const auto widthScale=hasValidLiveData?stereoSpreadPresentation(state.metrics.correlation):0.0f;
   const auto canonicalLabel = [&](core::MetricId id) {
     const auto& detail = state.metricDetails[core::index(id)];
-    if (!detail.valid) return juce::String(detail.displayName.data()) + " —";
+    if (!detail.valid) return juce::String(detail.displayName.data()) + " --";
     return juce::String(detail.displayName.data()) + " " + juce::String(detail.displayedValue, detail.id == core::MetricId::correlation ? 2 : static_cast<int>(core::metricDefinitions[core::index(id)].decimals)) + " " + juce::String(detail.unit.data());
   };
   const std::array<float, 4> values { 
@@ -786,7 +698,9 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
     canonicalLabel(core::MetricId::crest),
     canonicalLabel(core::MetricId::rms),
     canonicalLabel(core::MetricId::truePeak),
-    canonicalLabel(core::MetricId::width)
+    state.metricDetails[core::index(core::MetricId::width)].valid
+      ? "Stereo  W "+juce::String(state.metrics.stereoWidth*100.0f,1)+"%  C "+juce::String(state.metrics.correlation,2)
+      : "Stereo --"
   };
   for (int i = 0; i < 4; ++i) {
     const auto lane = static_cast<float>(i);
@@ -798,17 +712,10 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
     g.strokePath(bg, juce::PathStrokeType(7.0f));
     const auto value =
         clamp01(values[static_cast<size_t>(i)]);
-    const auto arcStart =
-        i == 2
-            ? start + 72.0f * (1.0f - value)
-            : start;
-    const auto arcEnd = start + 72.0f;
+    const auto arcStart=start;
     juce::Path arc;
     arc.addCentredArc(centre.x, centre.y, radius + 18.0f + lane * 8.0f, radius + 18.0f + lane * 8.0f, 0.0f,
-                      juce::degreesToRadians(arcStart), juce::degreesToRadians(
-                          i == 2
-                              ? arcEnd
-                              : start + 72.0f * value), true);
+                      juce::degreesToRadians(arcStart),juce::degreesToRadians(start+72.0f*value),true);
     g.setColour(colours[static_cast<size_t>(i)].withAlpha(0.95f));
     g.strokePath(arc, juce::PathStrokeType(7.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     const auto labelAngle = juce::degreesToRadians(start + 36.0f);
@@ -834,26 +741,20 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
     }
   }
 
-  struct ScaleLabel { float angle; juce::String text; juce::Colour colour; };
-  const std::array<ScaleLabel, 8> scaleLabels {{
-    {-150.0f, "0 dB", Colours::cyan},
-    {-78.0f, "24 dB", Colours::cyan},
-    {-60.0f, "-60 dBFS", Colours::green},
-    {12.0f, "0 dBFS", Colours::green},
-    {30.0f, "-24 dBTP", Colours::yellow},
-    {102.0f, "-6 dBTP", Colours::yellow},
-    {120.0f, "0%", Colours::violet},
-    {192.0f, "100%", Colours::violet}
+  const auto rmsFloor=static_cast<float>(core::spectrumFloorDb(state.presentation.spectrumRange));
+  const std::array<std::array<juce::String,3>,4> scaleLabels {{
+    {juce::String("0 dB"),juce::String("12 dB"),juce::String("24 dB")},
+    {juce::String(juce::roundToInt(rmsFloor))+" dBFS",juce::String(juce::roundToInt(rmsFloor*.5f))+" dBFS",juce::String("0 dBFS")},
+    {juce::String("-24 dBTP"),juce::String("-12 dBTP"),juce::String("0 dBTP")},
+    {juce::String("+1 mono"),juce::String("0 spread"),juce::String("-1 phase")}
   }};
-  for (const auto& item : scaleLabels) {
-    const auto angle = juce::degreesToRadians(item.angle);
-    const auto labelRadius = radius + 111.0f;
-    const auto p = juce::Point<float>(centre.x + std::cos(angle) * labelRadius,
-                                      centre.y + std::sin(angle) * labelRadius);
-    g.setFont(uiFont(9.2f, 11.0f, juce::Font::bold));
-    g.setColour(item.colour.withAlpha(0.88f));
-    g.drawFittedText(item.text, juce::Rectangle<float>(p.x - 58.0f, p.y - 8.0f, 116.0f, 17.0f).toNearestInt(),
-                     juce::Justification::centred, 1);
+  for(int lane=0;lane<4;++lane)for(int tick:{0,2,4}) {
+    const auto degrees=-150.0f+static_cast<float>(lane)*90.0f+72.0f*static_cast<float>(tick)/4.0f;
+    const auto angle=juce::degreesToRadians(degrees);const auto labelRadius=radius+102.0f;
+    const auto p=juce::Point<float>(centre.x+std::cos(angle)*labelRadius,centre.y+std::sin(angle)*labelRadius);
+    g.setFont(uiFont(8.2f,8.2f,juce::Font::bold));g.setColour(colours[static_cast<std::size_t>(lane)].withAlpha(.88f));
+    g.drawFittedText(scaleLabels[static_cast<std::size_t>(lane)][static_cast<std::size_t>(tick/2)],
+                     juce::Rectangle<float>(p.x-43.0f,p.y-7.0f,86.0f,15.0f).toNearestInt(),juce::Justification::centred,1);
   }
 
   if (referenceOverlay) {
@@ -865,7 +766,7 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
     }
     g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
     const auto referenceText = state.hasReference
-      ? juce::String(genreName(genreMenu_.getSelectedId())) + " / " + juce::String(state.reference.label)
+      ? juce::String("REFERENCE / ") + juce::String(state.reference.label)
       : "No analyzed reference target";
     g.drawText(referenceText, juce::Rectangle<float>(centre.x - 150.0f, centre.y + radius * 0.72f, 300.0f, 22.0f).toNearestInt(), juce::Justification::centred);
   }
@@ -879,6 +780,18 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
 void AifredAudioProcessorEditor::drawHaloSpectrometer(juce::Graphics& g, juce::Rectangle<float> bounds, const BetaView& state) {
   g.setColour(juce::Colour(0xff02060b).withAlpha(0.82f));
   g.fillRoundedRectangle(bounds, 8.0f);
+  const auto appearance=appearanceMenu_.getSelectedId();
+  if(appearance!=5)
+  {
+    g.saveState();g.reduceClipRegion(bounds.toNearestInt());
+    const auto activity=state.hasSignal&&state.valuesValid?truePeakPresentation(state.metrics.truePeakDb):0.0f;
+    const auto phase=appearance==4?0.0f:ambientPhase_*(appearance==2?1.7f:.55f);
+    for(int layer=0;layer<(appearance==4?1:4);++layer){const auto y=bounds.getCentreY()+std::sin(phase+layer*1.4f)*bounds.getHeight()*(.08f+.025f*layer);
+      const auto height=bounds.getHeight()*(.34f+.08f*layer+.12f*activity);const auto x=bounds.getX()+std::sin(phase*.37f+layer)*bounds.getWidth()*.08f;
+      const auto colour=layer%2?Colours::violet:appearanceColour(appearance);g.setColour(colour.withAlpha(.035f+.025f*activity));g.fillEllipse(x,y-height*.5f,bounds.getWidth()*1.06f,height);}
+    if(state.hasSignal&&appearance==3){g.setColour(Colours::cyan.withAlpha(.08f+.08f*activity));g.drawRoundedRectangle(bounds.reduced(4),8,1.5f+activity*2);}
+    g.restoreState();
+  }
   g.setColour(Colours::line.withAlpha(0.72f));
   g.drawRoundedRectangle(bounds, 8.0f, 1.0f);
 
@@ -933,18 +846,12 @@ void AifredAudioProcessorEditor::drawDomainCard(juce::Graphics& g,juce::Rectangl
     auto inner=bounds.reduced(12,8);
     const auto id=domain==Domain::Tone?core::MetricId::rms:domain==Domain::Stereo?core::MetricId::width:domain==Domain::Dynamics?core::MetricId::crest:core::MetricId::shortTerm;
     const auto detail=state.metricDetails[core::index(id)];
-    const auto scale=domain==Domain::Tone?state.metrics.rmsScale:domain==Domain::Stereo?state.metrics.widthScale:domain==Domain::Dynamics?state.metrics.crestScale:state.metrics.loudnessScale;
     const auto colour=domain==Domain::Tone?Colours::green:domain==Domain::Stereo?Colours::violet:domain==Domain::Dynamics?Colours::yellow:Colours::cyan;
     g.setColour(colour);g.setFont(juce::FontOptions(13.0f,juce::Font::bold));g.drawText(name,inner.removeFromTop(20),juce::Justification::centredLeft);
     g.setColour(Colours::ink);g.setFont(juce::FontOptions(20.0f));g.drawText(metricText(state,domain),inner.removeFromTop(28),juce::Justification::centredLeft);
-    auto bar=inner.removeFromTop(10).reduced(0,2).toFloat();
-    g.setColour(Colours::line.withAlpha(0.45f));g.fillRoundedRectangle(bar,4.0f);
-    if(detail.valid) {
-      const auto pulse=0.84f+0.12f*std::sin(ambientPhase_*1.4f+static_cast<float>(core::index(id)));
-      g.setColour(colour.withAlpha(pulse));g.fillRoundedRectangle(bar.withWidth(bar.getWidth()*clamp01(scale)),4.0f);
-    }
     g.setFont(juce::FontOptions(10.0f));g.setColour(Colours::muted);
-    g.drawText(juce::String(state.observation.durationSeconds,1)+" s / "+(state.isStale?"retained / stale":state.observation.sufficient?"observed":"collecting"),inner,juce::Justification::centredLeft);
+    const auto status=domain==Domain::Stereo&&detail.valid?"Correlation "+juce::String(state.metrics.correlation,2):juce::String(state.observation.durationSeconds,1)+" s / "+(state.isStale?"retained / stale":state.observation.sufficient?"observed":"collecting");
+    g.drawText(status,inner,juce::Justification::centredLeft);
   }
 
   void AifredAudioProcessorEditor::drawCandles(
@@ -1151,101 +1058,62 @@ void AifredAudioProcessorEditor::drawChatPanel(juce::Graphics& g, juce::Rectangl
   g.drawFittedText(fileStatus + " Output scrolls below.", footer, juce::Justification::bottomLeft, 2);
 }
 
-void AifredAudioProcessorEditor::drawReferenceMixer(juce::Graphics& g, juce::Rectangle<int> bounds) {
+void AifredAudioProcessorEditor::drawReferencePanel(juce::Graphics& g, juce::Rectangle<int> bounds,const BetaView& state) {
   drawPanel(g, bounds.toFloat(), 8.0f);
   auto inner = bounds.reduced(16);
   g.setFont(juce::FontOptions(17.0f, juce::Font::bold));
   g.setColour(Colours::ink);
-  g.drawText("REFERENCE MIXER", inner.removeFromTop(30), juce::Justification::centredLeft);
-  
-  // Header area for metadata
-  auto header = inner.removeFromTop(20);
+  g.drawText("REFERENCE",inner.removeFromTop(28),juce::Justification::centredLeft);
   g.setFont(juce::FontOptions(11.0f));
   g.setColour(Colours::muted);
-  g.drawFittedText("Reference file slots - analyzed targets feed reference mode", header, juce::Justification::centredLeft, 1);
-
-  inner.removeFromTop(10); // Spacing
-
-  const int lanes = 5;
-  const auto laneWidth = inner.getWidth() / lanes;
-  const auto accent = genreColour(genreMenu_.getSelectedId());
-
-  for (int lane = 0; lane < lanes; ++lane) {
-    auto strip = inner.removeFromLeft(laneWidth).reduced(4, 0).toFloat();
-    
-    // Track backing
-    g.setColour(Colours::line.withAlpha(0.18f));
-    g.fillRoundedRectangle(strip, 6.0f);
-    
-    auto content = strip.reduced(6.0f, 8.0f);
-    
-    // Slot Label
-    g.setFont(juce::FontOptions(10.0f, juce::Font::bold));
-    g.setColour(Colours::muted);
-    g.drawText("SLOT " + juce::String(lane + 1), content.removeFromTop(16).toNearestInt(), juce::Justification::centred);
-    
-    // File Name (Middle)
-    auto fileArea = content.removeFromTop(content.getHeight() * 0.4f).reduced(2);
-    const auto loadedName = referenceFileNames_[static_cast<size_t>(lane)].isNotEmpty()
-      ? referenceFileNames_[static_cast<size_t>(lane)]
-      : "(empty)";
-    g.setFont(juce::FontOptions(9.0f));
-    g.setColour(loadedName == "(empty)" ? Colours::muted : Colours::ink);
-    g.drawFittedText(loadedName, fileArea.toNearestInt(), juce::Justification::centred, 3);
-
-    // Fader Area (Bottom)
-    auto faderTrack = content.reduced(8.0f, 4.0f);
-    g.setColour(Colours::line.withAlpha(0.3f));
-    g.fillRoundedRectangle(faderTrack.withWidth(4.0f).withCentre({strip.getCentreX(), faderTrack.getCentreY()}), 2.0f);
-    
-    const auto volume = static_cast<float>(referenceVolumeSliders_[static_cast<size_t>(lane)].getValue() / 100.0);
-    const auto pos = faderTrack.getBottom() - faderTrack.getHeight() * volume;
-    
-    g.setColour(accent.withAlpha(0.92f));
-    g.fillRoundedRectangle(juce::Rectangle<float>(strip.getCentreX() - 15.0f, pos - 4.0f, 30.0f, 8.0f), 3.0f);
-    g.setColour(Colours::ink);
-    g.drawRoundedRectangle(juce::Rectangle<float>(strip.getCentreX() - 15.0f, pos - 4.0f, 30.0f, 8.0f), 3.0f, 1.0f);
-  }
+  g.drawFittedText("Official Pool identity or one measured local file. No mixer weighting.",inner.removeFromTop(22),juce::Justification::centredLeft,1);
+  inner.removeFromTop(76);
+  g.setColour(state.hasReference?Colours::green:Colours::yellow);
+  g.setFont(juce::FontOptions(11.0f,juce::Font::bold));
+  g.drawFittedText(referenceStatus_,inner.removeFromTop(20),juce::Justification::centredLeft,1);
+  g.setColour(Colours::muted);g.setFont(juce::FontOptions(10.0f));g.drawFittedText(officialReferencePoolStatus_,inner.removeFromTop(18),juce::Justification::centredLeft,1);
+  struct RefRow{const char* label;core::MetricId id;float live;const char* valueUnit;const char* deltaUnit;};
+  const std::array<RefRow,5> rows {{{"RMS",core::MetricId::rms,state.metrics.rmsDb," dBFS","dB"},
+    {"WIDTH",core::MetricId::width,state.metrics.stereoWidth*100.0f,"%","pp"},
+    {"CREST",core::MetricId::crest,state.metrics.crestDb," dB","dB"},
+    {"LOUDNESS",core::MetricId::shortTerm,state.metrics.shortTermLufs," LUFS","LU"},
+    {"TRUE PEAK",core::MetricId::truePeak,state.metrics.truePeakDb," dBTP","dB"}}};
+  g.setFont(juce::FontOptions(10.5f,juce::Font::bold));
+  for(const auto& row:rows){auto line=inner.removeFromTop(30);const auto& observed=state.reference.distribution.metrics[core::index(row.id)];
+    auto label=line.removeFromLeft(74);g.setColour(Colours::muted);g.drawText(row.label,label,juce::Justification::centredLeft);
+    if(state.hasReference&&observed.valid){const auto reference=static_cast<float>(observed.typical);const auto third=line.getWidth()/3;
+      g.setColour(Colours::cyan);g.drawFittedText("LIVE "+juce::String(row.live,1)+row.valueUnit,line.removeFromLeft(third),juce::Justification::centredLeft,1);
+      g.setColour(Colours::violet);g.drawFittedText("REF "+juce::String(reference,1)+row.valueUnit,line.removeFromLeft(third),juce::Justification::centredLeft,1);
+      g.setColour(Colours::ink);g.drawFittedText("D "+signedText(compareDelta(row.live,reference),row.deltaUnit),line,juce::Justification::centredRight,1);
+    }else{g.setColour(Colours::muted);g.drawText("Measured reference value unavailable",line,juce::Justification::centredLeft);}}
 }
 
 void AifredAudioProcessorEditor::drawCompare(juce::Graphics& g, juce::Rectangle<int> bounds) {
-  auto top = bounds.removeFromTop(juce::roundToInt(static_cast<float>(bounds.getHeight()) * 0.66f));
-  auto left = top.removeFromLeft(juce::roundToInt(static_cast<float>(top.getWidth()) * 0.40f)).reduced(0, 0);
-  auto vu = top.removeFromLeft(juce::jlimit(150, 230, juce::roundToInt(static_cast<float>(top.getWidth()) * 0.30f))).reduced(12, 38);
-  auto right = top.reduced(0, 0);
-  drawHalo(g, left, state_, "MIX A", false);
-  drawCompareVu(g, vu, state_, compareState_);
-  drawHalo(g, right, compareState_, "MIX B", false);
-
-  auto bottom = bounds.reduced(0, 14);
-  drawPanel(g, bottom.toFloat(), 8.0f);
-  auto inner = bottom.reduced(16);
+  auto left=bounds.removeFromLeft(430);bounds.removeFromLeft(12);
+  auto right=bounds.removeFromRight(430);bounds.removeFromRight(12);auto middle=bounds;
+  drawHalo(g,left,state_,"MIX A",false);
+  auto rightHalo=right.removeFromTop(420);drawHalo(g,rightHalo,compareState_,"MIX B",false);right.removeFromTop(10);drawChatPanel(g,right);
+  drawPanel(g,middle.toFloat(),8.0f);auto inner=middle.reduced(16);
   g.setFont(juce::FontOptions(17.0f, juce::Font::bold));
   g.setColour(Colours::ink);
-  g.drawText("LIVE BAND ENERGY COMPARISON", inner.removeFromTop(28), juce::Justification::centredLeft);
+  g.drawText("A / B MEASURED VALUES",inner.removeFromTop(30),juce::Justification::centredLeft);
   g.setFont(juce::FontOptions(11.0f));
   g.setColour(Colours::muted);
-  g.drawFittedText(compareStatus_, inner.removeFromTop(18), juce::Justification::centredLeft, 1);
-  const auto rowHeight = juce::jmax(24, inner.getHeight() / 4);
-  for (int i = 0; i < 4; ++i) {
-    auto row = inner.removeFromTop(rowHeight);
-    const float a = metricValue(state_, i);
-    const float b = metricValue(compareState_, i);
-    g.setFont(juce::FontOptions(12.0f, juce::Font::bold));
-    g.setColour(Colours::muted);
-    g.drawText(metricLabel(i), row.removeFromLeft(80), juce::Justification::centredLeft);
-    auto aBar = row.removeFromLeft((row.getWidth() - 60) / 2).reduced(0, 10).toFloat();
-    auto bBar = row.removeFromLeft(row.getWidth() - 60).reduced(0, 10).toFloat();
-    g.setColour(Colours::line.withAlpha(0.45f));
-    g.fillRoundedRectangle(aBar, 4.0f);
-    g.fillRoundedRectangle(bBar, 4.0f);
-    g.setColour(Colours::cyan);
-    g.fillRoundedRectangle(aBar.withWidth(aBar.getWidth() * a), 4.0f);
-    g.setColour(Colours::green);
-    g.fillRoundedRectangle(bBar.withWidth(bBar.getWidth() * b), 4.0f);
-    g.setColour(Colours::ink);
-    g.drawText(signedText(metricRawValue(compareState_,i)-metricRawValue(state_,i),metricDeltaUnit(i)),row,juce::Justification::centredRight);
-  }
+  g.drawFittedText("DELTA = A - B  /  "+compareStatus_,inner.removeFromTop(22),juce::Justification::centredLeft,1);
+  struct Row{const char* label;float a,b;const char* valueUnit;const char* deltaUnit;int decimals;};
+  const std::array<Row,6> rows {{{"RMS",state_.metrics.rmsDb,compareState_.metrics.rmsDb," dBFS","dB",1},
+    {"WIDTH",state_.metrics.stereoWidth*100,compareState_.metrics.stereoWidth*100,"%","pp",1},
+    {"CREST",state_.metrics.crestDb,compareState_.metrics.crestDb," dB","dB",1},
+    {"LOUDNESS",state_.metrics.shortTermLufs,compareState_.metrics.shortTermLufs," LUFS","LU",1},
+    {"TRUE PEAK",state_.metrics.truePeakDb,compareState_.metrics.truePeakDb," dBTP","dB",1},
+    {"CORRELATION",state_.metrics.correlation,compareState_.metrics.correlation,"","ratio",2}}};
+  for(const auto& item:rows){auto row=inner.removeFromTop(62);g.setColour(Colours::line.withAlpha(.28f));g.drawHorizontalLine(row.getBottom(),static_cast<float>(row.getX()),static_cast<float>(row.getRight()));
+    auto label=row.removeFromLeft(92);g.setFont(juce::FontOptions(11.0f,juce::Font::bold));g.setColour(Colours::muted);g.drawText(item.label,label,juce::Justification::centredLeft);
+    const auto column=row.getWidth()/3;auto a=row.removeFromLeft(column);auto b=row.removeFromLeft(column);
+    g.setColour(Colours::cyan);g.drawText("A  "+juce::String(item.a,item.decimals)+item.valueUnit,a,juce::Justification::centredLeft);
+    g.setColour(Colours::green);g.drawText("B  "+juce::String(item.b,item.decimals)+item.valueUnit,b,juce::Justification::centredLeft);
+    g.setColour(Colours::ink);g.drawText(signedText(compareDelta(item.a,item.b),item.deltaUnit),row,juce::Justification::centredRight);}
+  inner.removeFromTop(8);drawCompareVu(g,inner.removeFromTop(164),state_,compareState_);
 }
 
 void AifredAudioProcessorEditor::drawCompareVu(juce::Graphics& g, juce::Rectangle<int> bounds, const BetaView& a, const BetaView& b) {
@@ -1253,15 +1121,14 @@ void AifredAudioProcessorEditor::drawCompareVu(juce::Graphics& g, juce::Rectangl
   auto inner = bounds.reduced(14);
   g.setFont(juce::FontOptions(15.0f, juce::Font::bold));
   g.setColour(Colours::ink);
-  g.drawText("A/B MEASURED DELTAS",inner.removeFromTop(28),juce::Justification::centred);
-  g.setFont(juce::FontOptions(12.0f));
-  for(int i=0;i<4;++i)
-  {
-    auto row=inner.removeFromTop(24);g.setColour(Colours::muted);g.drawText(metricLabel(i),row.removeFromLeft(82),juce::Justification::centredLeft);
-    g.setColour(Colours::ink);g.drawText((a.valuesValid&&b.valuesValid)?signedText(metricRawValue(b,i)-metricRawValue(a,i),metricDeltaUnit(i)):"--",row,juce::Justification::centredRight);
-  }
-  auto peakRow=inner.removeFromTop(24);g.setColour(Colours::muted);g.drawText("Peak",peakRow.removeFromLeft(82),juce::Justification::centredLeft);
-  g.setColour(Colours::ink);g.drawText((a.valuesValid&&b.valuesValid)?signedText(b.metrics.peakDb-a.metrics.peakDb,"dB"):"--",peakRow,juce::Justification::centredRight);
+  g.drawText("MIX A  <->  MIX B",inner.removeFromTop(26),juce::Justification::centred);
+  const auto similarity=(a.valuesValid&&b.valuesValid)?compareSimilarity(a,b):0.0f;
+  auto meter=inner.removeFromTop(46).reduced(10,12).toFloat();g.setColour(Colours::line.withAlpha(.55f));g.fillRoundedRectangle(meter,8);
+  if(a.valuesValid&&b.valuesValid){g.setColour(Colours::green);g.fillRoundedRectangle(meter.withWidth(meter.getWidth()*similarity/100.0f),8);}
+  g.setFont(juce::FontOptions(25.0f,juce::Font::bold));g.setColour(Colours::ink);
+  g.drawText((a.valuesValid&&b.valuesValid)?juce::String(juce::roundToInt(similarity))+"% SIMILAR":"SIMILARITY --",inner.removeFromTop(38),juce::Justification::centred);
+  g.setFont(juce::FontOptions(9.5f));g.setColour(Colours::muted);
+  g.drawFittedText("Deterministic mean distance across RMS, true peak, crest, loudness, width, and correlation.",inner,juce::Justification::centred,2);
 }
 
 void AifredAudioProcessorEditor::drawMixSignature(juce::Graphics& g, juce::Rectangle<int> bounds, const BetaView& state) {
@@ -1295,6 +1162,7 @@ void AifredAudioProcessorEditor::drawMixSignature(juce::Graphics& g, juce::Recta
       if (i == 0) referencePath.startNewSubPath(point); else referencePath.lineTo(point);
     }
     referencePath.closeSubPath();
+    for(int depth=5;depth>=1;--depth){auto shadow=referencePath;shadow.applyTransform(juce::AffineTransform::translation(depth*1.2f,depth*1.5f));g.setColour(Colours::violet.withAlpha(.025f));g.strokePath(shadow,juce::PathStrokeType(1.0f));}
     g.setColour(Colours::violet.withAlpha(0.13f));
     g.fillPath(referencePath);
     g.setColour(Colours::green.withAlpha(0.56f));
@@ -1315,6 +1183,7 @@ void AifredAudioProcessorEditor::drawMixSignature(juce::Graphics& g, juce::Recta
     g.drawText(metricLabel(i), juce::Rectangle<float>(point.x - 34.0f, point.y - 10.0f, 68.0f, 20.0f).toNearestInt(), juce::Justification::centred);
   }
   path.closeSubPath();
+  for(int depth=7;depth>=1;--depth){auto shadow=path;shadow.applyTransform(juce::AffineTransform::translation(depth*1.15f,depth*1.5f));g.setColour(Colours::cyan.withAlpha(.035f));g.strokePath(shadow,juce::PathStrokeType(1.2f));}
   g.setColour(Colours::cyan.withAlpha(0.18f));
   g.fillPath(path);
   g.setColour(Colours::cyan.withAlpha(0.92f));
@@ -1325,33 +1194,50 @@ void AifredAudioProcessorEditor::drawMixSignature(juce::Graphics& g, juce::Recta
   g.drawText(state.hasReference ? "Underlay = analyzed reference signature" : "Live signature only - no analyzed reference loaded", graphInt.removeFromBottom(18), juce::Justification::centred);
 }
 
+void AifredAudioProcessorEditor::drawBrainPanel(juce::Graphics& g,juce::Rectangle<int> bounds)
+{
+  drawPanel(g,bounds.toFloat(),8.0f);auto inner=bounds.reduced(14,10);const auto telemetry=memoryIndex_.telemetry();
+  auto title=inner.removeFromTop(22);g.setFont(juce::FontOptions(14.0f,juce::Font::bold));g.setColour(Colours::ink);g.drawText("AIFRED MEMORY",title,juce::Justification::centredLeft);
+  auto visual=inner.removeFromLeft(126).toFloat();const auto centre=visual.getCentre();
+  for(int ring=0;ring<3;++ring){const auto radius=18.0f+ring*11.0f;g.setColour((ring==0?Colours::cyan:Colours::violet).withAlpha(.2f+.08f*ring));g.drawEllipse(centre.x-radius,centre.y-radius,radius*2,radius*2,1.2f);}
+  const auto nodes=std::min(10,telemetry.transientSnapshots);for(int i=0;i<nodes;++i){const auto angle=ambientPhase_*.08f+juce::MathConstants<float>::twoPi*i/std::max(1,nodes);const auto radius=22.0f+(i%3)*10.0f;
+    g.setColour((i==nodes-1&&telemetry.updated?Colours::green:Colours::cyan).withAlpha(i==nodes-1?.95f:.55f));g.fillEllipse(centre.x+std::cos(angle)*radius-2.5f,centre.y+std::sin(angle)*radius-2.5f,5,5);}
+  g.setColour(telemetry.hostAvailable?Colours::green:Colours::yellow);g.fillEllipse(centre.x-5,centre.y-5,10,10);
+  g.setFont(juce::FontOptions(10.5f,juce::Font::bold));g.setColour(Colours::ink);
+  inner.removeFromTop(2);g.drawText("INDEXED  "+juce::String(telemetry.transientSnapshots),inner.removeFromTop(20),juce::Justification::centredLeft);
+  g.drawText("SESSIONS  "+juce::String(telemetry.persistedSessions)+" / 10",inner.removeFromTop(20),juce::Justification::centredLeft);
+  g.drawText("AGE  "+juce::String(telemetry.newestAgeSeconds,1)+" s",inner.removeFromTop(20),juce::Justification::centredLeft);
+  g.drawText(juce::String(core::profile(telemetry.activeProfile).name.data()).replaceCharacter('_',' '),inner.removeFromTop(20),juce::Justification::centredLeft);
+  g.setFont(juce::FontOptions(9.5f));g.setColour(telemetry.storageAvailable?Colours::green:Colours::yellow);
+  g.drawFittedText((telemetry.storageAvailable?"SQLite local / ":"Transient only / ")+(telemetry.hostAvailable?juce::String("Host healthy"):juce::String("Host offline")),inner,juce::Justification::centredLeft,2);
+}
+
 void AifredAudioProcessorEditor::drawSpectrumMeter(juce::Graphics& g, juce::Rectangle<int> bounds, const BetaView& state) {
   drawPanel(g, bounds.toFloat(), 8.0f);
   auto inner = bounds.reduced(14, 10);
   g.setFont(juce::FontOptions(15.0f, juce::Font::bold));
   g.setColour(Colours::ink);
   g.drawText("SPECTROMETER", inner.removeFromTop(24), juce::Justification::centredLeft);
-  auto plot = inner.reduced(0, 4).toFloat();
-  const std::array<const char*, 8> labels {"40Hz", "90Hz", "200Hz", "450Hz", "1k", "3k", "8k", "16k"};
-  const auto barHeight = plot.getHeight() / static_cast<float>(labels.size());
+  auto plot=inner.reduced(0,4).toFloat();auto labels=plot.removeFromBottom(16.0f);
   const auto hasSpectrum = state.hasSignal && state.valuesValid;
-  for (size_t i = 0; i < labels.size(); ++i) {
-    const auto value = clamp01(state.metrics.spectrumBands[i]);
-    auto row = juce::Rectangle<float>(plot.getX(), plot.getY() + static_cast<float>(i) * barHeight + 1.0f, plot.getWidth(), std::max(3.0f, barHeight - 2.0f));
-    auto label = row.removeFromLeft(42.0f);
-    auto slot = row.reduced(2.0f, 2.0f);
+  const auto bandWidth=plot.getWidth()/static_cast<float>(state.metrics.spectrumBands.size());
+  for(size_t i=0;i<state.metrics.spectrumBands.size();++i) {
+    const auto value=clamp01(state.metrics.spectrumBands[i]);
+    auto slot=juce::Rectangle<float>(plot.getX()+static_cast<float>(i)*bandWidth+1.0f,plot.getY(),std::max(1.0f,bandWidth-2.0f),plot.getHeight());
     g.setColour(Colours::line.withAlpha(0.42f));
-    g.fillRoundedRectangle(slot, 4.0f);
+    g.fillRoundedRectangle(slot,2.0f);
     if (hasSpectrum && value > 0.0f) {
-      auto fill = slot.withWidth(slot.getWidth() * value);
-      const auto colour = i < 2 ? Colours::green : (i < 5 ? Colours::cyan : (i == 6 ? Colours::violet : Colours::yellow));
+      auto fill=slot.withTop(slot.getBottom()-slot.getHeight()*value);
+      const auto colour=i<9?Colours::green:(i<20?Colours::cyan:(i<26?Colours::violet:Colours::yellow));
       g.setColour(colour.withAlpha(0.86f));
-      g.fillRoundedRectangle(fill, 4.0f);
+      g.fillRoundedRectangle(fill,2.0f);
     }
-    g.setFont(juce::FontOptions(8.5f, juce::Font::bold));
-    g.setColour(Colours::muted);
-    g.drawText(labels[i], label.toNearestInt(), juce::Justification::centredRight);
   }
+  struct Anchor{size_t index;const char* text;};
+  constexpr std::array<Anchor,6> anchors {{{0,"20"},{8,"100"},{17,"1k"},{22,"6k"},{24,"10k"},{29,"20k"}}};
+  g.setFont(juce::FontOptions(7.5f,juce::Font::bold));g.setColour(Colours::muted);
+  for(const auto& anchor:anchors){const auto x=labels.getX()+(static_cast<float>(anchor.index)+.5f)*bandWidth;
+    g.drawFittedText(anchor.text,juce::Rectangle<float>(x-14,labels.getY(),28,labels.getHeight()).toNearestInt(),juce::Justification::centred,1);}
   if (!hasSpectrum) {
     g.setFont(juce::FontOptions(11.0f));
     g.setColour(Colours::ink);

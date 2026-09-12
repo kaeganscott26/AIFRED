@@ -15,6 +15,7 @@ int main()
     observation->metrics[index(MetricId::rms)].valid=true;observation->metrics[index(MetricId::rms)].typical=-2.347123;
     observation->metrics[index(MetricId::correlation)].valid=true;observation->metrics[index(MetricId::correlation)].typical=.8;
     live->binCount=4097;live->averagePower[300]=1e-12;live->peakPower[300]=1e-10;
+    for(std::size_t i=0;i<observation->bands.size();++i){observation->bands[i].valid=true;observation->bands[i].typical=-96.0+static_cast<double>(i);}
     auto view=std::make_unique<aifred::BetaView>(aifred::makeBetaView(*live,*observation));
     check(view->metrics.rmsDb==static_cast<float>(-2.347123),"meter retains fractional observation");
     check(view->metrics.correlation==static_cast<float>(-.463742),"correlation comes from live DSP");
@@ -23,6 +24,19 @@ int main()
     check(view->peakSpectrumPower[300]==1e-10,"peak trace retains analytical power");
     check(spectrumFloorDb(view->presentation.spectrumRange)==-96,"professional presentation default");
     check(view->metricDetails[index(MetricId::correlation)].isLive&&view->metricDetails[index(MetricId::correlation)].displayedValue==-.463742,"click-ready live metric metadata");
+    check(aifred::rmsPresentation(-96,SpectrumDisplayRange::db96)==0&&aifred::rmsPresentation(-48,SpectrumDisplayRange::db96)==.5f&&aifred::rmsPresentation(0,SpectrumDisplayRange::db96)==1,"RMS -96 presentation mapping");
+    check(aifred::rmsPresentation(-72,SpectrumDisplayRange::db72)==0&&aifred::rmsPresentation(-36,SpectrumDisplayRange::db72)==.5f&&aifred::rmsPresentation(0,SpectrumDisplayRange::db72)==1,"RMS -72 presentation mapping");
+    check(aifred::truePeakPresentation(-24)==0&&aifred::truePeakPresentation(-12)==.5f&&aifred::truePeakPresentation(0)==1&&aifred::truePeakPresentation(-2)>aifred::truePeakPresentation(-12),"true peak moves hotter toward zero without -6 saturation");
+    check(aifred::crestPresentation(0)==0&&aifred::crestPresentation(12)==.5f&&aifred::crestPresentation(24)==1,"crest difference presentation mapping");
+    check(aifred::stereoSpreadPresentation(1)==0&&aifred::stereoSpreadPresentation(0)==.5f&&aifred::stereoSpreadPresentation(-1)==1,"correlation phase spread mapping");
+    check(aifred::compareDelta(-6,-8)==2,"compare delta is A minus B");
+    for(const auto size:std::array<std::array<float,2>,8>{{{{360,280}},{{640,480}},{{1080,680}},{{1280,760}},{{1360,820}},{{1600,900}},{{1920,1080}},{{1920,1780}}}})
+    {
+        const auto canvas=aifred::responsiveCanvas(size[0],size[1]);
+        check(canvas.scale>0&&canvas.x>=-.1f&&canvas.y>=-.1f&&canvas.x+canvas.width<=size[0]+.1f&&canvas.y+canvas.height<=size[1]+.1f,"responsive design canvas remains contained");
+    }
+    check(!aifred::modalShouldDismiss(10,10,100,100,50,50)&&aifred::modalShouldDismiss(10,10,100,100,5,50),"modal inside remains and outside dismisses");
+    for(std::size_t i=0;i<view->metrics.spectrumBands.size();++i)check(view->metrics.spectrumBands[i]==(observation->bands[i].valid?aifred::linearPresentation(static_cast<float>(observation->bands[i].typical),-96,0):0),"every spectrum bar maps its measured band");
     check(!view->metricDetails[index(MetricId::rms)].isLive&&view->metricDetails[index(MetricId::rms)].rawCurrent==-3.125&&view->metricDetails[index(MetricId::rms)].displayedValue==-2.347123,"click-ready observed metric metadata");
     auto first=std::make_unique<Pipeline>("beta","0.3.6"),second=std::make_unique<Pipeline>("official","4.0.0-alpha.2");
     check(first->instanceId()!=second->instanceId(),"instance isolation");

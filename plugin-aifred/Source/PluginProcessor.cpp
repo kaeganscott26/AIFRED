@@ -16,8 +16,6 @@ AifredAudioProcessor::~AifredAudioProcessor() = default;
 
 juce::AudioProcessorValueTreeState::ParameterLayout AifredAudioProcessor::createParameterLayout() {
   std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
-  params.push_back(std::make_unique<juce::AudioParameterBool>(
-    juce::ParameterID("session_initialized", 1), "Session Initialized", false));
   return { params.begin(), params.end() };
 }
 
@@ -68,12 +66,11 @@ void AifredAudioProcessor::getStateInformation(juce::MemoryBlock& destData) {
   state.setAttribute("mode", mode_.load());
   state.setAttribute("theme", settings_.themeId);
   state.setAttribute("layout", settings_.layoutId);
-  state.setAttribute("genre", settings_.genreId);
-  state.setAttribute("gate", settings_.gate);
+  state.setAttribute("visualizer", settings_.visualizerId);
   state.setAttribute("aiProvider", settings_.aiProvider);
   state.setAttribute("apiEndpoint", settings_.apiEndpoint);
   state.setAttribute("aiModel", settings_.aiModel);
-  state.setAttribute("session_initialized", isSessionInitialized());
+  state.setAttribute("help_seen", settings_.helpSeen);
   copyXmlToBinary(state, destData);
 }
 
@@ -92,14 +89,11 @@ void AifredAudioProcessor::setStateInformation(const void* data, int sizeInBytes
   mode_.store(juce::jlimit(0, 2, state->getIntAttribute("mode", static_cast<int>(AnalysisMode::Analyze))));
   settings_.themeId = 1;
   settings_.layoutId = 3;
-  settings_.genreId = juce::jlimit(1, 6, state->getIntAttribute("genre", settings_.genreId));
-  settings_.gate = juce::jlimit(0.0, 1.0, state->getDoubleAttribute("gate", settings_.gate));
+  settings_.visualizerId = juce::jlimit(1, 5, state->getIntAttribute("visualizer", settings_.visualizerId));
+  settings_.helpSeen = state->getBoolAttribute("help_seen", settings_.helpSeen);
   settings_.aiProvider = state->getStringAttribute("aiProvider", settings_.aiProvider).substring(0, 32);
   settings_.apiEndpoint = state->getStringAttribute("apiEndpoint", settings_.apiEndpoint).substring(0, 256);
   settings_.aiModel = state->getStringAttribute("aiModel", settings_.aiModel).substring(0, 80);
-  if (auto* param = parameters_.getParameter("session_initialized")) {
-    param->setValueNotifyingHost(state->getBoolAttribute("session_initialized", false) ? 1.0f : 0.0f);
-  }
 }
 
 BetaView AifredAudioProcessor::getView() const {
@@ -142,8 +136,8 @@ PluginSettings AifredAudioProcessor::getPluginSettings() const {
 void AifredAudioProcessor::setPluginSettings(const PluginSettings& settings) {
   settings_.themeId = 1;
   settings_.layoutId = 3;
-  settings_.genreId = juce::jlimit(1, 6, settings.genreId);
-  settings_.gate = juce::jlimit(0.0, 1.0, settings.gate);
+  settings_.visualizerId = juce::jlimit(1, 5, settings.visualizerId);
+  settings_.helpSeen = settings.helpSeen;
   settings_.aiProvider = settings.aiProvider.substring(0, 32);
   settings_.apiEndpoint = settings.apiEndpoint.substring(0, 256);
   settings_.apiKey = settings.apiKey.substring(0, 256);
@@ -159,17 +153,9 @@ void AifredAudioProcessor::clearReferenceTarget() {
   reference_={};
 }
 
-bool AifredAudioProcessor::isSessionInitialized() const {
-  if (const auto* value = parameters_.getRawParameterValue("session_initialized")) {
-    return value->load() > 0.5f;
-  }
-  return false;
-}
-
-void AifredAudioProcessor::markSessionInitialized() {
-  if (auto* param = parameters_.getParameter("session_initialized")) {
-    param->setValueNotifyingHost(1.0f);
-  }
+void AifredAudioProcessor::markHelpSeen() {
+  settings_.helpSeen = true;
+  saveLocalSettings();
 }
 
 void AifredAudioProcessor::loadLocalSettings() {
@@ -184,7 +170,8 @@ void AifredAudioProcessor::loadLocalSettings() {
   settings_.apiEndpoint = file.getValue("apiEndpoint", settings_.apiEndpoint);
   settings_.apiKey = file.getValue("apiKey", settings_.apiKey);
   settings_.aiModel = file.getValue("aiModel", settings_.aiModel);
-  settings_.genreId = file.getIntValue("genreId", settings_.genreId);
+  settings_.visualizerId = file.getIntValue("visualizerId", settings_.visualizerId);
+  settings_.helpSeen = file.getBoolValue("helpSeen", settings_.helpSeen);
 }
 
 void AifredAudioProcessor::saveLocalSettings() const {
@@ -199,7 +186,8 @@ void AifredAudioProcessor::saveLocalSettings() const {
   file.setValue("apiEndpoint", settings_.apiEndpoint);
   file.setValue("apiKey", settings_.apiKey);
   file.setValue("aiModel", settings_.aiModel);
-  file.setValue("genreId", settings_.genreId);
+  file.setValue("visualizerId", settings_.visualizerId);
+  file.setValue("helpSeen", settings_.helpSeen);
   file.saveIfNeeded();
 }
 

@@ -5,6 +5,7 @@
 
 #include "PluginProcessor.h"
 #include "ReferencePoolClient.h"
+#include "MixMemoryIndex.h"
 
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <array>
@@ -13,13 +14,15 @@
 
 namespace aifred {
 
-class AifredAudioProcessorEditor : public juce::AudioProcessorEditor, private juce::Timer, private juce::Button::Listener, private juce::Slider::Listener {
+class AifredAudioProcessorEditor : public juce::AudioProcessorEditor, private juce::Timer, private juce::Button::Listener {
 public:
   explicit AifredAudioProcessorEditor(AifredAudioProcessor&);
   ~AifredAudioProcessorEditor() override;
 
   void paint(juce::Graphics&) override;
   void resized() override;
+  void mouseDown(const juce::MouseEvent&) override;
+  bool keyPressed(const juce::KeyPress&) override;
 
 private:
   enum class CandleStripType 
@@ -31,7 +34,6 @@ private:
   
   void timerCallback() override;
   void buttonClicked(juce::Button*) override;
-  void sliderValueChanged(juce::Slider*) override;
   
   void drawHeader(juce::Graphics&, juce::Rectangle<int>);
   void drawAmbientBackground(juce::Graphics&, juce::Rectangle<int>, juce::Colour);
@@ -42,19 +44,21 @@ private:
   void drawCandleStrip(juce::Graphics&, juce::Rectangle<int>, const BetaView&, CandleStripType type);
   void drawChatPanel(juce::Graphics&, juce::Rectangle<int>);
   void drawHaloSpectrometer(juce::Graphics&, juce::Rectangle<float>, const BetaView&);
-  void drawReferenceMixer(juce::Graphics&, juce::Rectangle<int>);
+  void drawReferencePanel(juce::Graphics&, juce::Rectangle<int>, const BetaView&);
   void drawCompare(juce::Graphics&, juce::Rectangle<int>);
   void drawCompareVu(juce::Graphics&, juce::Rectangle<int>, const BetaView&, const BetaView&);
   void drawMixSignature(juce::Graphics&, juce::Rectangle<int>, const BetaView&);
   void drawSpectrumMeter(juce::Graphics&, juce::Rectangle<int>, const BetaView&);
   void drawCorrelationMeter(juce::Graphics&, juce::Rectangle<int>, const BetaView&);
+  void drawBrainPanel(juce::Graphics&,juce::Rectangle<int>);
   void pushSettingsToProcessor();
-  bool analyzeReferenceFile(const juce::File& file, int slot);
-  void clearReferenceSlot(int slot);
-  void updateReferenceTargetFromSlots();
+  bool analyzeReferenceFile(const juce::File& file);
+  void clearLocalReference();
   void updateOfficialReferenceMenu(const ReferencePoolSnapshot&);
   void selectOfficialReference(int);
   juce::String metricText(const BetaView& state, Domain domain);
+  juce::Rectangle<float> modalBounds(float width,float height) const;
+  juce::Rectangle<int> scaledBounds(juce::Rectangle<int>) const;
 
   AifredAudioProcessor& processor_;
   AifredLookAndFeel lookAndFeel_;
@@ -62,18 +66,12 @@ private:
   juce::TextButton referenceButton_ {"REFERENCE"};
   juce::TextButton compareButton_ {"COMPARE"};
   juce::TextButton optionsButton_ {"OPTIONS"};
-  juce::TextButton tutorialButton_ {"TUTORIAL"};
+  juce::TextButton tutorialButton_ {"HELP"};
   juce::TextButton centerModeButton_ {"CENTER"};
   juce::TextButton askAiButton_ {"ASK AI"};
   juce::TextButton saveApiButton_ {"SAVE API"};
   juce::TextButton chatFileButton_ {"CHAT FILE"};
-  std::array<juce::TextButton, 5> referenceFileButtons_ {
-    juce::TextButton {"REF 1 FILE"},
-    juce::TextButton {"REF 2 FILE"},
-    juce::TextButton {"REF 3 FILE"},
-    juce::TextButton {"REF 4 FILE"},
-    juce::TextButton {"REF 5 FILE"}
-  };
+  juce::TextButton localReferenceButton_ {"LOAD LOCAL REFERENCE"};
   juce::TextButton compareFileButton_ {"COMPARE FILE"};
   juce::TextEditor chatInput_;
   juce::TextEditor chatOutput_;
@@ -81,19 +79,18 @@ private:
   juce::TextEditor apiKey_;
   juce::TextEditor aiModel_;
   juce::ComboBox providerMenu_;
-  juce::ComboBox genreMenu_;
+  juce::ComboBox appearanceMenu_;
   juce::ComboBox profileMenu_;
   juce::ComboBox spectrumRangeMenu_;
   juce::ComboBox officialReferenceMenu_;
-  juce::Slider gateSlider_;
-  std::array<juce::Slider, 5> referenceVolumeSliders_;
-  std::array<juce::String, 5> referenceFileNames_;
-  std::array<ReferenceTarget, 5> referenceTargets_;
-  std::array<bool, 5> referenceTargetValid_ {};
+  juce::String referenceFileName_;
+  ReferenceTarget localReferenceTarget_;
+  bool localReferenceValid_ = false;
   juce::Image mascot_;
   std::unique_ptr<juce::FileChooser> fileChooser_;
   BetaView state_;
   BetaView compareState_;
+  MixMemoryIndex memoryIndex_;
 
   juce::String chatOutputText_;
   juce::String apiStatus_ = "API route not connected.";
@@ -104,9 +101,10 @@ private:
   juce::String chatFileStatus_ = "No chat file selected.";
   bool showTutorial_ = true;
   bool showOptions_ = false;
-  bool splashDismissedThisEditor_ = false;
   int haloCenterMode_ = 0;
   float ambientPhase_ = 0.0f;
+  float designScale_ = 1.0f;
+  juce::Point<float> designOrigin_;
   std::string selectedOfficialReferenceId_;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AifredAudioProcessorEditor)

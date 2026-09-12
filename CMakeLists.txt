@@ -25,6 +25,12 @@ target_compile_definitions(aifred_state_contract_tests PRIVATE JUCE_GLOBAL_MODUL
 target_link_libraries(aifred_state_contract_tests PRIVATE Aifred aifred_pipeline)
 add_test(NAME aifred_state_contract_tests COMMAND aifred_state_contract_tests)
 
+add_executable(aifred_gui_layout_tests tests/gui_layout_tests.cpp)
+target_include_directories(aifred_gui_layout_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_BINARY_DIR}/_deps/juce-src/modules)
+target_compile_definitions(aifred_gui_layout_tests PRIVATE JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1)
+target_link_libraries(aifred_gui_layout_tests PRIVATE Aifred aifred_pipeline juce::juce_graphics)
+add_test(NAME aifred_gui_layout_tests COMMAND aifred_gui_layout_tests ${CMAKE_BINARY_DIR}/gui-snapshots)
+
 add_executable(aifred_reference_pool_contract_tests
   tests/reference_pool_contract_tests.cpp
   plugin-aifred/Source/ReferencePoolClient.cpp)

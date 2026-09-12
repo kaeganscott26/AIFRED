@@ -11,8 +11,8 @@ namespace aifred {
 struct PluginSettings {
   int themeId = 1;
   int layoutId = 3;
-  int genreId = 1;
-  double gate = 0.35;
+  int visualizerId = 1;
+  bool helpSeen = false;
   juce::String aiProvider = "ollama";
   juce::String apiEndpoint = "http://127.0.0.1:11434";
   juce::String apiKey;
@@ -57,8 +57,8 @@ public:
   void setPluginSettings(const PluginSettings& settings);
   void setReferenceTarget(const ReferenceTarget& target);
   void clearReferenceTarget();
-  bool isSessionInitialized() const;
-  void markSessionInitialized();
+  bool hasSeenHelp() const noexcept { return settings_.helpSeen; }
+  void markHelpSeen();
   core::Pipeline& pipeline() noexcept {return analysis_;}
   core::Pipeline& comparePipeline() noexcept {return compareAnalysis_;}
   ReferenceTarget referenceTarget() const {return reference_;}

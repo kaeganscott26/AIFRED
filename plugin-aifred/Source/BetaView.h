@@ -7,6 +7,29 @@ namespace aifred
 enum class AnalysisMode {Analyze,Reference,Compare};
 enum class Domain {Tone,Stereo,Loudness,Dynamics};
 inline float clamp01(float value) {return std::clamp(value,0.0f,1.0f);}
+inline constexpr float crestFloorDb=0.0f,crestCeilingDb=24.0f;
+inline constexpr float truePeakFloorDbtp=-24.0f,truePeakCeilingDbtp=0.0f;
+inline float linearPresentation(float value,float minimum,float maximum)
+{
+    return maximum>minimum?clamp01((value-minimum)/(maximum-minimum)):0.0f;
+}
+inline float rmsPresentation(float value,core::SpectrumDisplayRange range)
+{
+    return linearPresentation(value,static_cast<float>(core::spectrumFloorDb(range)),0.0f);
+}
+inline float truePeakPresentation(float value) {return linearPresentation(value,truePeakFloorDbtp,truePeakCeilingDbtp);}
+inline float crestPresentation(float value) {return linearPresentation(value,crestFloorDb,crestCeilingDb);}
+inline float stereoSpreadPresentation(float correlation) {return clamp01((1.0f-correlation)*0.5f);}
+struct ResponsiveCanvas {float scale=1,x=0,y=0,width=1360,height=820;};
+inline ResponsiveCanvas responsiveCanvas(float width,float height) noexcept
+{
+    const auto scale=std::min(width/1360.0f,height/820.0f);
+    return {scale,(width-1360.0f*scale)*0.5f,(height-820.0f*scale)*0.5f,1360.0f*scale,820.0f*scale};
+}
+inline bool modalShouldDismiss(float x,float y,float width,float height,float pointX,float pointY) noexcept
+{
+    return pointX<x||pointY<y||pointX>x+width||pointY>y+height;
+}
 struct ReferenceTarget
 {
     core::ReferenceDistribution distribution;
@@ -18,7 +41,7 @@ struct DisplayMetrics
 {
     float rmsDb=0,peakDb=0,truePeakDb=0,crestDb=0,shortTermLufs=0,integratedLufs=0,stereoWidth=0,correlation=0;
     float rmsScale=0,widthScale=0,crestScale=0,loudnessScale=0;
-    std::array<float,8> spectrumBands {};
+    std::array<float,core::bandCentres.size()> spectrumBands {};
     std::array<float,96> waveform {};
     std::array<float,10> sessionCandleOpen {},sessionCandleHigh {},sessionCandleLow {},sessionCandleClose {};
     std::array<float,10> minuteCandleOpen {},minuteCandleHigh {},minuteCandleLow {},minuteCandleClose {};
@@ -62,10 +85,9 @@ inline BetaView makeBetaView(const core::EngineSnapshot& live,const core::Observ
     auto& m=view.metrics;
     m.rmsDb=value(core::MetricId::rms);m.peakDb=value(core::MetricId::samplePeak);m.truePeakDb=value(core::MetricId::truePeak);m.crestDb=value(core::MetricId::crest);
     m.shortTermLufs=value(core::MetricId::shortTerm);m.integratedLufs=value(core::MetricId::integrated);m.stereoWidth=static_cast<float>(live.get(core::MetricId::width).value)/100; m.correlation=static_cast<float>(live.get(core::MetricId::correlation).value);
-    m.rmsScale=clamp01((m.rmsDb+60)/60);m.widthScale=m.stereoWidth;m.crestScale=clamp01(m.crestDb/24);m.loudnessScale=clamp01((m.shortTermLufs+60)/60);
-    constexpr std::array<std::size_t,8> displayedBands {2,7,10,13,17,20,23,27};
+    m.rmsScale=rmsPresentation(m.rmsDb,presentation.spectrumRange);m.widthScale=stereoSpreadPresentation(m.correlation);m.crestScale=crestPresentation(m.crestDb);m.loudnessScale=rmsPresentation(m.shortTermLufs,presentation.spectrumRange);
     const auto spectrumFloor=static_cast<float>(core::spectrumFloorDb(presentation.spectrumRange));
-    for(std::size_t i=0;i<8;++i) {const auto& b=observation.bands[displayedBands[i]];m.spectrumBands[i]=b.valid?clamp01(static_cast<float>((b.typical-spectrumFloor)/-spectrumFloor)):0;}
+    for(std::size_t i=0;i<m.spectrumBands.size();++i) {const auto& b=observation.bands[i];m.spectrumBands[i]=b.valid?linearPresentation(static_cast<float>(b.typical),spectrumFloor,0.0f):0;}
     for(std::size_t i=0;i<live.vectorscopeCount;++i)m.waveform[i]=live.vectorscope[i][0];
     const auto& rms=observation.get(core::MetricId::rms);
     if(rms.valid)
@@ -85,6 +107,22 @@ inline BetaView makeBetaView(const core::EngineSnapshot& live,const core::Observ
         detail.valid=shown.valid;detail.displayedValue=shown.value;
     }
     return view;
+}
+inline float compareDelta(float mixA,float mixB) noexcept {return mixA-mixB;}
+inline float compareSimilarity(const BetaView& a,const BetaView& b) noexcept
+{
+    // Display-only, deterministic similarity. Every term is an existing DSP
+    // measurement normalized by its physical presentation span.
+    const std::array<float,6> differences {
+        std::abs(a.metrics.rmsDb-b.metrics.rmsDb)/std::abs(static_cast<float>(core::spectrumFloorDb(a.presentation.spectrumRange))),
+        std::abs(a.metrics.truePeakDb-b.metrics.truePeakDb)/(truePeakCeilingDbtp-truePeakFloorDbtp),
+        std::abs(a.metrics.crestDb-b.metrics.crestDb)/(crestCeilingDb-crestFloorDb),
+        std::abs(a.metrics.shortTermLufs-b.metrics.shortTermLufs)/std::abs(static_cast<float>(core::spectrumFloorDb(a.presentation.spectrumRange))),
+        std::abs(a.metrics.stereoWidth-b.metrics.stereoWidth),
+        std::abs(a.metrics.correlation-b.metrics.correlation)/2.0f
+    };
+    float total=0.0f;for(const auto difference:differences)total+=clamp01(difference);
+    return 100.0f*(1.0f-total/static_cast<float>(differences.size()));
 }
 inline void applyCandleHistory(BetaView& view,const core::CandleHistorySnapshot& history)
 {
