@@ -106,9 +106,9 @@ def manifest(key):
     if not match: raise ValueError('Version missing from CMake authority')
     files={p.relative_to(stage).as_posix():digest(p) for p in stage.rglob('*') if p.is_file() and p.name!='manifest.json'}
     is_official=info['product']=='AIFRED 4'
-    plugin='Aifred.vst3' if is_official else 'AIFRED-VST3-windows/Aifred.vst3'
-    engine='AifredIntelligenceHost' if is_official else 'AIFRED-VST3-windows/AifredIntelligenceHost'
-    result={'schema':'aifred.release.v2','product':info['product'],'channel':info['channel'],'version':match.group(1),'gitSha':git('rev-parse','HEAD'),'workingTreeDirty':bool(git('status','--porcelain')),'sourceTreeSha256':source_tree_hash(),'platform':key,'architecture':info['platforms'][key]['architecture'],'toolchain':{'host':platform.platform(),'cmake':subprocess.check_output(['cmake','--version'],text=True).splitlines()[0],'dotnet':subprocess.check_output(['dotnet','--version'],text=True).strip()},'dspProfileSchemaVersion':info['dspProfileSchemaVersion'],'sharedCoreVersion':info['sharedCoreVersion'],'profiles':info['profiles'],'contextSchema':info['contextSchema'],'runtimeChannel':info['runtimeChannel'],'hostPort':info['hostPort'],'plugin':plugin,'engine':engine,'installer':None if is_official else 'installer/AIFRED-VST3-Setup.exe','hashes':files,'validation':'build and repository tests; DAW/signing not certified'}
+    plugin='Aifred.vst3' if is_official else None
+    engine='AifredIntelligenceHost' if is_official else None
+    result={'schema':'aifred.release.v2' if is_official else 'aifred.release.v3','product':info['product'],'channel':info['channel'],'version':match.group(1),'gitSha':git('rev-parse','HEAD'),'workingTreeDirty':bool(git('status','--porcelain')),'sourceTreeSha256':source_tree_hash(),'platform':key,'architecture':info['platforms'][key]['architecture'],'toolchain':{'host':platform.platform(),'cmake':subprocess.check_output(['cmake','--version'],text=True).splitlines()[0],'dotnet':subprocess.check_output(['dotnet','--version'],text=True).strip()},'dspProfileSchemaVersion':info['dspProfileSchemaVersion'],'sharedCoreVersion':info['sharedCoreVersion'],'profiles':info['profiles'],'contextSchema':info['contextSchema'],'runtimeChannel':info['runtimeChannel'],'hostPort':info['hostPort'],'plugin':plugin,'engine':engine,'installer':None if is_official else 'AIFRED-Beta-Setup.exe','updater':None if is_official else 'AIFRED-Beta-Updater.exe','uninstaller':None if is_official else 'AIFRED-Beta-Uninstall.exe','hashes':files,'validation':'build, repository, payload and lifecycle tests; DAW/code-signing not certified'}
     (stage/'manifest.json').write_text(json.dumps(result,indent=2)+'\n')
 
 def verify(key,location='current'):
@@ -122,19 +122,29 @@ def verify(key,location='current'):
     actual={p.relative_to(folder).as_posix():digest(p) for p in folder.rglob('*') if p.is_file() and p.name!='manifest.json'}
     if actual!=data['hashes']: raise ValueError('Artifact inventory/hash mismatch')
     if key=='windows-x64':
-        checked_path(folder/data['plugin'],folder)
-        checked_path(folder/data['engine'],folder)
-        required=[data['plugin']+'/Contents/x86_64-win/Aifred.vst3',data['plugin']+'/Contents/Resources/moduleinfo.json']
-        if data['schema']=='aifred.release.v2':
+        if data['product']=='AIFRED 4':
+            checked_path(folder/data['plugin'],folder)
+            checked_path(folder/data['engine'],folder)
+            required=[data['plugin']+'/Contents/x86_64-win/Aifred.vst3',data['plugin']+'/Contents/Resources/moduleinfo.json']
             required += [data['engine']+'/AifredIntelligenceHost'+suffix for suffix in ('.exe','.dll','.runtimeconfig.json')]
             required += [data['engine']+'/channel.json']
             if json.loads((folder/data['engine']/'channel.json').read_text(encoding='utf-8-sig')) != {'channel':info['runtimeChannel']}: raise ValueError('Host channel ownership mismatch')
-        elif data['schema']!='aifred.release.v1': raise ValueError('Unknown artifact manifest schema')
-        if info['product']!='AIFRED 4': required += ['AIFRED-VST3-windows.zip','installer/AIFRED-VST3-Setup.exe','uninstaller/AIFRED-Uninstall.exe']
+        elif data['schema']=='aifred.release.v3':
+            required=[data['installer'],data['updater'],data['uninstaller'],'packaging-receipt.json']
+            receipt=json.loads((folder/'packaging-receipt.json').read_text(encoding='utf-8-sig'))
+            if (receipt.get('product'),receipt.get('channel'),receipt.get('version'),receipt.get('git_sha')) != (info['product'],info['runtimeChannel'],data['version'],data['gitSha']): raise ValueError('Packaging receipt provenance mismatch')
+            source=ROOT/'out'/key/'build'/info['platforms'][key]['plugin']/'Contents/x86_64-win/Aifred.vst3'
+            if location=='stage' and digest(source)!=receipt.get('plugin_sha256'): raise ValueError('Packaged plugin differs from the exact build target')
+        elif data['schema']=='aifred.release.v2':
+            # Read-only compatibility for the currently promoted legacy package;
+            # the next promotion replaces it with executable-only release.v3.
+            required=['AIFRED-VST3-windows/Aifred.vst3/Contents/x86_64-win/Aifred.vst3','AIFRED-VST3-windows.zip','installer/AIFRED-VST3-Setup.exe','uninstaller/AIFRED-Uninstall.exe']
+        else: raise ValueError('Unknown artifact manifest schema')
         for name in required:
             if name not in actual: raise ValueError(f'Required component missing: {name}')
+            if name.lower().endswith('.exe') and (folder/name).read_bytes()[:2]!=b'MZ': raise ValueError(f'Lifecycle artifact is not a Windows executable: {name}')
         source=ROOT/'out'/key/'build'/info['platforms'][key]['plugin']/'Contents/x86_64-win/Aifred.vst3'
-        if location=='stage' and digest(source)!=actual[data['plugin']+'/Contents/x86_64-win/Aifred.vst3']:
+        if data['product']=='AIFRED 4' and location=='stage' and digest(source)!=actual[data['plugin']+'/Contents/x86_64-win/Aifred.vst3']:
             raise ValueError('Staged plugin differs from the exact build target')
     print(f'Verified {folder}: {len(actual)} hashed files')
 

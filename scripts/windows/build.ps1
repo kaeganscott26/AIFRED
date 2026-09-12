@@ -21,6 +21,7 @@ try {
     Invoke-Checked python @('-B','scripts/common/check_repository.py')
     Invoke-Checked python @('-B','-m','unittest','discover','-s','scripts/tests')
     Invoke-Checked dotnet @('run','--project','tools/AifredIntelligenceHost.Tests/AifredIntelligenceHost.ContractTests.csproj','-c','Release')
+    Invoke-Checked dotnet @('run','--project','tools/AifredWindowsLifecycle.Tests/AifredWindowsLifecycle.Tests.csproj','-c','Release')
     Invoke-Checked ctest @('--preset','windows-release')
     Invoke-Checked python @('-B','scripts/common/check_shared_core.py')
     if ($Action -eq 'test') { return }
@@ -32,8 +33,6 @@ try {
         Invoke-Checked dotnet @('publish','tools/AifredIntelligenceHost/AifredIntelligenceHost.csproj','-c','Release','-r','win-x64','--self-contained','false','-o',(Join-Path $stageRoot 'AifredIntelligenceHost'))
     } else {
         Invoke-Checked pwsh @('-NoProfile','-File','tools/package-aifred.ps1','-BuildRoot','out/windows-x64/build','-OutputDir','out/windows-x64/stage','-Platform','windows')
-        Invoke-Checked dotnet @('publish','tools/AifredWindowsInstaller/AifredWindowsInstaller.csproj','-c','Release','-o',(Join-Path $stageRoot 'installer'))
-        Invoke-Checked dotnet @('publish','tools/AifredWindowsUninstaller/AifredWindowsUninstaller.csproj','-c','Release','-o',(Join-Path $stageRoot 'uninstaller'))
     }
     if ($official) {
         '{"channel":"official"}' | Set-Content -Encoding utf8 (Join-Path $stageRoot 'AifredIntelligenceHost/channel.json')

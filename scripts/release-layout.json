@@ -20,7 +20,7 @@
     }
   },
   "dspProfileSchemaVersion": 2,
-  "sharedCoreVersion": "1.2.0",
+  "sharedCoreVersion": "1.2.5",
   "contextSchema": "aifred.filtered-mix.v1",
   "runtimeChannel": "beta",
   "hostPort": 8787,
