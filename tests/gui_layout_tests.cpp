@@ -27,6 +27,16 @@ int main(int argc,char** argv)
     auto editor=std::unique_ptr<juce::AudioProcessorEditor>(processor->createEditor());
     const std::array<std::array<int,2>,8> sizes {{{{360,280}},{{640,480}},{{1080,680}},{{1280,760}},{{1360,820}},{{1600,900}},{{1920,1080}},{{1920,1780}}}};
     juce::PNGImageFormat png;
+    for(const auto& size:sizes)
+    {
+        const auto canvas=aifred::responsiveCanvas(static_cast<float>(size[0]),static_cast<float>(size[1]));
+        const auto matrix=aifred::responsiveTransformMatrix(canvas);
+        const juce::AffineTransform transform(matrix[0],matrix[1],matrix[2],matrix[3],matrix[4],matrix[5]);
+        const auto topLeft=juce::Point<float>(0,0).transformedBy(transform);
+        const auto bottomRight=juce::Point<float>(1360,820).transformedBy(transform);
+        check(std::abs(topLeft.x-canvas.x)<0.01f&&std::abs(topLeft.y-canvas.y)<0.01f,"paint transform uses the unscaled letterbox origin");
+        check(std::abs(bottomRight.x-(canvas.x+canvas.width))<0.01f&&std::abs(bottomRight.y-(canvas.y+canvas.height))<0.01f,"paint transform and responsive canvas share the same extent");
+    }
     {
         aifred::MixMemoryIndex memory; aifred::BetaView measured;measured.hasSignal=true;measured.valuesValid=true;measured.metrics.liveCandleCount=1;
         measured.metrics.rmsDb=-18;measured.metrics.truePeakDb=-2;measured.metrics.crestDb=12;measured.metrics.shortTermLufs=-16;measured.metrics.stereoWidth=.42f;measured.metrics.correlation=.63f;

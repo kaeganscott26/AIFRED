@@ -1,8 +1,8 @@
 {
-  "version": "1.2.4",
+  "version": "1.2.5",
   "normalization": "CRLF to LF",
   "files": {
-    "shared-dsp/CMakeLists.txt": "b984c722be38446c981e501b6c9eee44431756ad716a022d6ca40d7977f7223c",
+    "shared-dsp/CMakeLists.txt": "9a5be8928aaea5ed36ba872569d0cc2a2e45f0b47c73de7dc117df63e4231565",
     "shared-dsp/README.md": "d1364c37eb462e697882be4e63271996744038360ae74813114203e41fab625f",
     "shared-dsp/include/aifred/BufferHunter.h": "44ca51541f0cb5acff4a711cdb77b9de17f5bebc59b5230fea6ba36271125a57",
     "shared-dsp/include/aifred/Contracts.h": "087daadc8b49dc9ee9c1159e078701c1b582f176af3f686ab70bed4df3af3df6",
@@ -30,7 +30,7 @@
     "tools/AifredIntelligenceHost/Program.cs": "4ac0f659cc7b8c23dde516ec47bdfc072254ee40615dec2be56c722a9ff36d6e",
     "tools/AifredIntelligenceHost/ProviderRouter.cs": "88988eeca612a0ea8b02e03e4134ca728a0cbc70d1bc1ed7a446ee663a599e81",
     "tools/AifredIntelligenceHost/intelligence/PHASES.md": "8c6bf502c99bc084c6cfce13612d690b7ca0c01ee9b3f977d3c4e6e8fc89b490",
-    "tools/AifredIntelligenceHost/intelligence/README.md": "0780af82dfe16cd185315f927ccd070510cbdd41faf97e417f5cfa5502099376",
+    "tools/AifredIntelligenceHost/intelligence/README.md": "892c89ba4f548a8423ca035b65f36df7a0d7a90f45f6380f5e4681e1ca9e803e",
     "tools/AifredIntelligenceHost/intelligence/context/README.md": "87cc96ab0dfb7c5124681ce01e2993c556a9727fb81126308e133624fdf94d49",
     "tools/AifredIntelligenceHost/intelligence/contracts/README.md": "8b21e4a2156bc7b4f4adb5076107d70faeb520d11cfbe537ae9ce997b9fb0036",
     "tools/AifredIntelligenceHost/intelligence/core/README.md": "1bdd7c9c44421d762402117efa7a2d79c21d7ba43825497ea840d911ed31fc22",
@@ -39,7 +39,7 @@
     "tools/AifredIntelligenceHost/intelligence/memory/README.md": "9bc0c24d8e44e6d5a031f4aee699311867e3735f915743f4778a0c484a6d6f31",
     "tools/AifredIntelligenceHost/intelligence/personality/README.md": "1f161e964048eac33f3c7b0a0282c4443867f2ad6c7b2949f32f256895fd32a7",
     "tools/AifredIntelligenceHost/intelligence/policy/README.md": "7e11d55a3a964ddc378d5cf234eb0d79b05d2d0e9c9bd064d7c721cc61bc59da",
-    "tools/AifredIntelligenceHost/intelligence/prompts/IntelligencePrompt.cs": "77ede80fb1593a0ed97f14789c2cbef36793b77337f5cbe9a58dddb5138771f9",
+    "tools/AifredIntelligenceHost/intelligence/prompts/IntelligencePrompt.cs": "c546eea0561bd0afe535bcbaea493ec02f8975ff446bcee7dd16f93045ca4a23",
     "tools/AifredIntelligenceHost/intelligence/prompts/README.md": "0c191b3ba827632886479bd7d3a84ac9311906dfc5b17a09d0e5d3073be97301",
     "tools/AifredIntelligenceHost/intelligence/providers/README.md": "294333adfcb644b2cd47a3c3f97960c9424f520109efee6b41e8d9170568c621",
     "tools/AifredIntelligenceHost/intelligence/response/README.md": "af861dc8709b126f357837ff22357e84601c9de444a9dab197b924c9489f1d22",

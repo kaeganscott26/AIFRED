@@ -1,12 +1,12 @@
 # AIFRED Intelligence Layer
 
-This directory is the authoritative map for the post-DSP intelligence architecture. It begins **after** `FilteredMixContext` and must never redefine measurements owned by `aifred_engine`, `BufferHunter`, or `aifred_filter`.
+This directory is the authoritative map for the post-DSP intelligence architecture. It begins **after** `FilteredMixContext` and must never redefine measurements owned by the shared DSP analyzer, `BufferHunter`, or `aifred_filter`.
 
 ## Architecture law
 
 ```text
 DAW audio
-  -> aifred_engine
+  -> shared DSP analyzer
   -> EngineSnapshot
   -> BufferHunter
   -> ObservationSnapshot

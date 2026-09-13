@@ -84,7 +84,7 @@ Automatic behavior is limited to local realtime measurement, bounded observation
 
 ```text
 plugin-aifred/                 Beta JUCE VST3 and UI
-shared-dsp/                    aifred_engine, BufferHunter, filter, client contract
+shared-dsp/                    analyzer algorithms, BufferHunter, filter, client contract
 tools/AifredIntelligenceHost/  channel-local provider transport
 tools/AifredWindowsInstaller/  Windows installer source
 tools/AifredWindowsUninstaller/ Windows uninstaller source
@@ -95,6 +95,6 @@ tests/                         plugin/client contract tests
 docs/                          current Beta documentation
 ```
 
-Generated artifacts belong under `out/` and remain untracked. The source-of-truth DSP rule is unchanged: measurements come from `aifred_engine`, observation from BufferHunter, and interpretation begins in `aifred_filter` or later.
+Generated artifacts belong under `out/` and remain untracked. The source-of-truth DSP rule is unchanged: measurements come from the shared DSP analyzer, observation from BufferHunter, and interpretation begins in `aifred_filter` or later.
 
 This repository is public and free to use for private, non-commercial purposes only. All code and associated intellectual property are owned by North3rnLight3r. Public access to this repository does not grant permission to copy, redistribute, resell, sublicense, incorporate into commercial products or services, or otherwise use the code for profitable or commercial purposes without prior written permission from the owner. Any use that conflicts with the rights or stated intent of the owner is prohibited. North3rnLight3r retains all ownership and intellectual-property rights associated with this repository and its contents.
