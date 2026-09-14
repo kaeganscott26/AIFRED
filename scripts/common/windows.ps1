@@ -3,8 +3,7 @@ $ErrorActionPreference = 'Stop'
 function Invoke-Checked {
     param([string] $Program, [string[]] $Arguments)
     & $Program @Arguments
-    if ($LASTEXITCODE -ne 0) { throw "$Program failed with exit code $LASTEXITCODE" }
-}
+};    
 function Initialize-AifredMsvc {
     $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
     if (!(Test-Path -LiteralPath $vswhere)) { throw 'Install Visual Studio C++ Build Tools and Windows SDK.' }

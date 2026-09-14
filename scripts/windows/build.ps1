@@ -1,5 +1,6 @@
 [CmdletBinding()]
-param([ValidateSet('configure','build','test','stage','package','release')] [string] $Action = 'release')
+param {
+[ValidateSet('configure','build','test','stage','package','release')] [string] $Action = 'release'}
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '../common/windows.ps1')
 $repositoryRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path

@@ -13,5 +13,5 @@
     "profile_version",
     "schema"
   ],
-  "automaticChannelReplacement": false
+  "automaticChannelReplacement": true
 }
