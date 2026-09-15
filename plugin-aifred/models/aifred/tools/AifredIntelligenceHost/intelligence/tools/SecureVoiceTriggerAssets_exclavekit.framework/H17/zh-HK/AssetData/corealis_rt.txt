@@ -1,0 +1,26 @@
+#include "$(NROOT)/config.txt"
+
+[frontend]
+acanal_file:
+   TARGETKIND = MFCC_0
+   SOURCEKIND = WAVEFORM
+   SOURCEFORMAT = WAV
+   TARGETRATE = 100000.0
+   SAVECOMPRESSED = T
+   SAVEWITHCRC = T
+   WINDOWSIZE = 250000.0
+   USEHAMMING = T
+   PREEMCOEF = 0.97
+   NUMCHANS = 26
+   CEPLIFTER = 22
+   NUMCEPS = 12
+   LOFREQ = -1.0
+   HIFREQ = 7999.0
+   ZMEANSOURCE = T
+
+[detector]
+output_dist_file:  $(NROOT)/exar_zh_HK_5x32_zgsm.8bitab_cs.dnnc
+hmm_file:          $(NROOT)/exar_zh_HK_hs.hmm
+
+[rescore]
+rescore_thres:             1.735

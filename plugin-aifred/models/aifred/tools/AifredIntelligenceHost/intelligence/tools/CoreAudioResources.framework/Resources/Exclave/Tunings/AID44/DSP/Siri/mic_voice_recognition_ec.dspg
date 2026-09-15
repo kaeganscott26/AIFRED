@@ -1,0 +1,140 @@
+; =========================================================================
+; Input DSP input graph -- 2 mics, 2 speaker references
+; =========================================================================
+
+graphName "InputDSP_2mic_2refs_16KHz"
+
+
+; -------------------------------------------------------------------------
+; Definitions
+; -------------------------------------------------------------------------
+
+[def procSampleRate 16000]
+[def blockSize 512]
+
+[def numBeams 12]
+[def numMics 2]
+[def numRefs 2]
+[def numULOut 4]
+
+[def ecInBusMic 0]
+[def ecInBusRef 1]
+[def ecOutBusEcout 0]
+[def ecOutBusEclee 1]
+[def ecOutBusRefal 2]
+
+in inputMicBus
+in inputRefBus
+
+out ecOutput
+out ulOutput
+
+; -------------------------------------------------------------------------
+; Siri boxes and audio units
+; -------------------------------------------------------------------------
+
+; Mic alignment workaround
+box micAlignmentRefSplitter split 1 [numRefs]
+
+; Input conditioning
+box postECGain gain 1 1 ; applied after EC
+
+box refDelay0 delay 1 1
+box refDelay1 delay 1 1
+box refJoiner join [numRefs] 1
+box refSum sum [numRefs] 1
+
+; EC MIMO, two input buses (mic and ref), 3 output buses.
+box SiriECM (aufx ecmo) 2 3
+
+; Multi-mic processing units
+box ANALY_ECOUT fft 1 1
+box ANALY_ECLEE fft 1 1
+box MCLP  (aufx drev appl) 2 2
+box PMWF  (aufx dnos appl) 2 2
+box BF    (aufx bmfd appl) 2 4
+box NNSPP (aufx nnsp appl) 3 1
+box SYNTH_bfOut fft 1 1
+
+; Multiplexing and splitting
+box refalDeadEnd dead 1 0
+box BFDeadEnd dead 3 0
+box NNSPPDeadEnd dead 1 0
+box siriOutJoiner join 3 1
+
+; -------------------------------------------------------------------------
+; Microphones and references
+; -------------------------------------------------------------------------
+
+; Mic alignment workaround; apply mic trim
+wire inputRefBus micAlignmentRefSplitter ([procSampleRate] [numRefs] [blockSize])
+
+; Reference delays, to reduce causal delay between mic and refs
+wire (micAlignmentRefSplitter 0) refDelay0 ([procSampleRate] 1 [blockSize])
+wire (micAlignmentRefSplitter 1) refDelay1 ([procSampleRate] 1 [blockSize])
+wire refDelay0 (refJoiner 0) ([procSampleRate] 1 [blockSize])
+wire refDelay1 (refJoiner 1) ([procSampleRate] 1 [blockSize])
+wire refDelay0 (refSum 0) ([procSampleRate] 1 [blockSize])
+wire refDelay1 (refSum 1) ([procSampleRate] 1 [blockSize])
+
+; -------------------------------------------------------------------------
+; Siri DSP Graph topology
+; -------------------------------------------------------------------------
+
+
+; Echo cancellation
+wire inputMicBus (SiriECM [ecInBusMic]) ([procSampleRate] [numMics] [blockSize])
+wire refJoiner      (SiriECM [ecInBusRef]) ([procSampleRate] [numRefs] [blockSize])
+
+; Post EC gain
+wire (SiriECM [ecOutBusEcout]) postECGain   ([procSampleRate] [numMics] [blockSize])
+wire postECGain                ANALY_ECOUT  ([procSampleRate] [numMics] [blockSize])
+wire (SiriECM [ecOutBusEclee]) ANALY_ECLEE  ([procSampleRate] [numMics] [blockSize])
+wire (SiriECM [ecOutBusRefal]) refalDeadEnd ([procSampleRate] [numRefs] [blockSize])
+
+; EC Out
+wire (SiriECM [ecOutBusEcout]) ecOutput    ([procSampleRate] [numMics] [blockSize])
+
+; Multi-mic processing
+; Dereverberation
+wire ANALY_ECOUT (MCLP 0) (freq [procSampleRate] [numMics] [blockSize])
+wire ANALY_ECLEE (MCLP 1) (freq [procSampleRate] [numMics] [blockSize])
+
+; Inject DNN SPP mask to PMWF
+wire (MCLP 0)    (NNSPP 0) (freq [procSampleRate] [numMics] [blockSize])
+wire ANALY_ECLEE (NNSPP 1) (freq [procSampleRate] [numMics] [blockSize])
+wire ANALY_ECOUT (NNSPP 2) (freq [procSampleRate] [numMics] [blockSize])
+wireProperty (NNSPP 3699)  (PMWF 3699)  true ; wire DNN SPP mask
+wireProperty (NNSPP 36999) (PMWF 36999) true ; wire post filter mask
+
+; Denoise
+wire (MCLP 0) (PMWF 0) (freq [procSampleRate] [numMics] [blockSize])
+wire (MCLP 1) (PMWF 1) (freq [procSampleRate] [numMics] [blockSize])
+wire (PMWF 0) (BF   0) (freq [procSampleRate] [numMics] [blockSize])
+wire (PMWF 1) (BF   1) (freq [procSampleRate] [numMics] [blockSize])
+
+; Connect deadends
+wire (NNSPP 0) NNSPPDeadEnd (freq [procSampleRate] [numMics] [blockSize])
+wire (BF 1) (BFDeadEnd 0) (freq [procSampleRate] 1 [blockSize])
+wire (BF 2) (BFDeadEnd 1) (freq [procSampleRate] [numBeams] [blockSize])
+wire (BF 3) (BFDeadEnd 2) (freq [procSampleRate] [numBeams] [blockSize])
+
+; Convert back to time-domain
+wire (BF 0) SYNTH_bfOut (freq [procSampleRate] 1 [blockSize])
+wire SYNTH_bfOut (siriOutJoiner 0) ([procSampleRate] 1 [blockSize])
+wire (SiriECM [ecOutBusEclee]) (siriOutJoiner 1)  ([procSampleRate] [numMics] [blockSize])
+wire refSum (siriOutJoiner 2) ([procSampleRate] 1 [blockSize])
+wire siriOutJoiner ulOutput ([procSampleRate] [numULOut] [blockSize])
+
+
+; -------------------------------------------------------------------------
+; Siri DSP Graph parameters and properties
+; -------------------------------------------------------------------------
+
+; Unused parameter for forgetting factor
+param vtff 0
+
+; ECMIMO convergence flag, written out to anomaly detector
+[def kAUECMIMOParam_ecoutOverwritten 35]
+param econ 0 out
+wireGraphParam econ (SiriECM [kAUECMIMOParam_ecoutOverwritten] global 0) 

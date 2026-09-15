@@ -1,0 +1,72 @@
+{
+    "version-major": 176,
+    "version-minor": 0,
+    "model-info": {
+        "version": "AM-5.0.0.0-20160805",
+        "language": "zh_CN",
+        "sampling-rates": [
+            16000
+        ],
+        "tasks": [
+            "Dictation"
+        ],
+        "phoneset-version": "ENU54",
+        "acoustic-profile-version": "qsr-ACCENTID-1.0",
+        "os-types": [
+            "iOS",
+            "macOS",
+            "watchOS",
+            "tvOS",
+            "bridgeOS"
+        ]
+    },
+    "recognizers": {
+        "16000 :: Dictation :: * :: * :: *": "dnn :: kwd :: kwdchain"
+    },
+    "frontends": {
+        "dnn": {
+            "fbank": {
+                "num-mel-bins": 40,
+                "window-type": "hamming",
+                "high-freq": 8000,
+                "low-freq": 64,
+                "use-energy": false,
+                "htk-compat": true,
+                "dither": 1.0
+            },
+            "cmn": {
+                "cmn-window": 600,
+                "min-cmn-window": 100
+            },
+            "nnet-forward": {
+                "apply-log": false,
+                "strict-batch-size": 192,
+                "zero-pad": true,
+                "append-pad-info": true,
+                "model-file": "./keyword_secure/megatron_8bit_compressed_v1_fp16_mil2bnns.mlmodelc/model.bnns.mil",
+                "enable-memory-map": true,
+                "no-softmax": false,
+                "num-frames-to-use": 64
+            }
+        }
+    },
+    "decodables": {
+        "kwd": {
+           "ctc-online-kwd": {}
+        }
+    },
+    "feature-read": {
+        "batch-size": 64,
+        "num-tries": 5
+    },
+    "decoders": {
+        "kwdchain": {
+           "keyword-spotting-decoder": {
+                "keyword-list-file": "./keyword_secure/keywords.txt",
+                "tokens-file": "./keyword_secure/ctc_tokens.txt",
+                "do-viterbi": true,
+                "threshold": -40
+            }
+        }
+    }
+}

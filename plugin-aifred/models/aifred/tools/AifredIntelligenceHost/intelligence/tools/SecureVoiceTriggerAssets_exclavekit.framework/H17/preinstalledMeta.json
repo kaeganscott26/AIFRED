@@ -1,0 +1,389 @@
+{
+  "fr-CH": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/fr-CH/AssetData", 
+    "relativeKeywordResourcePath": "H17/fr-CH/AssetData", 
+    "relativeResourcePath": "H17/fr-CH/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/fr-CH/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "en-IN": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/en-IN/AssetData", 
+    "relativeKeywordResourcePath": "H17/en-IN/AssetData", 
+    "relativeResourcePath": "H17/en-IN/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/en-IN/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "it-CH": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/it-CH/AssetData", 
+    "relativeKeywordResourcePath": "H17/it-CH/AssetData", 
+    "relativeResourcePath": "H17/it-CH/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/it-CH/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "fr-CA": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/fr-CA/AssetData", 
+    "relativeKeywordResourcePath": "H17/fr-CA/AssetData", 
+    "relativeResourcePath": "H17/fr-CA/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/fr-CA/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "en-IE": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/en-IE/AssetData", 
+    "relativeKeywordResourcePath": "H17/en-IE/AssetData", 
+    "relativeResourcePath": "H17/en-IE/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/en-IE/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.1002"
+  }, 
+  "it-IT": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/it-IT/AssetData", 
+    "relativeKeywordResourcePath": "H17/it-IT/AssetData", 
+    "relativeResourcePath": "H17/it-IT/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/it-IT/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "ar-AE": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/ar-AE/AssetData", 
+    "relativeKeywordResourcePath": "H17/ar-AE/AssetData", 
+    "relativeResourcePath": "H17/ar-AE/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/ar-AE/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "th-TH": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/th-TH/AssetData", 
+    "relativeKeywordResourcePath": "H17/th-TH/AssetData", 
+    "relativeResourcePath": "H17/th-TH/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/th-TH/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "sv-SE": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/sv-SE/AssetData", 
+    "relativeKeywordResourcePath": "H17/sv-SE/AssetData", 
+    "relativeResourcePath": "H17/sv-SE/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/sv-SE/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "ja-JP": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/ja-JP/AssetData", 
+    "relativeKeywordResourcePath": "H17/ja-JP/AssetData", 
+    "relativeResourcePath": "H17/ja-JP/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/ja-JP/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "es-ES": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/es-ES/AssetData", 
+    "relativeKeywordResourcePath": "H17/es-ES/AssetData", 
+    "relativeResourcePath": "H17/es-ES/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/es-ES/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "en-CA": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/en-US/AssetData", 
+    "relativeKeywordResourcePath": "H17/en-US/AssetData", 
+    "relativeResourcePath": "H17/en-US/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/en-US/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.1002"
+  }, 
+  "en-GB": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/en-GB/AssetData", 
+    "relativeKeywordResourcePath": "H17/en-GB/AssetData", 
+    "relativeResourcePath": "H17/en-GB/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/en-GB/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.1002"
+  }, 
+  "zh-CN": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/zh-CN/AssetData", 
+    "relativeKeywordResourcePath": "H17/zh-CN/AssetData", 
+    "relativeResourcePath": "H17/zh-CN/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/zh-CN/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.1002"
+  }, 
+  "es-US": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/es-US/AssetData", 
+    "relativeKeywordResourcePath": "H17/es-US/AssetData", 
+    "relativeResourcePath": "H17/es-US/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/es-US/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "de-CH": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/de-CH/AssetData", 
+    "relativeKeywordResourcePath": "H17/de-CH/AssetData", 
+    "relativeResourcePath": "H17/de-CH/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/de-CH/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "nl-NL": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/nl-NL/AssetData", 
+    "relativeKeywordResourcePath": "H17/nl-NL/AssetData", 
+    "relativeResourcePath": "H17/nl-NL/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/nl-NL/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "en-AU": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/en-AU/AssetData", 
+    "relativeKeywordResourcePath": "H17/en-AU/AssetData", 
+    "relativeResourcePath": "H17/en-AU/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/en-AU/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.1002"
+  }, 
+  "tr-TR": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/tr-TR/AssetData", 
+    "relativeKeywordResourcePath": "H17/tr-TR/AssetData", 
+    "relativeResourcePath": "H17/tr-TR/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/tr-TR/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "de-AT": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/de-CH/AssetData", 
+    "relativeKeywordResourcePath": "H17/de-CH/AssetData", 
+    "relativeResourcePath": "H17/de-CH/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/de-CH/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "da-DK": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/da-DK/AssetData", 
+    "relativeKeywordResourcePath": "H17/da-DK/AssetData", 
+    "relativeResourcePath": "H17/da-DK/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/da-DK/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "ms-MY": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/ms-MY/AssetData", 
+    "relativeKeywordResourcePath": "H17/ms-MY/AssetData", 
+    "relativeResourcePath": "H17/ms-MY/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/ms-MY/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "en-SG": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/en-SG/AssetData", 
+    "relativeKeywordResourcePath": "H17/en-SG/AssetData", 
+    "relativeResourcePath": "H17/en-SG/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/en-SG/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "ru-RU": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/ru-RU/AssetData", 
+    "relativeKeywordResourcePath": "H17/ru-RU/AssetData", 
+    "relativeResourcePath": "H17/ru-RU/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/ru-RU/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "en-US": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/en-US/AssetData", 
+    "relativeKeywordResourcePath": "H17/en-US/AssetData", 
+    "relativeResourcePath": "H17/en-US/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/en-US/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.1002"
+  }, 
+  "fr-BE": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/fr-CH/AssetData", 
+    "relativeKeywordResourcePath": "H17/fr-CH/AssetData", 
+    "relativeResourcePath": "H17/fr-CH/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/fr-CH/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "yue-CN": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/zh-HK/AssetData", 
+    "relativeKeywordResourcePath": "H17/zh-HK/AssetData", 
+    "relativeResourcePath": "H17/zh-HK/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/zh-HK/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "en-NZ": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/en-AU/AssetData", 
+    "relativeKeywordResourcePath": "H17/en-AU/AssetData", 
+    "relativeResourcePath": "H17/en-AU/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/en-AU/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.1002"
+  }, 
+  "pt-BR": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/pt-BR/AssetData", 
+    "relativeKeywordResourcePath": "H17/pt-BR/AssetData", 
+    "relativeResourcePath": "H17/pt-BR/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/pt-BR/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "nb-NO": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/nb-NO/AssetData", 
+    "relativeKeywordResourcePath": "H17/nb-NO/AssetData", 
+    "relativeResourcePath": "H17/nb-NO/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/nb-NO/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "fi-FI": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/fi-FI/AssetData", 
+    "relativeKeywordResourcePath": "H17/fi-FI/AssetData", 
+    "relativeResourcePath": "H17/fi-FI/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/fi-FI/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "vi-VN": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/vi-VN/AssetData", 
+    "relativeKeywordResourcePath": "H17/vi-VN/AssetData", 
+    "relativeResourcePath": "H17/vi-VN/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/vi-VN/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "ar-SA": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/ar-AE/AssetData", 
+    "relativeKeywordResourcePath": "H17/ar-AE/AssetData", 
+    "relativeResourcePath": "H17/ar-AE/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/ar-AE/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "zh-HK": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/zh-HK/AssetData", 
+    "relativeKeywordResourcePath": "H17/zh-HK/AssetData", 
+    "relativeResourcePath": "H17/zh-HK/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/zh-HK/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "pt-PT": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/pt-PT/AssetData", 
+    "relativeKeywordResourcePath": "H17/pt-PT/AssetData", 
+    "relativeResourcePath": "H17/pt-PT/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/pt-PT/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "zh-TW": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/zh-TW/AssetData", 
+    "relativeKeywordResourcePath": "H17/zh-TW/AssetData", 
+    "relativeResourcePath": "H17/zh-TW/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/zh-TW/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "ko-KR": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/ko-KR/AssetData", 
+    "relativeKeywordResourcePath": "H17/ko-KR/AssetData", 
+    "relativeResourcePath": "H17/ko-KR/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/ko-KR/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "es-MX": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/es-MX/AssetData", 
+    "relativeKeywordResourcePath": "H17/es-MX/AssetData", 
+    "relativeResourcePath": "H17/es-MX/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/es-MX/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "es-CL": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/es-US/AssetData", 
+    "relativeKeywordResourcePath": "H17/es-US/AssetData", 
+    "relativeResourcePath": "H17/es-US/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/es-US/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }, 
+  "de-DE": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/de-DE/AssetData", 
+    "relativeKeywordResourcePath": "H17/de-DE/AssetData", 
+    "relativeResourcePath": "H17/de-DE/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/de-DE/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.1002"
+  }, 
+  "en-ZA": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/en-ZA/AssetData", 
+    "relativeKeywordResourcePath": "H17/en-ZA/AssetData", 
+    "relativeResourcePath": "H17/en-ZA/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/en-ZA/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.1002"
+  }, 
+  "fr-FR": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/fr-FR/AssetData", 
+    "relativeKeywordResourcePath": "H17/fr-FR/AssetData", 
+    "relativeResourcePath": "H17/fr-FR/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/fr-FR/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.1002"
+  }, 
+  "he-IL": {
+    "isPremium": "False", 
+    "relativeAOPKeywordResourcePath": "H17/he-IL/AssetData", 
+    "relativeKeywordResourcePath": "H17/he-IL/AssetData", 
+    "relativeResourcePath": "H17/he-IL/AssetData", 
+    "relativeSpeakerRecognizerResourcePath": "H17/he-IL/AssetData", 
+    "assetHash": "SecurePreinstalledVoiceTriggerAssets", 
+    "configVersion": "2.22.2"
+  }
+}

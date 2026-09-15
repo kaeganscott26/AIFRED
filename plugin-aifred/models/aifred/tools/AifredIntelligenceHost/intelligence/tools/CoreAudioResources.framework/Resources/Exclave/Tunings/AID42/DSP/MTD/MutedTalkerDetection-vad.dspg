@@ -1,0 +1,232 @@
+graphName "MutedTalkerDetectionVAD"
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; 	Macros
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+[def sampleRateIn 48000]    ; overridden by ADM
+[def sampleRateRef 48000]   ; overridden by ADM
+[def sampleRateOut 48000]   ; overridden by ADM
+[def numChannelsRef 4]      ; overridden by ADM
+[def voiceProcSampleRate 24000]
+[def voiceProcBlockSize 480]
+[def vadProcSampleRate 16000]
+[def vadProcBlockSize 512]
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; 	Constants
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; EC_V5
+[def kAUEchoCancelerV5Param_RelativeDeltaEIR 3]
+[def kAUEchoCancelerV5Param_FreezeAdaptation 4]
+[def kAUEchoCancelerV5Param_ECRefMicDelayMilliSec 5]
+[def kAUEchoCancelerV5Param_IRDelay 8]
+[def kAUEchoCancelerV5Param_FlagforRES_Adapted 33]
+[def kAUEchoCancelerV5Param_FlagforRES_sxxTimeAligned 34]
+[def kAUEchoCancelerV5Param_MicEcleeXcorr 37]
+
+; OCNS_V4
+[def kAUOneChannelNSV4Bus_InMainFreq 0]
+[def kAUOneChannelNSV4Bus_InResGainTime 1]
+[def kAUOneChannelNSV4Bus_InLpcModTime 2]
+[def kAUOneChannelNSV4Bus_OutMainOutFreq 0]
+[def kAUOneChannelNSV4Bus_OutGainTime 1]
+[def kAUOneChannelNSV4Bus_OutNoiseEstTime 2]
+
+[def kAUOneChannelNSV4Param_SpeechProbability 1]
+
+; RES_V5
+[def kAUResidualEchoSuppressorV5Bus_InMainFreq 0]
+[def kAUResidualEchoSuppressorV5Bus_InEcleeFreq 1]
+[def kAUResidualEchoSuppressorV5Bus_InInRefFreq 2]
+[def kAUResidualEchoSuppressorV5Bus_InNsGainTime 3]
+[def kAUResidualEchoSuppressorV5Bus_InExtNoiseTime 4]
+[def kAUResidualEchoSuppressorV5Bus_InPolyEcleeFreq 5]
+[def kAUResidualEchoSuppressorV5Bus_OutMainFreq 0]
+[def kAUResidualEchoSuppressorV5Bus_OutEcleeFreq 1]
+[def kAUResidualEchoSuppressorV5Bus_OutGainTime 2]
+
+[def kAUResidualEchoSuppressorV5param_Speex_ECAdapted 6]
+[def kAUResidualEchoSuppressorV5param_Speex_ECMicEcleeXcorr 7]
+[def kAUResidualEchoSuppressorV5param_Speex_ECSxxTimeAligned 13]
+
+; EchoGate_V3
+[def kAUEchoGateV3_EcoEstInputBus 0]
+[def kAUEchoGateV3_TimeAlignedRefInputBus 1]
+[def kAUEchoGateV3_EsOutInputBus 2]
+[def kAUEchoGateV3_EcoEstInputBusFreq 3]
+[def kAUEchoGateV3_ResGainInputBus 4]
+[def kAUEchoGateV3_NetSuppGainInputBus 5]
+[def kAUEchoGateV3_NoiseEstimateBus 6]
+[def kAUEchoGateV3_NSGainBus 7]
+
+[def kAUEchoGateV3Param_SpeexSpeechProbability 3]
+[def kAUEchoGateV3Param_RelativeDeltaEIR 4]
+[def kAUEchoGateV3Param_IRDelay 19]
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;	I/O
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+in in
+in inRef
+out ecout
+out ulout
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;	Boxes
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Mic
+box InputSRC src 1 1
+
+; Ref
+box RefSummer sum 1 1
+box RefGain dbgn 1 1
+box RefSRC src 1 1
+
+; Mic1 LEC
+box Mic1LECV5 (aufx lec5) 2 3
+box Mic1LECV5_Out_FFT fft 1 1
+box Mic1LECV5_ECLEE_FFT fft 1 1
+box Mic1LECV5_Ref_FFT fft 1 1
+
+; One channel noise suppressor
+box OCNSV4 (aufx ons4 appl) 3 3
+box UnityGain constant 0 1
+box OCNSV4DeadEnd dead 1 0
+
+; Residual echo suppressor
+box RES1V5 (aufx res5 appl) 5 3
+box RES1V5DeadEnd dead 1 0 
+
+; Gain combining
+box NsResGainMin amin 2 1
+box SuppGain amul 2 1
+
+; Echo gate
+box GateV3 (aufx egt3 appl) 6 1
+box GateRefFFT fft 1 1
+
+; VAD
+box NNVAD_In_FFT fft 1 1
+box NNVAD (aufx nnva appl) 1 1
+box OutputDeadEndBox dead 1 0
+box gateSRC src 1 1
+box vadrb reblocker 1 1
+
+; Outputs
+box outJoin join 2 1 
+box outSplit split 1 2
+box outSRC src 1 1
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;	Wires
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+wire in (InputSRC 0) ([sampleRateIn] 1)
+wire InputSRC (Mic1LECV5 0) ([voiceProcSampleRate] 1 [voiceProcBlockSize])
+
+wire inRef RefSummer ([sampleRateRef] [numChannelsRef])
+wire RefSummer RefGain ([sampleRateRef] 1)
+wire RefGain RefSRC ([sampleRateIn] 1)
+wire RefSRC (Mic1LECV5 1) ([voiceProcSampleRate] 1 [voiceProcBlockSize])
+
+; Mic1 LEC outputs time-to-frequency conversion
+wire (Mic1LECV5 0) Mic1LECV5_Out_FFT ([voiceProcSampleRate] 1 [voiceProcBlockSize])
+wire (Mic1LECV5 1) Mic1LECV5_ECLEE_FFT ([voiceProcSampleRate] 1 [voiceProcBlockSize])
+wire (Mic1LECV5 2) Mic1LECV5_Ref_FFT ([voiceProcSampleRate] 1 [voiceProcBlockSize])
+
+; One channel noise suppressor - dead end output
+wire Mic1LECV5_Out_FFT (OCNSV4 [kAUOneChannelNSV4Bus_InMainFreq]) (freq [voiceProcSampleRate] 1 [voiceProcBlockSize]) 
+wire UnityGain (OCNSV4 [kAUOneChannelNSV4Bus_InResGainTime]) ([voiceProcSampleRate] 1 [voiceProcBlockSize]) 
+wire (Mic1LECV5 0) (OCNSV4 [kAUOneChannelNSV4Bus_InLpcModTime]) ([voiceProcSampleRate] 1 [voiceProcBlockSize]) 
+wire (OCNSV4 [kAUOneChannelNSV4Bus_OutMainOutFreq]) OCNSV4DeadEnd (freq [voiceProcSampleRate] 1 [voiceProcBlockSize])
+
+; Residual echo suppressor - dead end output
+wire Mic1LECV5_Out_FFT (RES1V5 [kAUResidualEchoSuppressorV5Bus_InMainFreq]) (freq [voiceProcSampleRate] 1 [voiceProcBlockSize])
+wire Mic1LECV5_ECLEE_FFT (RES1V5 [kAUResidualEchoSuppressorV5Bus_InEcleeFreq]) (freq [voiceProcSampleRate] 1 [voiceProcBlockSize])
+wire Mic1LECV5_Ref_FFT (RES1V5 [kAUResidualEchoSuppressorV5Bus_InInRefFreq]) (freq [voiceProcSampleRate] 1 [voiceProcBlockSize])
+wire (OCNSV4 [kAUOneChannelNSV4Bus_OutGainTime]) (RES1V5 [kAUResidualEchoSuppressorV5Bus_InNsGainTime]) ([voiceProcSampleRate] 1 [voiceProcBlockSize])
+wire (OCNSV4 [kAUOneChannelNSV4Bus_OutNoiseEstTime]) (RES1V5 [kAUResidualEchoSuppressorV5Bus_InExtNoiseTime]) ([voiceProcSampleRate] 1 [voiceProcBlockSize])
+wire (RES1V5 0) RES1V5DeadEnd (freq [voiceProcSampleRate] 1 [voiceProcBlockSize])
+
+; Gain combining stage
+wire (OCNSV4 [kAUOneChannelNSV4Bus_OutGainTime]) (NsResGainMin 0) ([voiceProcSampleRate] 1 [voiceProcBlockSize]) 
+wire (RES1V5 [kAUResidualEchoSuppressorV5Bus_OutGainTime]) (NsResGainMin 1) ([voiceProcSampleRate] 1 [voiceProcBlockSize])
+wire NsResGainMin (SuppGain 0) ([voiceProcSampleRate] 1 [voiceProcBlockSize]) 
+wire Mic1LECV5_Out_FFT (SuppGain 1) (freq [voiceProcSampleRate] 1 [voiceProcBlockSize]) 
+
+; Echo gate
+wire (Mic1LECV5 1) (GateV3 [kAUEchoGateV3_EcoEstInputBus]) ([voiceProcSampleRate] 1 [voiceProcBlockSize]) ;
+
+wire RefSRC GateRefFFT ([voiceProcSampleRate] 1 [voiceProcBlockSize])
+wire GateRefFFT (GateV3 [kAUEchoGateV3_TimeAlignedRefInputBus]) (freq [voiceProcSampleRate] 1 [voiceProcBlockSize])
+
+wire SuppGain (GateV3 [kAUEchoGateV3_EsOutInputBus]) (freq [voiceProcSampleRate] 1 [voiceProcBlockSize])
+wire (RES1V5 [kAUResidualEchoSuppressorV5Bus_OutEcleeFreq]) (GateV3 [kAUEchoGateV3_EcoEstInputBusFreq]) (freq [voiceProcSampleRate] 1 [voiceProcBlockSize]) ; linear echo estimate in freq
+wire (RES1V5 [kAUResidualEchoSuppressorV5Bus_OutGainTime]) (GateV3 [kAUEchoGateV3_ResGainInputBus]) ([voiceProcSampleRate] 1 [voiceProcBlockSize]) ; RES gain
+wire NsResGainMin (GateV3 [kAUEchoGateV3_NetSuppGainInputBus]) ([voiceProcSampleRate] 1 [voiceProcBlockSize]) ; net suppression gain
+
+
+; VAD
+wire GateV3 gateSRC ([voiceProcSampleRate] 1 [voiceProcBlockSize]) 
+wire gateSRC vadrb  ([vadProcSampleRate] 1)
+wire vadrb NNVAD_In_FFT ([vadProcSampleRate] 1 [vadProcBlockSize])
+wire NNVAD_In_FFT NNVAD (freq [vadProcSampleRate] 1 [vadProcBlockSize])
+wire NNVAD OutputDeadEndBox (freq [vadProcSampleRate] 1 [vadProcBlockSize])
+
+; prep for outputs
+wire (Mic1LECV5 0) (outJoin 0) ([voiceProcSampleRate] 1 [voiceProcBlockSize]) 
+wire GateV3 (outJoin 1) ([voiceProcSampleRate] 1 [voiceProcBlockSize]) 
+
+wire outJoin outSRC ([voiceProcSampleRate] 2 [voiceProcBlockSize]) 
+wire outSRC outSplit ([sampleRateOut] 2) 
+
+wire (outSplit 0) ecout ([sampleRateOut] 1) 
+wire (outSplit 1) ulout ([sampleRateOut] 1) 
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; 	Parameter wires
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; EC to RES
+wireParam (Mic1LECV5 [kAUEchoCancelerV5Param_FlagforRES_Adapted]) (RES1V5 [kAUResidualEchoSuppressorV5param_Speex_ECAdapted]) true
+wireParam (Mic1LECV5 [kAUEchoCancelerV5Param_FlagforRES_sxxTimeAligned]) (RES1V5 [kAUResidualEchoSuppressorV5param_Speex_ECSxxTimeAligned]) true
+wireParam (Mic1LECV5 [kAUEchoCancelerV5Param_MicEcleeXcorr]) (RES1V5 [kAUResidualEchoSuppressorV5param_Speex_ECMicEcleeXcorr]) true
+
+; Parameters to Gate
+wireParam (Mic1LECV5 [kAUEchoCancelerV5Param_RelativeDeltaEIR]) (GateV3 [kAUEchoGateV3Param_RelativeDeltaEIR]) true
+wireParam (Mic1LECV5 [kAUEchoCancelerV5Param_IRDelay]) (GateV3 [kAUEchoGateV3Param_IRDelay]) true
+wireParam (OCNSV4 [kAUOneChannelNSV4Param_SpeechProbability]) (GateV3 [kAUEchoGateV3Param_SpeexSpeechProbability]) true
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; 	Parameters
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+param sppb 0 out ; speech probability as boolean value (e.g. 0 or 1) 
+wireGraphParam sppb (NNVAD 5 global 0)
+
+param sppf 0 out ; speech probability as float value (e.g. anything between 0.0 and 1.0)  
+wireGraphParam sppf (NNVAD 6 global 0)
+
+;record "/Library/Preferences/Audio/mic_in.wav" (in 0) true
+;record "/Library/Preferences/Audio/ecout.wav" (Mic1LECV5 0) true
+;record "/Library/Preferences/Audio/ref_in.wav" (inRef 0) true
+;record "/Library/Preferences/Audio/gate.wav" (GateV3 0) true
+;record "/Library/Preferences/Audio/supot.wav" SuppGain true

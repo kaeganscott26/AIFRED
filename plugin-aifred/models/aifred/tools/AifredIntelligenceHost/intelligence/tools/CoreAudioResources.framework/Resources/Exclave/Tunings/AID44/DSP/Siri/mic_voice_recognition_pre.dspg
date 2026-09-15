@@ -1,0 +1,59 @@
+; =========================================================================
+; Input DSP input graph -- 2 mics, 0 speaker references
+; =========================================================================
+
+graphName "mic_voice_recognition_pre"
+
+
+; -------------------------------------------------------------------------
+; Definitions
+; -------------------------------------------------------------------------
+
+[def procSampleRate 16000]
+[def blockSize 512]
+
+[def numMics 2]
+
+in inputMicBus
+out preprocessorOutput
+
+; -------------------------------------------------------------------------
+; Siri boxes and audio units
+; -------------------------------------------------------------------------
+
+; Mic alignment workaround
+box micAlignmentSplitter split 1 [numMics]
+box micAlignmentDelay0 delay 1 1
+box micAlignmentDelay1 delay 1 1
+box extMicJoiner join [numMics] 1
+
+; Input conditioning
+box extMicTrim0 gain 1 1 ; mic sensitivity trim
+box extMicTrim1 gain 1 1
+box extMicDelay delay 1 1 ; for optimal ref alignment
+box extMicGain gain 1 1
+box extMicBPFilter (aufx tmst appl) 1 1
+
+; -------------------------------------------------------------------------
+; Microphones and references
+; -------------------------------------------------------------------------
+
+; Mic alignment workaround; apply mic trim
+wire inputMicBus micAlignmentSplitter ([procSampleRate] [numMics] [blockSize])
+wire (micAlignmentSplitter 0) micAlignmentDelay0 ([procSampleRate] 1 [blockSize])
+wire (micAlignmentSplitter 1) micAlignmentDelay1 ([procSampleRate] 1 [blockSize])
+wire micAlignmentDelay0	extMicTrim0 ([procSampleRate] 1 [blockSize])
+wire micAlignmentDelay1	extMicTrim1 ([procSampleRate] 1 [blockSize])
+wire extMicTrim0 (extMicJoiner 0) ([procSampleRate] 1 [blockSize])
+wire extMicTrim1 (extMicJoiner 1) ([procSampleRate] 1 [blockSize])
+
+; Delay the mic a little bit to put the self-IR peak at the right location
+wire extMicJoiner extMicDelay ([procSampleRate] [numMics] [blockSize])
+
+; Filter to remove bass content
+wire extMicDelay extMicGain     ([procSampleRate] [numMics] [blockSize])
+wire extMicGain  extMicBPFilter ([procSampleRate] [numMics] [blockSize])
+
+; Mic Preprocessing Output
+wire extMicBPFilter preprocessorOutput  ([procSampleRate] [numMics] [blockSize])
+

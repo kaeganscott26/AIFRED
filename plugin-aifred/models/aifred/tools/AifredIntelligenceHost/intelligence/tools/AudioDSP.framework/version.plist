@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>BuildAliasOf</key>
+	<string>AudioDSP</string>
+	<key>BuildVersion</key>
+	<string>46</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>ProjectName</key>
+	<string>AudioDSP_exclavekit</string>
+	<key>SourceVersion</key>
+	<string>819701000000000</string>
+</dict>
+</plist>

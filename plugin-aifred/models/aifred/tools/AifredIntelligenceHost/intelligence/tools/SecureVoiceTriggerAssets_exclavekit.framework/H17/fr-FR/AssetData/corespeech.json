@@ -1,0 +1,246 @@
+{
+    "continuousVoiceTrigger": {
+        "configFileNDAPI": "config_cs.txt", 
+        "silencePhraseIds": "2", 
+        "threshold": 2.461, 
+        "twoShotDecisionWaitTime": 0.65, 
+        "twoShotThreshold": -0.485, 
+        "voiceTriggerPhraseIds": "0,1"
+    }, 
+    "rtblobaop": {
+        "blob": "rtblob_aop_1_2.bin", 
+        "cert": "rtblob_aop_signing.cert", 
+        "majorVersion": "1", 
+        "minorVersion": "2", 
+        "phraseType": "HSJS", 
+        "signature": "rtblob_aop_1_2.signature"
+    }, 
+    "rtblobs": [
+        {
+            "blob": "rtblob_1_0.bin", 
+            "cert": "rtblobsigning.cert", 
+            "majorVersion": 1, 
+            "minorVersion": 0, 
+            "phraseType": "HSOnly", 
+            "signature": "rtblob_1_0.bin.signature"
+        }, 
+        {
+            "blob": "rtblob_1_1.bin", 
+            "cert": "rtblobsigning.cert", 
+            "majorVersion": 1, 
+            "minorVersion": 1, 
+            "phraseType": "HSJS", 
+            "signature": "rtblob_1_1.bin.signature"
+        }
+    ], 
+    "rtlocalemap": {
+        "ar-AE": [
+            "ar-AE", 
+            "ar-SA"
+        ], 
+        "da-DK": [
+            "da-DK"
+        ], 
+        "de-CH": [
+            "de-AT", 
+            "de-CH"
+        ], 
+        "de-DE": [
+            "de-DE"
+        ], 
+        "en-IE": [
+            "en-IE", 
+            "en-NZ", 
+            "en-ZA"
+        ], 
+        "en-IN": [
+            "en-IN", 
+            "en-SG"
+        ], 
+        "en-US": [
+            "en-CA", 
+            "en-US", 
+            "en-AU", 
+            "en-GB"
+        ], 
+        "es-ES": [
+            "es-ES", 
+            "es-MX", 
+            "es-US", 
+            "es-CL"
+        ], 
+        "fi-FI": [
+            "fi-FI"
+        ], 
+        "fr-CH": [
+            "fr-BE", 
+            "fr-CA", 
+            "fr-CH"
+        ], 
+        "fr-FR": [
+            "fr-FR"
+        ], 
+        "he-IL": [
+            "he-IL"
+        ], 
+        "it-IT": [
+            "it-IT", 
+            "it-CH"
+        ], 
+        "ja-JP": [
+            "ja-JP"
+        ], 
+        "ko-KR": [
+            "ko-KR"
+        ], 
+        "ms-MY": [
+            "ms-MY"
+        ], 
+        "nb-NO": [
+            "nb-NO"
+        ], 
+        "nl-NL": [
+            "nl-NL", 
+            "nl-BE"
+        ], 
+        "pt-BR": [
+            "pt-BR"
+        ], 
+        "ru-RU": [
+            "ru-RU"
+        ], 
+        "sv-SE": [
+            "sv-SE"
+        ], 
+        "th-TH": [
+            "th-TH"
+        ], 
+        "tr-TR": [
+            "tr-TR"
+        ], 
+        "vi-VN": [
+            "vi-VN"
+        ], 
+        "zh-CN": [
+            "zh-CN"
+        ], 
+        "zh-HK": [
+            "zh-HK", 
+            "yue-CN"
+        ], 
+        "zh-TW": [
+            "zh-TW"
+        ]
+    }, 
+    "speakerRecognition": {
+        "combinationWeight": 1.0, 
+        "configFileNdapi_sr": "config_sr.txt", 
+        "implicitProfileThreshold": 0.637, 
+        "implicitVTThreshold": -0.4, 
+        "implicit_training_enabled": 1, 
+        "maxEnrollmentUtterances": 40, 
+        "mindex": [
+            "mindex:transform.dnnc.unit", 
+            "mindex:fixedzeroop.dnnc", 
+            "mindex:fixedzeroop.hmm", 
+            "mindex:LSTM_Jupiter.mlmodelc.bnnsir", 
+            "mindex:LSTM_Jupiter.mlmodelc.weights"
+        ], 
+        "phrase": [
+            {
+                "name": "HS", 
+                "satThreshold": 0.6031
+            }, 
+            {
+                "name": "Siri", 
+                "satThreshold": 0.59
+            }
+        ], 
+        "pruningPSRThreshold": 0, 
+        "useSpeakerRecognitionAsset": 1
+    }, 
+    "version": "1", 
+    "voiceTriggerFirstPass": {
+        "configFileNDAPI": "config_1st.txt", 
+        "configFileNDAPISecure": "config_1st_secure.txt", 
+        "mindex": [
+            "mindex:6i398akimj_fr_FR_5x64c_fp16am_zgsm_cs_tt_std.dnnc", 
+            "mindex:6i398akimj_fr_FR_heySiri_Siri.hmm"
+        ], 
+        "threshold": -3.121
+    }, 
+    "voiceTriggerSecondPass": {
+        "analyzerPrependingAudioTime": 0.3, 
+        "analyzerTrailingAudioTime": 0.3, 
+        "configFileNDAPI": "config.txt", 
+        "configFileNDAPI_checker": "config_checker.txt", 
+        "configFileNDAPI_detector": "config_detector.txt", 
+        "configFileRecognizer": "recognizer.json", 
+        "extraSamplesAtStart": 8000, 
+        "mindex": [
+            "mindex:fixedzeroop.dnnc", 
+            "mindex:megatron_hsjs_8bit_compressed_v1_fp16_mil2bnns.mlmodelc.bnnsir", 
+            "mindex:kmwy9gp9pw_fr_FR_heySiri_Siri.hmm", 
+            "mindex:hmmfromctc.hmm", 
+            "mindex:megatron_hsjs_8bit_compressed_v1_fp16_mil2bnns.mlmodelc.weights", 
+            "mindex:fixedzeroop.hmm", 
+            "mindex:kmwy9gp9pw_fr_FR_5x192_zgsm.8bitab_cs.dnnc"
+        ], 
+        "phrase": [
+            {
+                "2ndChanceThreshold": -0.4, 
+                "loggingThreshold": -18.2, 
+                "name": "HS", 
+                "ndapiScaleFactor": 1.0, 
+                "preTriggerSilenceOffset": 0.1, 
+                "recognizerScoreScaleFactor": 1.0, 
+                "recognizerThresholdOffset": 0.0, 
+                "recognizerToken": "HS1_HS2", 
+                "rejectLoggingThreshold": -0.4, 
+                "threshold": -0.4
+            }, 
+            {
+                "2ndChanceThreshold": -2.0, 
+                "loggingThreshold": -32.1, 
+                "name": "Siri", 
+                "ndapiScaleFactor": 1.0, 
+                "preTriggerSilenceOffset": 0.0, 
+                "recognizerScoreScaleFactor": 1.0, 
+                "recognizerThresholdOffset": 0.0, 
+                "recognizerToken": "JS1", 
+                "rejectLoggingThreshold": -2.0, 
+                "threshold": -2.0
+            }
+        ], 
+        "phsRejectLoggingThreshold": 0.585, 
+        "preTriggerAudioTime": 0.3, 
+        "tokenDiscriminativeConfig": {
+            "discriminative_factors": [
+                5.0, 
+                5.0, 
+                10.0
+            ], 
+            "discriminative_score_idx": [
+                2, 
+                2, 
+                4
+            ], 
+            "phonetic_factors": [
+                0.0, 
+                0.0, 
+                0.0
+            ], 
+            "phonetic_score_idx": [
+                0, 
+                1, 
+                3
+            ], 
+            "tokens": [
+                "HS1_oddskip", 
+                "HS2_oddskip", 
+                "JS1_oddskip"
+            ]
+        }, 
+        "useKeywordSpotting": 1
+    }
+}

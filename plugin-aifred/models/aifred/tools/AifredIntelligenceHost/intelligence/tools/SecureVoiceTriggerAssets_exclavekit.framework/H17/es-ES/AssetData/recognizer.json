@@ -1,0 +1,78 @@
+{
+    "version-major": 176,
+    "version-minor": 0,
+    "model-info": {
+        "version": "33277443",
+        "language": "es_ES",
+        "sampling-rates": [
+            16000
+        ],
+        "tasks": [
+            "Dictation"
+        ],
+        "phoneset-version": "E35_ESP",
+        "acoustic-profile-version": "qsr-DNN-NOADAPT-1.0",
+        "os-types": [
+            "iOS",
+            "macOS",
+            "watchOS",
+            "tvOS",
+            "bridgeOS"
+        ]
+    },
+    "recognizers": {
+        "16000 :: Dictation :: * :: * :: *": "dnn :: kwd :: kwdchain"
+    },
+    "frontends": {
+        "dnn": {
+            "fbank": {
+                "num-mel-bins": 40,
+                "window-type": "hamming",
+                "high-freq": 8000,
+                "low-freq": 64,
+                "use-energy": false,
+                "htk-compat": true,
+                "dither": 1.0
+            },
+            "cmn": {
+                "cmn-window": 600,
+                "min-cmn-window": 100
+            },
+            "splice": {
+                "right-context": 3,
+                "left-context": 3
+            },
+            "subsample": {
+                "stride": 3
+            },
+            "nnet-forward": {
+                "apply-log": true,
+                "strict-batch-size": 64,
+                "zero-pad": true,
+                "append-pad-info": true,
+                "model-file": "./keyword/megatron_8bit_compressed_v1.mlmodelc/model.espresso.net",
+                "enable-memory-map": true,
+                "no-softmax": false
+            }
+        }
+    },
+    "decodables": {
+        "kwd": {
+           "ctc-online-kwd": {}
+        }
+    },
+    "feature-read": {
+        "batch-size": 64,
+        "num-tries": 10
+    },
+    "decoders": {
+        "kwdchain": {
+           "keyword-spotting-decoder": {
+                "keyword-list-file": "./keyword/keywords.txt",
+                "tokens-file": "./keyword/ctc_tokens.txt",
+		"do-viterbi": true,
+                "threshold": -40
+            }
+        }
+    }
+}

@@ -1,0 +1,166 @@
+{
+    "continuousVoiceTrigger": {
+        "configFileNDAPI": "config_cs.txt", 
+        "threshold": -0.984, 
+        "twoShotDecisionWaitTime": 0.9, 
+        "twoShotThreshold": -0.59
+    }, 
+    "rtblobaop": {
+        "blob": "rtblob_aop_1_4.bin", 
+        "cert": "rtblob_aop_signing.cert", 
+        "majorVersion": "1", 
+        "minorVersion": "4", 
+        "phraseType": "HSOnly", 
+        "signature": "rtblob_aop_1_4.signature"
+    }, 
+    "rtblobs": [
+        {
+            "blob": "rtblob_1_0.bin", 
+            "cert": "rtblobsigning.cert", 
+            "majorVersion": 1, 
+            "minorVersion": 0, 
+            "phraseType": "HSOnly", 
+            "signature": "rtblob_1_0.bin.signature"
+        }
+    ], 
+    "rtlocalemap": {
+        "ar-AE": [
+            "ar-AE", 
+            "ar-SA"
+        ], 
+        "da-DK": [
+            "da-DK"
+        ], 
+        "de-CH": [
+            "de-AT", 
+            "de-CH"
+        ], 
+        "de-DE": [
+            "de-DE"
+        ], 
+        "en-IE": [
+            "en-IE", 
+            "en-NZ", 
+            "en-ZA"
+        ], 
+        "en-IN": [
+            "en-IN", 
+            "en-SG"
+        ], 
+        "en-US": [
+            "en-CA", 
+            "en-US", 
+            "en-AU", 
+            "en-GB"
+        ], 
+        "es-ES": [
+            "es-ES", 
+            "es-MX", 
+            "es-US", 
+            "es-CL"
+        ], 
+        "fi-FI": [
+            "fi-FI"
+        ], 
+        "fr-CH": [
+            "fr-BE", 
+            "fr-CA", 
+            "fr-CH"
+        ], 
+        "fr-FR": [
+            "fr-FR"
+        ], 
+        "he-IL": [
+            "he-IL"
+        ], 
+        "it-IT": [
+            "it-IT", 
+            "it-CH"
+        ], 
+        "ja-JP": [
+            "ja-JP"
+        ], 
+        "ko-KR": [
+            "ko-KR"
+        ], 
+        "ms-MY": [
+            "ms-MY"
+        ], 
+        "nb-NO": [
+            "nb-NO"
+        ], 
+        "nl-NL": [
+            "nl-NL", 
+            "nl-BE"
+        ], 
+        "pt-BR": [
+            "pt-BR"
+        ], 
+        "ru-RU": [
+            "ru-RU"
+        ], 
+        "sv-SE": [
+            "sv-SE"
+        ], 
+        "th-TH": [
+            "th-TH"
+        ], 
+        "tr-TR": [
+            "tr-TR"
+        ], 
+        "vi-VN": [
+            "vi-VN"
+        ], 
+        "zh-CN": [
+            "zh-CN"
+        ], 
+        "zh-HK": [
+            "zh-HK", 
+            "yue-CN"
+        ], 
+        "zh-TW": [
+            "zh-TW"
+        ]
+    }, 
+    "speakerRecognition": {
+        "combinationWeight": 1.0, 
+        "configFileNdapi_sr": "config_sr.txt", 
+        "implicitProfileThreshold": 0.61, 
+        "implicitVTThreshold": -0.984, 
+        "implicit_training_enabled": 1, 
+        "maxEnrollmentUtterances": 40, 
+        "mindex": [
+            "mindex:transform.dnnc.unit", 
+            "mindex:fixedzeroop.dnnc", 
+            "mindex:fixedzeroop.hmm", 
+            "mindex:LSTM_Jupiter.mlmodelc.bnnsir", 
+            "mindex:LSTM_Jupiter.mlmodelc.weights"
+        ], 
+        "pruningPSRThreshold": 0, 
+        "satThreshold": 0.6, 
+        "useSpeakerRecognitionAsset": 1
+    }, 
+    "version": "1", 
+    "voiceTriggerFirstPass": {
+        "configFileNDAPI": "config_1st.txt", 
+        "configFileNDAPISecure": "config_1st_secure.txt", 
+        "mindex": [
+            "mindex:sensini_it_IT_5x32.8bitab.dnnc", 
+            "mindex:sensini_it_IT_hs_bsil.hmm"
+        ], 
+        "threshold": -1.285
+    }, 
+    "voiceTriggerSecondPass": {
+        "2ndChanceThreshold": -1.328, 
+        "configFileNDAPI": "config.txt", 
+        "configFileNDAPI_detector": "config_detector.txt", 
+        "loggingThreshold": -1.472, 
+        "mindex": [
+            "mindex:sensini_it_IT_hs_bsil.hmm", 
+            "mindex:sensini_it_IT_5x192.8bitab.dnnc", 
+            "mindex:sensini_it_IT_5x32.8bitab.dnnc"
+        ], 
+        "phsRejectLoggingThreshold": 0.58, 
+        "threshold": -0.984
+    }
+}

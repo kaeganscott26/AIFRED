@@ -1,0 +1,100 @@
+graphName "mic_voice_recognition_anml"
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; 	Macros
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+[def sampleRate 16000]
+[def numChannelsInput 3]
+[def numChannelsOutput 2]
+[def numChannelsULout 5]
+[def numChannelsANMLULIn 4]
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; 	Constants
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;	I/O
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+in micpreInput
+in ecoutInput
+in uloutInput
+out anomalyOutput
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;	Boxes
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+box uloutSplitter split 1 3
+box anomalyDec (aufx anmd appl) 3 1
+box preProcessedMicDelay delay 1 1
+box uloutAnomalyJoiner join 2 1
+box uloutJoiner join [numChannelsOutput] 1
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;	Wires
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+wire uloutInput uloutSplitter ([sampleRate] [numChannelsULout])
+
+wire micpreInput preProcessedMicDelay ([sampleRate] [numChannelsInput])
+wire preProcessedMicDelay (anomalyDec 0) ([sampleRate] [numChannelsInput])
+wire ecoutInput (anomalyDec 1) ([sampleRate] [numChannelsInput])
+
+wire (uloutSplitter 0) (uloutAnomalyJoiner 0) ([sampleRate] 1)
+wire (uloutSplitter 2) (uloutAnomalyJoiner 1) ([sampleRate] [numChannelsInput]) ; ECLEE
+
+wire (uloutAnomalyJoiner 0) (anomalyDec 2) ([sampleRate] [numChannelsANMLULIn])
+
+wire anomalyDec  (uloutJoiner 0) ([sampleRate] 1)
+wire (uloutSplitter 1)  (uloutJoiner 1) ([sampleRate] 1)
+
+wire uloutJoiner  anomalyOutput ([sampleRate] [numChannelsOutput])
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; 	Parameter wires
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; 	Parameters
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+[def kAUAnomalyDetectionParam_AnomalyDetected 1]
+param adet 0 out
+wireGraphParam adet (anomalyDec [kAUAnomalyDetectionParam_AnomalyDetected] global 0)
+
+[def kAUAnomalyDetectionParam_BypassEcleeCheck 4]
+param becl 0 in
+wireGraphParam becl (anomalyDec [kAUAnomalyDetectionParam_BypassEcleeCheck] global 0)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; 	Property wires
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; 	Properties
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
