@@ -61,6 +61,7 @@ target_compile_definitions(Aifred
     AIFRED_VERSION_STRING="${PROJECT_VERSION}"
     AIFRED_BUILD_ID="${AIFRED_BUILD_ID}"
     AIFRED_REFERENCE_POOL_URL="https://north3rnlight3r.com/api/v1/reference/pool"
+     
 )
 
 target_link_libraries(Aifred
