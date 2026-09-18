@@ -292,25 +292,25 @@ inline BetaView makeBetaView(
 
     view.presentation=presentation;
 
-    const auto value=
+    const auto liveValue=
         [&](core::MetricId id)
         {
-            const auto& m=observation.get(id);
+            const auto& metric=live.get(id);
 
-            return m.valid
-                ? static_cast<float>(m.typical)
+            return metric.valid
+                ? static_cast<float>(metric.value)
                 : 0.0f;
         };
 
     auto& m=view.metrics;
 
-    m.rmsDb=value(core::MetricId::rms);
-    m.peakDb=value(core::MetricId::samplePeak);
-    m.truePeakDb=value(core::MetricId::truePeak);
-    m.crestDb=value(core::MetricId::crest);
+    m.rmsDb=liveValue(core::MetricId::rms);
+    m.peakDb=liveValue(core::MetricId::samplePeak);
+    m.truePeakDb=liveValue(core::MetricId::truePeak);
+    m.crestDb=liveValue(core::MetricId::crest);
 
-    m.shortTermLufs=value(core::MetricId::shortTerm);
-    m.integratedLufs=value(core::MetricId::integrated);
+    m.shortTermLufs=liveValue(core::MetricId::shortTerm);
+    m.integratedLufs=liveValue(core::MetricId::integrated);
 
     m.stereoWidth=
         static_cast<float>(
@@ -436,8 +436,19 @@ inline BetaView makeBetaView(
         detail.emphasizedBy=
             definition.emphasizedBy;
 
+        const auto id=static_cast<core::MetricId>(i);
+        const auto liveMeter=
+            id==core::MetricId::rms
+            ||id==core::MetricId::samplePeak
+            ||id==core::MetricId::truePeak
+            ||id==core::MetricId::crest
+            ||id==core::MetricId::shortTerm
+            ||id==core::MetricId::integrated
+            ||id==core::MetricId::correlation
+            ||id==core::MetricId::width;
+
         const auto shown=
-            detail.isLive
+            (detail.isLive||liveMeter)
                 ? live.metrics[i]
                 : core::MetricValue{
                     detail.observed.typical,
