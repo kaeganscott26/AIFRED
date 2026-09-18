@@ -11,13 +11,15 @@ int main()
 {
     auto live=std::make_unique<EngineSnapshot>(); auto observation=std::make_unique<ObservationSnapshot>();
     live->profileId=ProfileId::mixBalanced;live->profileVersion=profile(ProfileId::mixBalanced).version;
-    live->get(MetricId::rms)={-3.125,true};live->get(MetricId::correlation)={-.463742,true};live->get(MetricId::width)={71.638,true};
+    live->valid=true;live->signalActive=true;
+    live->get(MetricId::rms)={-3.125,true};live->get(MetricId::truePeak)={-1.5,true};
+    live->get(MetricId::crest)={9.0,true};live->get(MetricId::correlation)={-.463742,true};live->get(MetricId::width)={71.638,true};
     observation->metrics[index(MetricId::rms)].valid=true;observation->metrics[index(MetricId::rms)].typical=-2.347123;
     observation->metrics[index(MetricId::correlation)].valid=true;observation->metrics[index(MetricId::correlation)].typical=.8;
     live->binCount=4097;live->averagePower[300]=1e-12;live->peakPower[300]=1e-10;
     for(std::size_t i=0;i<observation->bands.size();++i){observation->bands[i].valid=true;observation->bands[i].typical=-96.0+static_cast<double>(i);}
     auto view=std::make_unique<aifred::BetaView>(aifred::makeBetaView(*live,*observation));
-    check(view->metrics.rmsDb==static_cast<float>(-2.347123),"meter retains fractional observation");
+    check(view->metrics.rmsDb==static_cast<float>(-3.125),"halo retains current DSP RMS");
     check(view->metrics.correlation==static_cast<float>(-.463742),"correlation comes from live DSP");
     check(view->metrics.stereoWidth==static_cast<float>(71.638)/100,"width comes from live DSP");
     check(view->spectrumPower[300]==1e-12,"display floor cannot mutate analytical bins");
@@ -37,7 +39,8 @@ int main()
     }
     check(!aifred::modalShouldDismiss(10,10,100,100,50,50)&&aifred::modalShouldDismiss(10,10,100,100,5,50),"modal inside remains and outside dismisses");
     for(std::size_t i=0;i<view->metrics.spectrumBands.size();++i)check(view->metrics.spectrumBands[i]==(observation->bands[i].valid?aifred::linearPresentation(static_cast<float>(observation->bands[i].typical),-96,0):0),"every spectrum bar maps its measured band");
-    check(!view->metricDetails[index(MetricId::rms)].isLive&&view->metricDetails[index(MetricId::rms)].rawCurrent==-3.125&&view->metricDetails[index(MetricId::rms)].displayedValue==-2.347123,"click-ready observed metric metadata");
+    check(!view->metricDetails[index(MetricId::rms)].isLive&&view->metricDetails[index(MetricId::rms)].rawCurrent==-3.125&&view->metricDetails[index(MetricId::rms)].displayedValue==-2.347123,"observed metric metadata remains separate");
+    check(view->metrics.truePeakDb==-1.5,"Halo true peak uses current DSP metric");
     auto first=std::make_unique<Pipeline>("beta","0.3.6"),second=std::make_unique<Pipeline>("official","4.0.0-alpha.2");
     check(first->instanceId()!=second->instanceId(),"instance isolation");
     first->prepare(48000,2);

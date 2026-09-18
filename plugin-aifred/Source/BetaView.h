@@ -275,8 +275,8 @@ inline BetaView makeBetaView(
     BetaView view;
 
     view.observation=observation;
-    view.hasSignal=observation.signalActive;
-    view.valuesValid=observation.valid;
+    view.hasSignal=live.signalActive;
+    view.valuesValid=live.valid;
     view.isStale=!observation.fresh;
 
     view.spectrumPower=live.averagePower;
@@ -312,13 +312,18 @@ inline BetaView makeBetaView(
     m.shortTermLufs=liveValue(core::MetricId::shortTerm);
     m.integratedLufs=liveValue(core::MetricId::integrated);
 
-    m.stereoWidth=
-        static_cast<float>(
-            live.get(core::MetricId::width).value)/100;
+    const auto liveMetricValue=
+        [&](core::MetricId id)
+        {
+            const auto& metric=live.get(id);
 
-    m.correlation=
-        static_cast<float>(
-            live.get(core::MetricId::correlation).value);
+            return metric.valid
+                ? static_cast<float>(metric.value)
+                : 0.0f;
+        };
+
+    m.stereoWidth=liveMetricValue(core::MetricId::width)/100.0f;
+    m.correlation=liveMetricValue(core::MetricId::correlation);
 
     // -------------------------------------------------------------------------
     // HALO SCALE MAPPINGS
@@ -436,19 +441,8 @@ inline BetaView makeBetaView(
         detail.emphasizedBy=
             definition.emphasizedBy;
 
-        const auto id=static_cast<core::MetricId>(i);
-        const auto liveMeter=
-            id==core::MetricId::rms
-            ||id==core::MetricId::samplePeak
-            ||id==core::MetricId::truePeak
-            ||id==core::MetricId::crest
-            ||id==core::MetricId::shortTerm
-            ||id==core::MetricId::integrated
-            ||id==core::MetricId::correlation
-            ||id==core::MetricId::width;
-
         const auto shown=
-            (detail.isLive||liveMeter)
+            (detail.isLive)
                 ? live.metrics[i]
                 : core::MetricValue{
                     detail.observed.typical,

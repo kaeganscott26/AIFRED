@@ -11,19 +11,13 @@ case "$action" in
 esac
 
 require_macos
-require_tools cmake ninja dotnet python3 git tar
+require_tools cmake ninja dotnet python3 git tar shasum
 prepare_origin_source
 
-cmake -S "$SOURCE_ROOT" -B "$BUILD_ROOT" -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_CXX_STANDARD=20 \
-  -DCMAKE_CXX_STANDARD_REQUIRED=ON \
-  -DCMAKE_OSX_ARCHITECTURES=arm64 \
-  -DJUCE_BUILD_EXAMPLES=OFF \
-  -DJUCE_BUILD_EXTRAS=OFF
+cmake --preset macos-release
 [[ "$action" == configure ]] && exit 0
 
-cmake --build "$BUILD_ROOT" --target \
+cmake --build --preset macos-release --target \
   Aifred_VST3 \
   aifred_frontend_contract_tests \
   aifred_fixture_meter \
@@ -36,12 +30,17 @@ cmake --build "$BUILD_ROOT" --target \
 python3 -B "$SOURCE_ROOT/scripts/common/check_repository.py"
 python3 -B -m unittest discover -s "$SOURCE_ROOT/scripts/tests"
 dotnet run --project "$SOURCE_ROOT/tools/AifredIntelligenceHost.Tests/AifredIntelligenceHost.ContractTests.csproj" -c Release
-ctest --test-dir "$BUILD_ROOT" --output-on-failure
+ctest --preset macos-release
 python3 -B "$SOURCE_ROOT/scripts/common/check_shared_core.py"
 [[ "$action" == test ]] && exit 0
 
+python3 -B "$ROOT/scripts/common/release.py" prepare --platform macos-arm64
 stage_release
-[[ "$action" == stage ]] && exit 0
+python3 -B "$ROOT/scripts/common/release.py" manifest --platform macos-arm64
+python3 -B "$ROOT/scripts/common/release.py" verify --platform macos-arm64 --location stage
+[[ "$action" == stage || "$action" == package ]] && exit 0
+
+python3 -B "$ROOT/scripts/common/release.py" promote --platform macos-arm64
 
 package_release
-[[ "$action" == package || "$action" == release ]] && exit 0
+[[ "$action" == release ]] && exit 0

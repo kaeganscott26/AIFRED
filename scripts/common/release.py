@@ -19,6 +19,10 @@ def digest(path):
     with path.open('rb') as stream:
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
+def tree_digest(folder):
+    files={p.relative_to(folder).as_posix():digest(p) for p in folder.rglob('*') if p.is_file()}
+    return hashlib.sha256(json.dumps(files,sort_keys=True).encode()).hexdigest()
+
 def checked_path(path, parent):
     path, parent = Path(path).absolute(), Path(parent).absolute()
     if path == parent or not path.is_relative_to(parent):
@@ -97,7 +101,8 @@ def prepare_scratch(key):
     (folder/'.aifred-stage.json').write_text(json.dumps({'product':info['product'],'channel':info['channel']}))
 
 def manifest(key):
-    if key!='windows-x64': raise ValueError('Full release manifest/promotion is Windows-only; other platforms are SCAFFOLDED / NOT VALIDATED')
+    if key not in ('windows-x64','macos-arm64'):
+        raise ValueError('Full release manifest/promotion is unavailable for this platform')
     stage=checked_path(ROOT/'out'/key/'stage',ROOT/'out')
     owned(stage)
     info=layout()
@@ -106,14 +111,15 @@ def manifest(key):
     if not match: raise ValueError('Version missing from CMake authority')
     files={p.relative_to(stage).as_posix():digest(p) for p in stage.rglob('*') if p.is_file() and p.name!='manifest.json'}
     is_official=info['product']=='AIFRED 4'
-    plugin='Aifred.vst3' if is_official else 'AIFRED-VST3-windows/Aifred.vst3'
-    shared_dsp='shared-dsp' if is_official else 'AIFRED-VST3-windows/shared-dsp'
-    engine='AifredIntelligenceHost' if is_official else 'AIFRED-VST3-windows/AifredIntelligenceHost'
+    plugin='Aifred.vst3' if key=='macos-arm64' or is_official else 'AIFRED-VST3-windows/Aifred.vst3'
+    shared_dsp='shared-dsp' if key=='macos-arm64' or is_official else 'AIFRED-VST3-windows/shared-dsp'
+    engine='IntelligenceHost' if key=='macos-arm64' else ('AifredIntelligenceHost' if is_official else 'AIFRED-VST3-windows/AifredIntelligenceHost')
     result={'schema':'aifred.release.v2','product':info['product'],'channel':info['channel'],'version':match.group(1),'gitSha':git('rev-parse','HEAD'),'workingTreeDirty':bool(git('status','--porcelain')),'sourceTreeSha256':source_tree_hash(),'platform':key,'architecture':info['platforms'][key]['architecture'],'toolchain':{'host':platform.platform(),'cmake':subprocess.check_output(['cmake','--version'],text=True).splitlines()[0],'dotnet':subprocess.check_output(['dotnet','--version'],text=True).strip()},'dspProfileSchemaVersion':info['dspProfileSchemaVersion'],'sharedCoreVersion':info['sharedCoreVersion'],'profiles':info['profiles'],'contextSchema':info['contextSchema'],'runtimeChannel':info['runtimeChannel'],'hostPort':info['hostPort'],'plugin':plugin,'sharedDsp':shared_dsp,'engine':engine,'installer':None if is_official else 'installer/AIFRED-VST3-Setup.exe','hashes':files,'validation':'build and repository tests; DAW/signing not certified'}
     (stage/'manifest.json').write_text(json.dumps(result,indent=2)+'\n')
 
 def verify(key,location='current'):
-    if key!='windows-x64': raise ValueError('Complete release validation is implemented for Windows only')
+    if key not in ('windows-x64','macos-arm64'):
+        raise ValueError('Complete release validation is unavailable for this platform')
     folder=checked_path(ROOT/'out'/key/location,ROOT/'out')
     owned(folder)
     data=json.loads((folder/'manifest.json').read_text())
@@ -138,6 +144,20 @@ def verify(key,location='current'):
         source=ROOT/'out'/key/'build'/info['platforms'][key]['plugin']/'Contents/x86_64-win/Aifred.vst3'
         if location=='stage' and digest(source)!=actual[data['plugin']+'/Contents/x86_64-win/Aifred.vst3']:
             raise ValueError('Staged plugin differs from the exact build target')
+    else:
+        checked_path(folder/data['plugin'],folder)
+        checked_path(folder/data['engine'],folder)
+        required=[data['plugin']+'/Contents/MacOS/Aifred',data['plugin']+'/Contents/Resources/moduleinfo.json']
+        required += [data['sharedDsp']+'/README.md',data['engine']+'/AifredIntelligenceHost',data['engine']+'/channel.json']
+        channel_metadata=json.loads((folder/data['engine']/'channel.json').read_text(encoding='utf-8'))
+        if channel_metadata.get('channel') != info['runtimeChannel'] or not channel_metadata.get('commit'):
+            raise ValueError('Host channel metadata is malformed')
+        if location=='stage':
+            source=ROOT/'out'/key/'build'/info['platforms'][key]['plugin']
+            if tree_digest(source)!=tree_digest(folder/data['plugin']):
+                raise ValueError('Staged plugin differs from the exact build target')
+        for name in required:
+            if name not in actual: raise ValueError(f'Required component missing: {name}')
     print(f'Verified {folder}: {len(actual)} hashed files')
 
 def promote(key):

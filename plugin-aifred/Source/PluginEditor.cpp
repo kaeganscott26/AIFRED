@@ -672,15 +672,15 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
   auto accent = referenceOverlay ? appearanceColour(appearanceMenu_.getSelectedId()) : accentForMode(processor_.getMode());
   const auto dynamics01 =
     hasValidLiveData
-      ? crestPresentation(static_cast<float>(state.metricDetails[core::index(core::MetricId::crest)].displayedValue))
+      ? crestPresentation(state.metrics.crestDb)
       : 0.0f;
   const auto rmsScale =
     hasValidLiveData
-      ? haloRmsPresentation(static_cast<float>(state.metricDetails[core::index(core::MetricId::rms)].displayedValue))
+      ? haloRmsPresentation(state.metrics.rmsDb)
       : 0.0f;
   const auto truePeak01 =
     hasValidLiveData
-      ? truePeakPresentation(static_cast<float>(state.metricDetails[core::index(core::MetricId::truePeak)].displayedValue))
+      ? truePeakPresentation(state.metrics.truePeakDb)
       : 0.0f;
   const auto widthScale=hasValidLiveData?stereoSpreadPresentation(state.metrics.correlation):0.0f;
   const auto canonicalLabel = [&](core::MetricId id) {
