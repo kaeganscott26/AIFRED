@@ -33,6 +33,7 @@ if [[ ! -f "$ROOT/CMakeLists.txt" || ! -f "$ROOT/CMakePresets.json" ]]; then
   exit 1
 fi
 
+rm -f "$DMG"
 echo "Packaging AIFRED Beta $(git -C "$ROOT" rev-parse --short HEAD)"
 cmake --preset macos-release
 cmake --build --preset macos-release --target Aifred_VST3
@@ -40,7 +41,7 @@ cmake --build --preset macos-release --target Aifred_VST3
 rm -rf "$PACKAGE"
 mkdir -p "$PAYLOAD/Library/Audio/Plug-Ins/VST3" \
   "$PAYLOAD/Library/Application Support/Aifred/beta/IntelligenceHost/bin" \
-  "$PAYLOAD/Library/LaunchAgents" "$SCRIPTS" "$DMG_ROOT"
+  "$SCRIPTS" "$DMG_ROOT"
 
 if [[ ! -d "$PLUGIN" ]]; then
   echo "VST3 build output was not found: $PLUGIN" >&2
@@ -58,7 +59,7 @@ printf '{"channel":"beta"}\n' > \
   "$PAYLOAD/Library/Application Support/Aifred/beta/IntelligenceHost/bin/channel.json"
 xattr -rc "$PAYLOAD" 2>/dev/null || true
 
-cat > "$PAYLOAD/Library/LaunchAgents/com.north3rnlight3r.aifred-intelligence-host.plist" <<'PLIST'
+cat > "$PAYLOAD/Library/Application Support/Aifred/beta/IntelligenceHost/com.north3rnlight3r.aifred-intelligence-host.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -104,11 +105,15 @@ cat > "$DMG_ROOT/Install AIFRED Beta.command" <<'INSTALLER'
 #!/usr/bin/env bash
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-open "$SCRIPT_DIR/AIFRED Beta Installer.pkg"
+echo "Installing AIFRED Beta..."
+sudo /usr/sbin/installer -pkg "$SCRIPT_DIR/AIFRED Beta Installer.pkg" -target /
+echo
+echo "AIFRED Beta installed. Ollama and the Beta IntelligenceHost are configured for port 8787."
+read -r -p "Press Enter to close..." _
 INSTALLER
 chmod 755 "$DMG_ROOT/Install AIFRED Beta.command"
 
-printf 'AIFRED Beta %s for macOS arm64\n\nOpen the installer package.\n' "$VERSION" > "$DMG_ROOT/README.txt"
+printf 'AIFRED Beta %s for macOS arm64\n\nRun "Install AIFRED Beta.command" to install the plugin, Ollama setup, and the Beta IntelligenceHost.\n' "$VERSION" > "$DMG_ROOT/README.txt"
 
 rm -f "$DMG"
 hdiutil create -volname "AIFRED Beta ${VERSION}" -srcfolder "$DMG_ROOT" \

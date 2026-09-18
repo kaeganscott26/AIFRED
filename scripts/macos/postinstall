@@ -6,10 +6,11 @@ OLLAMA_APP="/Applications/Ollama.app"
 OLLAMA_BIN="$OLLAMA_APP/Contents/Resources/ollama"
 MODEL="${AIFRED_OLLAMA_MODEL:-aifred:latest}"
 HOST_LABEL="com.north3rnlight3r.aifred-intelligence-host"
-HOST_PLIST="/Library/LaunchAgents/${HOST_LABEL}.plist"
+HOST_PLIST_SOURCE="/Library/Application Support/Aifred/beta/IntelligenceHost/${HOST_LABEL}.plist"
 
 console_user="$(stat -f '%Su' /dev/console)"
 console_uid="$(id -u "$console_user")"
+console_home="$(dscl . -read "/Users/$console_user" NFSHomeDirectory | awk '{print $2}')"
 
 if [[ "$console_user" == "root" || -z "$console_user" ]]; then
   echo "A logged-in macOS user is required to finish AIFRED setup." >&2
@@ -43,12 +44,16 @@ for attempt in {1..60}; do
 done
 launch_as_user "$OLLAMA_BIN" pull "$MODEL"
 
-chown -R root:wheel \
-  "/Library/Application Support/Aifred" "$HOST_PLIST"
-chmod 755 "/Library/Application Support/Aifred/beta/IntelligenceHost/bin/AifredIntelligenceHost"
+HOST_PLIST="$console_home/Library/LaunchAgents/${HOST_LABEL}.plist"
+mkdir -p "$(dirname "$HOST_PLIST")"
+cp "$HOST_PLIST_SOURCE" "$HOST_PLIST"
+chown "$console_user":staff "$HOST_PLIST"
 chmod 644 "$HOST_PLIST"
-launchctl bootout "gui/$console_uid/$HOST_LABEL" 2>/dev/null || true
-launchctl bootstrap "gui/$console_uid" "$HOST_PLIST"
-launchctl kickstart -k "gui/$console_uid/$HOST_LABEL"
+chmod 755 "/Library/Application Support/Aifred/beta/IntelligenceHost/bin/AifredIntelligenceHost"
+
+# The host belongs to the logged-in user's GUI session, not the system domain.
+launch_as_user launchctl bootout "gui/$console_uid/$HOST_LABEL" 2>/dev/null || true
+launch_as_user launchctl bootstrap "gui/$console_uid" "$HOST_PLIST"
+launch_as_user launchctl kickstart -k "gui/$console_uid/$HOST_LABEL"
 
 echo "AIFRED IntelligenceHost is running on http://127.0.0.1:8787."
