@@ -14,10 +14,12 @@ try
     var payload = Path.Combine(scratch, "payload");
     ZipFile.ExtractToDirectory(archivePath, payload);
     var plugin = Path.Combine(payload, "Aifred.vst3");
+    var sharedDsp = Path.Combine(payload, "shared-dsp");
     var host = Path.Combine(payload, "AifredIntelligenceHost");
-    if (!File.Exists(Path.Combine(plugin, "Contents", "x86_64-win", "Aifred.vst3")) || !File.Exists(Path.Combine(host, "AifredIntelligenceHost.exe"))) throw new IOException("Incomplete payload.");
+    if (!File.Exists(Path.Combine(plugin, "Contents", "x86_64-win", "Aifred.vst3")) || !File.Exists(Path.Combine(sharedDsp, "README.md")) || !File.Exists(Path.Combine(host, "AifredIntelligenceHost.exe"))) throw new IOException("Incomplete payload.");
     InstallOwnership.StopHost();
     InstallOwnership.Install(plugin, InstallOwnership.PluginParent, "Aifred.vst3");
+    InstallOwnership.Install(sharedDsp, InstallOwnership.PluginParent, "shared-dsp");
     InstallOwnership.Install(host, InstallOwnership.HostParent, "IntelligenceHost");
     InstallOwnership.Startup(true);
     Process.Start(new ProcessStartInfo(InstallOwnership.Host, "--channel beta") { UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden });

@@ -6,6 +6,10 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+if(MSVC)
+  add_compile_options(/EHsc)
+endif()
+
 option(AIFRED_BUILD_PLUGIN "Build the Aifred VST3 plugin" ON)
 
 enable_testing()

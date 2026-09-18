@@ -7,6 +7,7 @@ $current=Join-Path $repositoryRoot 'out/windows-x64/current'
 $manifest=Get-Content -Raw -LiteralPath (Join-Path $current 'manifest.json') | ConvertFrom-Json
 Stop-OwnedHost
 Install-OwnedTree (Join-Path $current $manifest.plugin) $pluginParent 'Aifred.vst3'
+Install-OwnedTree (Join-Path $current $manifest.sharedDsp) $pluginParent 'shared-dsp'
 Install-OwnedTree (Join-Path $current $manifest.engine) $hostParent 'IntelligenceHost'
 New-Item -Path $runKey -Force | Out-Null
 Set-ItemProperty -LiteralPath $runKey -Name $startupName -Value "`"$hostExe`" --channel $channel"

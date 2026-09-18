@@ -29,6 +29,7 @@ try {
     if (!(Test-Path -LiteralPath (Join-Path $sourceBundle 'Contents/x86_64-win/Aifred.vst3'))) { throw 'Exact expected VST3 binary is missing.' }
     if ($official) {
         Copy-Item -LiteralPath $sourceBundle -Destination (Join-Path $stageRoot 'Aifred.vst3') -Recurse
+        Copy-Item -LiteralPath (Join-Path $repositoryRoot 'shared-dsp') -Destination (Join-Path $stageRoot 'shared-dsp') -Recurse
         Invoke-Checked dotnet @('publish','tools/AifredIntelligenceHost/AifredIntelligenceHost.csproj','-c','Release','-r','win-x64','--self-contained','false','-o',(Join-Path $stageRoot 'AifredIntelligenceHost'))
     } else {
         Invoke-Checked pwsh @('-NoProfile','-File','tools/package-aifred.ps1','-BuildRoot','out/windows-x64/build','-OutputDir','out/windows-x64/stage','-Platform','windows')

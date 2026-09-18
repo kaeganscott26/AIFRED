@@ -30,6 +30,7 @@ def main() -> int:
         names = set(archive.namelist())
         required = [
             "Aifred.vst3/Contents/x86_64-win/Aifred.vst3",
+            "shared-dsp/README.md",
             "AifredIntelligenceHost/AifredIntelligenceHost.exe",
             "AifredIntelligenceHost/AifredIntelligenceHost.runtimeconfig.json",
             "AifredIntelligenceHost/channel.json",

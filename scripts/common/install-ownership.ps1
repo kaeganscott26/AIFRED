@@ -4,6 +4,7 @@ $layout=Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'scripts/releas
 $channel=$layout.runtimeChannel
 $displayChannel=(Get-Culture).TextInfo.ToTitleCase($channel)
 $pluginParent=Join-Path $env:COMMONPROGRAMFILES "VST3/AIFRED $displayChannel"
+$sharedDspTarget=Join-Path $pluginParent 'shared-dsp'
 $hostParent=Join-Path $env:LOCALAPPDATA "Aifred/$channel"
 $hostTarget=Join-Path $hostParent 'IntelligenceHost'
 $hostExe=Join-Path $hostTarget 'AifredIntelligenceHost.exe'

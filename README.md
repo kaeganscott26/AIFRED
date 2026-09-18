@@ -27,7 +27,7 @@ pwsh -NoProfile -File scripts/windows/build.ps1 -Action test
 pwsh -NoProfile -File scripts/windows/build.ps1 -Action release
 ```
 
-`release` builds and validates the VST3, IntelligenceHost, installer, uninstaller, and ZIP, then promotes the verified set to `out/windows-x64/current/`.
+`release` builds and validates the VST3, bundled `shared-dsp` folder, IntelligenceHost chat engine, installer, uninstaller, and ZIP, then promotes the verified set to `out/windows-x64/current/`.
 
 ## Install, update, and uninstall
 

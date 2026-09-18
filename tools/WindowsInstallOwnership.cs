@@ -8,6 +8,7 @@ internal static class InstallOwnership
     internal static readonly string PluginParent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonProgramFiles), "VST3", "AIFRED Beta");
     internal static readonly string HostParent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Aifred", "beta");
     internal static string Host => Path.Combine(HostParent, "IntelligenceHost", "AifredIntelligenceHost.exe");
+    internal static string SharedDsp => Path.Combine(PluginParent, "shared-dsp");
     internal const string StartupName = "AIFRED Beta Intelligence Host";
 
     internal static void CheckTree(string path, string parent)
