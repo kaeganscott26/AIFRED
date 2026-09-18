@@ -8,6 +8,7 @@
     <RootNamespace>AifredWindowsInstaller</RootNamespace>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
+    <DebugType>None</DebugType>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <UseWindowsForms>true</UseWindowsForms>

@@ -9,6 +9,7 @@ Stop-OwnedHost
 Install-OwnedTree (Join-Path $current $manifest.plugin) $pluginParent 'Aifred.vst3'
 Install-OwnedTree (Join-Path $current $manifest.sharedDsp) $pluginParent 'shared-dsp'
 Install-OwnedTree (Join-Path $current $manifest.engine) $hostParent 'IntelligenceHost'
+& (Join-Path $PSScriptRoot 'setup-ollama.ps1')
 New-Item -Path $runKey -Force | Out-Null
 Set-ItemProperty -LiteralPath $runKey -Name $startupName -Value "`"$hostExe`" --channel $channel"
 & (Join-Path $PSScriptRoot 'start-host.ps1')

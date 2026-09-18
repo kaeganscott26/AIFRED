@@ -6,7 +6,7 @@ Canonical entry: `pwsh -NoProfile -File scripts/windows/build.ps1 -Action releas
 
 Exact compiler VST3: `out/windows-x64/build/plugin-aifred/Aifred_artefacts/Release/VST3/Aifred.vst3`. Exact current: `out/windows-x64/current/AIFRED-VST3-windows/Aifred.vst3`. Never select a recursive first-match artifact.
 
-.NET outputs use Directory.Build.props under the canonical platform build root. The Windows package contains the exact VST3, the `shared-dsp` source folder, and the `AifredIntelligenceHost` executable, DLL, runtime configuration and channel.json. Building does not install or launch a plugin.
+.NET outputs use Directory.Build.props under the canonical platform build root. The Windows package contains the exact VST3, the `shared-dsp` source folder, and a self-contained `AifredIntelligenceHost` executable, DLLs, runtime configuration and channel.json. The single-file installer embeds that payload but does not embed repository scripts. Building does not install or launch a plugin.
 
 Use `scripts/windows/lifecycle.ps1 -Action update` for a first install or update, and `-Action uninstall` to remove only the Beta channel.
 

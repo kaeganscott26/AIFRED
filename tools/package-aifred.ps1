@@ -13,7 +13,7 @@ if (!(Test-Path -LiteralPath (Join-Path $sharedDsp 'README.md'))) { throw 'Share
 New-Item -ItemType Directory -Path $package | Out-Null
 Copy-Item -LiteralPath $plugin -Destination (Join-Path $package 'Aifred.vst3') -Recurse
 Copy-Item -LiteralPath $sharedDsp -Destination (Join-Path $package 'shared-dsp') -Recurse
-& dotnet publish (Join-Path $repoRoot 'tools/AifredIntelligenceHost/AifredIntelligenceHost.csproj') -c Release -r win-x64 --self-contained false -o (Join-Path $package 'AifredIntelligenceHost')
+& dotnet publish (Join-Path $repoRoot 'tools/AifredIntelligenceHost/AifredIntelligenceHost.csproj') -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -p:IncludeNativeLibrariesForSelfExtract=true -o (Join-Path $package 'AifredIntelligenceHost')
 if ($LASTEXITCODE -ne 0) { throw 'Intelligence Host publish failed.' }
 '{"channel":"beta"}' | Set-Content -Encoding utf8 (Join-Path $package 'AifredIntelligenceHost/channel.json')
 $configurationRoot = Join-Path $package 'Configuration'

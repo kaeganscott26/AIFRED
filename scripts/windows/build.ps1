@@ -30,7 +30,7 @@ try {
     if ($official) {
         Copy-Item -LiteralPath $sourceBundle -Destination (Join-Path $stageRoot 'Aifred.vst3') -Recurse
         Copy-Item -LiteralPath (Join-Path $repositoryRoot 'shared-dsp') -Destination (Join-Path $stageRoot 'shared-dsp') -Recurse
-        Invoke-Checked dotnet @('publish','tools/AifredIntelligenceHost/AifredIntelligenceHost.csproj','-c','Release','-r','win-x64','--self-contained','false','-o',(Join-Path $stageRoot 'AifredIntelligenceHost'))
+        Invoke-Checked dotnet @('publish','tools/AifredIntelligenceHost/AifredIntelligenceHost.csproj','-c','Release','-r','win-x64','--self-contained','true','-p:PublishSingleFile=false','-p:IncludeNativeLibrariesForSelfExtract=true','-o',(Join-Path $stageRoot 'AifredIntelligenceHost'))
     } else {
         Invoke-Checked pwsh @('-NoProfile','-File','tools/package-aifred.ps1','-BuildRoot','out/windows-x64/build','-OutputDir','out/windows-x64/stage','-Platform','windows')
         Invoke-Checked dotnet @('publish','tools/AifredWindowsInstaller/AifredWindowsInstaller.csproj','-c','Release','-o',(Join-Path $stageRoot 'installer'))

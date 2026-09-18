@@ -17,7 +17,7 @@ Beta uses its own runtime channel and IntelligenceHost port so it can coexist wi
 
 The macOS installer supports Apple Silicon (`arm64`). The DMG contains the plugin, a self-contained IntelligenceHost, and the setup package. The installer configures the local services automatically.
 
-### Requirements
+### Build requirements
 
 - macOS on Apple Silicon
 - A logged-in macOS user during installation
@@ -88,10 +88,12 @@ The Windows build and lifecycle scripts target x64 Windows.
 - CMake 3.24 or newer and Ninja
 - PowerShell 7
 - Python 3
-- .NET 10 SDK/runtime
+- .NET 10 SDK
 - Git
 
-Build or obtain a validated current release, then run:
+For end users, download and run the single-file `AIFRED-VST3-Setup.exe`; the target machine does not need the .NET runtime, PowerShell, Python, or a manual Ollama command. The installer downloads Ollama if needed, starts it, pulls `aifred:latest`, and configures the Beta host on port `8787`.
+
+For a developer install from a validated current release, run:
 
 ```powershell
 pwsh -NoProfile -File scripts/windows/lifecycle.ps1 -Action update
@@ -109,6 +111,13 @@ The Beta IntelligenceHost is installed at:
 %LOCALAPPDATA%/Aifred/beta/IntelligenceHost
 ```
 
+Verify both local services after setup:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8787/health
+Invoke-RestMethod http://127.0.0.1:11434/api/tags
+```
+
 To remove Beta binaries and startup entries while retaining user settings:
 
 ```powershell
@@ -119,7 +128,7 @@ pwsh -NoProfile -File scripts/windows/lifecycle.ps1 -Action uninstall
 
 Audio measurement, meters, Reference, and Compare do not require Ollama, a model, or a network connection. Only AI chat requires the IntelligenceHost and a provider.
 
-On the packaged macOS path, Ollama and `aifred:latest` are configured automatically. On a development machine, the model definition is in `models/aifred/Modelfile`:
+On packaged macOS and Windows paths, Ollama and `aifred:latest` are configured automatically. For a development machine, the model definition is in `models/aifred/Modelfile`:
 
 ```bash
 ollama create aifred:latest -f models/aifred/Modelfile

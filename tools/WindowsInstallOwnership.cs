@@ -59,6 +59,23 @@ internal static class InstallOwnership
             if (!SHA256.HashData(input).SequenceEqual(SHA256.HashData(output))) throw new IOException("Installed hash mismatch.");
         }
     }
+    internal static void StartHost()
+    {
+        if (!File.Exists(Host)) throw new IOException("The Intelligence Host executable is missing.");
+        if (Process.GetProcessesByName("AifredIntelligenceHost").Any(process =>
+        {
+            using (process)
+            {
+                try { return string.Equals(process.MainModule?.FileName, Host, StringComparison.OrdinalIgnoreCase); }
+                catch (System.ComponentModel.Win32Exception) { return false; }
+            }
+        })) return;
+        Process.Start(new ProcessStartInfo(Host, "--channel beta")
+        {
+            UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden,
+            WorkingDirectory = Path.GetDirectoryName(Host)!
+        });
+    }
     internal static void Install(string source, string parent, string name)
     {
         var target = Path.Combine(parent, name); var candidate = target + ".candidate"; var previous = target + ".previous";

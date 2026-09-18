@@ -49,7 +49,7 @@ Settings, references, provider data, and other AIFRED channels are retained. Rea
 
 ## Use the plugin
 
-DSP operates without chat. AifredIntelligenceHost on port 8787 requires .NET 10 and a configured available Ollama/OpenAI-compatible provider. No model is downloaded implicitly. macOS/Linux runtime remains unvalidated.
+DSP operates without chat. The packaged Windows installer is self-contained and configures Ollama with `aifred:latest` plus the AifredIntelligenceHost on port 8787. A developer install uses the same setup script; an OpenAI-compatible provider can still be selected later through host settings. macOS/Linux runtime remains unvalidated.
 
 Select MIX_BALANCED for general mixing, SPECTRUM_SURGICAL for detailed FFT, MASTERING_PRECISION for programme metering, or STEREO_PHASE_DIAGNOSTIC for fast phase response. Profile switching starts a clean observation epoch. Live correlation/width follow current audio; other engineering values summarize observed measurements. Short observations remain insufficient for sustained conclusions. The default FFT viewport is `-96..0 dBFS`; the Options panel can select the other safe display floors without changing measurements.
 
