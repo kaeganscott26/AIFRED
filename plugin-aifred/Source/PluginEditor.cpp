@@ -670,9 +670,18 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
   const auto radius = std::min(area.getWidth(), area.getHeight()) * 0.275f;
   const auto hasValidLiveData = state.hasSignal && state.valuesValid;
   auto accent = referenceOverlay ? appearanceColour(appearanceMenu_.getSelectedId()) : accentForMode(processor_.getMode());
-  const auto dynamics01 = hasValidLiveData ? state.metrics.crestScale : 0.0f;
-  const auto rmsScale = hasValidLiveData ? clamp01(state.metrics.rmsScale) : 0.0f;
-  const auto truePeak01=hasValidLiveData?truePeakPresentation(state.metrics.truePeakDb):0.0f;
+  const auto dynamics01 =
+    hasValidLiveData
+      ? crestPresentation(static_cast<float>(state.metricDetails[core::index(core::MetricId::crest)].displayedValue))
+      : 0.0f;
+  const auto rmsScale =
+    hasValidLiveData
+      ? haloRmsPresentation(static_cast<float>(state.metricDetails[core::index(core::MetricId::rms)].displayedValue))
+      : 0.0f;
+  const auto truePeak01 =
+    hasValidLiveData
+      ? truePeakPresentation(static_cast<float>(state.metricDetails[core::index(core::MetricId::truePeak)].displayedValue))
+      : 0.0f;
   const auto widthScale=hasValidLiveData?stereoSpreadPresentation(state.metrics.correlation):0.0f;
   const auto canonicalLabel = [&](core::MetricId id) {
     const auto& detail = state.metricDetails[core::index(id)];
@@ -741,13 +750,28 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
     }
   }
 
-  const auto rmsFloor=static_cast<float>(core::spectrumFloorDb(state.presentation.spectrumRange));
   const std::array<std::array<juce::String,3>,4> scaleLabels {{
-    {juce::String("0 dB"),juce::String("12 dB"),juce::String("24 dB")},
-    {juce::String(juce::roundToInt(rmsFloor))+" dBFS",juce::String(juce::roundToInt(rmsFloor*.5f))+" dBFS",juce::String("0 dBFS")},
-    {juce::String("-24 dBTP"),juce::String("-12 dBTP"),juce::String("0 dBTP")},
-    {juce::String("+1 mono"),juce::String("0 spread"),juce::String("-1 phase")}
-  }};
+  {
+    juce::String("0 dB"),
+    juce::String("12 dB"),
+    juce::String("24 dB")
+  },
+  {
+    juce::String("-24 dBFS"),
+    juce::String("-12 dBFS"),
+    juce::String("0 dBFS")
+  },
+  {
+    juce::String("-24 dBTP"),
+    juce::String("-12 dBTP"),
+    juce::String("0 dBTP")
+  },
+  {
+    juce::String("+1 mono"),
+    juce::String("0 spread"),
+    juce::String("-1 phase")
+  }
+}};
   for(int lane=0;lane<4;++lane)for(int tick:{0,2,4}) {
     const auto degrees=-150.0f+static_cast<float>(lane)*90.0f+72.0f*static_cast<float>(tick)/4.0f;
     const auto angle=juce::degreesToRadians(degrees);const auto labelRadius=radius+102.0f;
