@@ -11,7 +11,7 @@
     "macos-arm64": {
       "preset": "macos-release",
       "architecture": "arm64",
-      "status": "SCAFFOLDED / NOT VALIDATED"
+      "status": "LOCALLY VALIDATED / SIGNING REQUIRED"
     },
     "linux-x64": {
       "preset": "linux-release",

@@ -31,6 +31,7 @@
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_CXX_STANDARD": "20",
         "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/macos-arm64/install",
         "JUCE_BUILD_EXAMPLES": "OFF",
         "JUCE_BUILD_EXTRAS": "OFF",
         "CMAKE_OSX_ARCHITECTURES": "arm64"

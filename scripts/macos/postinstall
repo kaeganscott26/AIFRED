@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+OLLAMA_APP="/Applications/Ollama.app"
+OLLAMA_BIN="$OLLAMA_APP/Contents/Resources/ollama"
+MODEL="${AIFRED_OLLAMA_MODEL:-aifred:latest}"
+HOST_LABEL="com.north3rnlight3r.aifred-intelligence-host"
+HOST_PLIST="/Library/LaunchAgents/${HOST_LABEL}.plist"
+
+console_user="$(stat -f '%Su' /dev/console)"
+console_uid="$(id -u "$console_user")"
+
+if [[ "$console_user" == "root" || -z "$console_user" ]]; then
+  echo "A logged-in macOS user is required to finish AIFRED setup." >&2
+  exit 1
+fi
+
+if [[ ! -x "$OLLAMA_BIN" ]]; then
+  archive="$(mktemp -t aifred-ollama).zip"
+  unpack="$(mktemp -d -t aifred-ollama)"
+  trap 'rm -f "$archive"; rm -rf "$unpack"' EXIT
+  curl --fail --location --silent --show-error \
+    https://ollama.com/download/Ollama-darwin.zip -o "$archive"
+  ditto -x -k "$archive" "$unpack"
+  app="$(find "$unpack" -maxdepth 2 -name Ollama.app -print -quit)"
+  [[ -n "$app" ]] || { echo "Ollama.app was not found in the download." >&2; exit 1; }
+  rm -rf "$OLLAMA_APP"
+  ditto "$app" "$OLLAMA_APP"
+fi
+
+[[ -x "$OLLAMA_BIN" ]] || { echo "Ollama CLI was not installed." >&2; exit 1; }
+
+launch_as_user() {
+  launchctl asuser "$console_uid" sudo -u "$console_user" -H "$@"
+}
+
+launch_as_user open -a "$OLLAMA_APP"
+for attempt in {1..60}; do
+  curl --silent --fail http://127.0.0.1:11434/api/tags >/dev/null && break
+  [[ "$attempt" == 60 ]] && { echo "Ollama did not become ready." >&2; exit 1; }
+  sleep 2
+done
+launch_as_user "$OLLAMA_BIN" pull "$MODEL"
+
+chown -R root:wheel \
+  "/Library/Application Support/Aifred" "$HOST_PLIST"
+chmod 755 "/Library/Application Support/Aifred/beta/IntelligenceHost/bin/AifredIntelligenceHost"
+chmod 644 "$HOST_PLIST"
+launchctl bootout "gui/$console_uid/$HOST_LABEL" 2>/dev/null || true
+launchctl bootstrap "gui/$console_uid" "$HOST_PLIST"
+launchctl kickstart -k "gui/$console_uid/$HOST_LABEL"
+
+echo "AIFRED IntelligenceHost is running on http://127.0.0.1:8787."
