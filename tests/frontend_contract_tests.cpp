@@ -1,6 +1,7 @@
 #include "plugin-aifred/Source/BetaView.h"
 #include "aifred/Pipeline.h"
 #include <cstdlib>
+#include <cmath>
 #include <iostream>
 #include <memory>
 #include <chrono>
@@ -14,6 +15,7 @@ int main()
     live->valid=true;live->signalActive=true;
     live->get(MetricId::rms)={-3.125,true};live->get(MetricId::truePeak)={-1.5,true};
     live->get(MetricId::crest)={9.0,true};live->get(MetricId::correlation)={-.463742,true};live->get(MetricId::width)={71.638,true};
+    observation->fresh=true;observation->valid=true;observation->signalActive=true;observation->sufficient=false;
     observation->metrics[index(MetricId::rms)].valid=true;observation->metrics[index(MetricId::rms)].typical=-2.347123;
     observation->metrics[index(MetricId::correlation)].valid=true;observation->metrics[index(MetricId::correlation)].typical=.8;
     live->binCount=4097;live->averagePower[300]=1e-12;live->peakPower[300]=1e-10;
@@ -41,6 +43,23 @@ int main()
     for(std::size_t i=0;i<view->metrics.spectrumBands.size();++i)check(view->metrics.spectrumBands[i]==(observation->bands[i].valid?aifred::linearPresentation(static_cast<float>(observation->bands[i].typical),-96,0):0),"every spectrum bar maps its measured band");
     check(!view->metricDetails[index(MetricId::rms)].isLive&&view->metricDetails[index(MetricId::rms)].rawCurrent==-3.125&&view->metricDetails[index(MetricId::rms)].displayedValue==-2.347123,"observed metric metadata remains separate");
     check(view->metrics.truePeakDb==-1.5,"Halo true peak uses current DSP metric");
+    check(!view->isStale&&view->observation.sufficient==false,"freshness and sufficiency retain their independent meanings");
+    check(view->metrics.liveCandleCount==0,"BetaView does not manufacture candle history");
+    check(std::isnan(view->metrics.shortTermLufs)&&!view->liveMetricValid[index(MetricId::shortTerm)],"invalid live metric remains explicitly unavailable");
+    check(view->metrics.shortTermLufs!=100.0f&&view->metrics.shortTermLufs!=0.0f,"invalid metric is never a magic display value");
+    check(std::isnan(view->metricDetails[index(MetricId::shortTerm)].rawCurrent),"invalid raw metric remains unavailable");
+    auto staleObservation=*observation;staleObservation.fresh=false;
+    check(aifred::makeBetaView(*live,staleObservation).isStale,"stale observation maps to stale presentation state");
+    aifred::core::CandleHistorySnapshot candleHistory;candleHistory.liveCount=1;candleHistory.liveOpen[9]=-18.0f;candleHistory.liveHigh[9]=-17.0f;candleHistory.liveLow[9]=-19.0f;candleHistory.liveClose[9]=-17.5f;
+    aifred::applyCandleHistory(*view,candleHistory);
+    check(view->metrics.liveCandleCount==1&&view->metrics.liveCandleOpen[9]==-18.0f&&view->metrics.liveCandleClose[9]==-17.5f,"authoritative candle history uses bounded slots");
+    auto same=*view;
+    check(aifred::compareSimilarity(*view,same)==100.0f,"identical real measurements are 100 percent similar");
+    auto opposite=*view;opposite.metrics.correlation=1.0f;opposite.liveMetricValid[index(MetricId::correlation)]=true;
+    const auto similarity=aifred::compareSimilarity(*view,opposite);
+    check(similarity>=0.0f&&similarity<=100.0f,"compare similarity stays in normalized bounds");
+    aifred::BetaView unavailableA,unavailableB;
+    check(aifred::compareSimilarity(unavailableA,unavailableB)==0.0f,"similarity does not invent unavailable measurements");
     auto first=std::make_unique<Pipeline>("beta","0.3.6"),second=std::make_unique<Pipeline>("official","4.0.0-alpha.2");
     check(first->instanceId()!=second->instanceId(),"instance isolation");
     first->prepare(48000,2);
