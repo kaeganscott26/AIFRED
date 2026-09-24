@@ -13,6 +13,9 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(JUCE)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../shared-dsp ${CMAKE_BINARY_DIR}/shared-dsp)
+if(NOT WIN32)
+  find_package(SQLite3 REQUIRED)
+endif()
 execute_process(COMMAND git rev-parse --short HEAD WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   OUTPUT_VARIABLE AIFRED_BUILD_ID OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
 if(NOT AIFRED_BUILD_ID)
@@ -34,7 +37,9 @@ juce_add_plugin(Aifred
   NEEDS_MIDI_OUTPUT FALSE
   IS_MIDI_EFFECT FALSE
   EDITOR_WANTS_KEYBOARD_FOCUS FALSE
-  COPY_PLUGIN_AFTER_BUILD TRUE
+  # The Beta lifecycle installer owns the only installed copy under
+  # ~/Library/Audio/Plug-Ins/VST3/AIFRED Beta.
+  COPY_PLUGIN_AFTER_BUILD FALSE
   VST3_CATEGORIES "Analyzer"
 )
 
@@ -70,6 +75,7 @@ target_link_libraries(Aifred
     juce::juce_audio_utils
     $<$<PLATFORM_ID:Windows>:winhttp>
     $<$<PLATFORM_ID:Windows>:winsqlite3>
+    $<$<NOT:$<PLATFORM_ID:Windows>>:SQLite3::SQLite3>
   PUBLIC
     juce::juce_recommended_config_flags
     juce::juce_recommended_lto_flags

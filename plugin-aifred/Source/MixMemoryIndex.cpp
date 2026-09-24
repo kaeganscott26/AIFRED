@@ -2,6 +2,8 @@
 
 #if JUCE_WINDOWS
 #include <winsqlite/winsqlite3.h>
+#else
+#include <sqlite3.h>
 #endif
 #include <bit>
 #include <cmath>
@@ -9,15 +11,12 @@
 namespace aifred {
 namespace {
 constexpr double transientLifetimeSeconds=600.0;
-#if JUCE_WINDOWS
 sqlite3* db(void* value) noexcept {return static_cast<sqlite3*>(value);}
 void execute(sqlite3* database,const char* sql) noexcept {sqlite3_exec(database,sql,nullptr,nullptr,nullptr);}
-#endif
 }
 
 MixMemoryIndex::MixMemoryIndex():sessionId_(juce::Uuid().toString())
 {
-#if JUCE_WINDOWS
   const auto configured=juce::SystemStats::getEnvironmentVariable("AIFRED_MEMORY_DB_PATH",{});
   const auto file=configured.isNotEmpty()?juce::File(configured):juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory).getChildFile("AIFRED").getChildFile("aifred-memory.sqlite");
   file.getParentDirectory().createDirectory();
@@ -42,14 +41,11 @@ MixMemoryIndex::MixMemoryIndex():sessionId_(juce::Uuid().toString())
     sqlite3_finalize(statement);
   }
   else if(opened)sqlite3_close(opened);
-#endif
 }
 
 MixMemoryIndex::~MixMemoryIndex()
 {
-#if JUCE_WINDOWS
   if(database_)sqlite3_close(db(database_));
-#endif
 }
 
 std::uint64_t MixMemoryIndex::candleFingerprint(const BetaView& state) const noexcept
@@ -80,7 +76,6 @@ void MixMemoryIndex::prune(double now)
 
 void MixMemoryIndex::persist(const BetaView& state,AnalysisMode mode,const juce::String& reference,double now)
 {
-#if JUCE_WINDOWS
   if(!database_)return;auto* database=db(database_);sqlite3_stmt* statement=nullptr;
   juce::Array<juce::var> bands;for(const auto value:state.metrics.spectrumBands)bands.add(value);const auto bandsJson=juce::JSON::toString(juce::var(bands),true);
   if(sqlite3_prepare_v2(database,"INSERT INTO snapshots(session_id,timestamp,profile,mode,reference_id,rms,true_peak,crest,lufs,width,correlation,bands_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?);",-1,&statement,nullptr)==SQLITE_OK)
@@ -99,9 +94,6 @@ void MixMemoryIndex::persist(const BetaView& state,AnalysisMode mode,const juce:
   if(sqlite3_prepare_v2(database,"DELETE FROM snapshots WHERE session_id=? AND timestamp<?;",-1,&statement,nullptr)==SQLITE_OK)
   {sqlite3_bind_text(statement,1,sessionId_.toRawUTF8(),-1,SQLITE_TRANSIENT);sqlite3_bind_double(statement,2,now-transientLifetimeSeconds);sqlite3_step(statement);}
   sqlite3_finalize(statement);
-#else
-  juce::ignoreUnused(state,mode,reference,now);
-#endif
 }
 
 MemoryTelemetry MixMemoryIndex::telemetry() const noexcept

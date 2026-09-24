@@ -15,6 +15,7 @@ int main(int argc,char** argv)
     const auto output=argc>1?juce::File(argv[1]):juce::File::getSpecialLocation(juce::File::tempDirectory).getChildFile("aifred-gui-snapshots");
     output.createDirectory();
     const auto memoryPath=output.getChildFile("test-memory.sqlite").getFullPathName();
+    juce::File(memoryPath).deleteFile();
 #if JUCE_WINDOWS
     _putenv_s("AIFRED_MEMORY_DB_PATH",memoryPath.toRawUTF8());
 #else

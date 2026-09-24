@@ -25,7 +25,11 @@ def check():
   key=expected.pop(preset['name'],None)
   if key is None or preset['binaryDir']!='${sourceDir}/out/'+key+'/build':failures.append('Noncanonical CMake preset: '+preset['name'])
  if expected:failures.append('Missing platform presets: '+str(expected))
- for name in ('README.md','docs/ARCHITECTURE.md','docs/BUILD.md','docs/TESTING.md','docs/DEVELOPMENT.md','docs/INSTALLATION.md','docs/DISTRIBUTION.md','docs/COEXISTENCE.md','shared-dsp/README.md'):
+ # These are the current machine-readable authorities. The legacy prose files
+ # were deliberately removed as stale and must not remain phantom requirements.
+ for name in ('CMakeLists.txt','CMakePresets.json','scripts/release-layout.json',
+              'shared-core.lock.json','shared-dsp/include/aifred/Contracts.h',
+              'models/aifred/Modelfile'):
   if not (ROOT/name).is_file():failures.append('Missing authority: '+name)
  # Local source dependencies must never reach a sibling checkout.
  for name in tracked:

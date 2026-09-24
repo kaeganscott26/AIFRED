@@ -6,7 +6,7 @@ def inventory(root):
     result = {}
     for directory in ('shared-dsp', 'tools/AifredIntelligenceHost', 'tools/AifredIntelligenceHost.Tests'):
         for path in (root / directory).rglob('*'):
-            if path.is_file():
+            if path.is_file() and path.name != '.DS_Store':
                 result[path.relative_to(root).as_posix()] = hashlib.sha256(path.read_bytes().replace(b'\r\n', b'\n')).hexdigest()
     return result
 if __name__ == '__main__':

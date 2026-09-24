@@ -13,7 +13,8 @@ ReferencePoolEntry parseEntry(const juce::var& value) {
   ReferencePoolEntry result;
   result.id = value.getProperty("id", "").toString().trim().toStdString();
   auto name = value.getProperty("name", "").toString().trim();
-  if (name.containsChar('\\') || name.containsChar('/')) name = juce::File(name).getFileName();
+  name = name.replaceCharacter('\\', '/');
+  if (name.containsChar('/')) name = name.fromLastOccurrenceOf("/", false, false);
   result.name = name.toStdString();
   result.version = value.getProperty("version", "").toString().trim().toStdString();
   if (result.id.empty() || result.name.empty()) return {};
