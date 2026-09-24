@@ -11,6 +11,7 @@
     "macos-arm64": {
       "preset": "macos-release",
       "architecture": "arm64",
+      "plugin": "plugin-aifred/Aifred_artefacts/Release/VST3/Aifred.vst3",
       "status": "LOCALLY VALIDATED / SIGNING REQUIRED"
     },
     "linux-x64": {
