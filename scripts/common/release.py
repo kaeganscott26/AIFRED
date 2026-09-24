@@ -48,8 +48,9 @@ def recycle(path, parent):
         command = "Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory($env:AIFRED_RECYCLE_TARGET, [Microsoft.VisualBasic.FileIO.UIOption]::OnlyErrorDialogs, [Microsoft.VisualBasic.FileIO.RecycleOption]::SendToRecycleBin, [Microsoft.VisualBasic.FileIO.UICancelOption]::ThrowException)"
         subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', command], env=env, check=True)
     elif sys.platform == 'darwin':
-        script = 'on run argv\ntell application "Finder" to delete POSIX file (item 1 of argv)\nend run'
-        subprocess.run(['osascript', '-e', script, str(path)], check=True)
+        trash=Path.home()/'.Trash'
+        trash.mkdir(exist_ok=True)
+        shutil.move(str(path),str(trash/(path.name+'-'+uuid.uuid4().hex)))
     elif shutil.which('gio'):
         subprocess.run(['gio','trash',str(path)],check=True)
     else:
@@ -148,7 +149,9 @@ def verify(key,location='current'):
         checked_path(folder/data['plugin'],folder)
         checked_path(folder/data['engine'],folder)
         required=[data['plugin']+'/Contents/MacOS/Aifred',data['plugin']+'/Contents/Resources/moduleinfo.json']
-        required += [data['sharedDsp']+'/README.md',data['engine']+'/AifredIntelligenceHost',data['engine']+'/channel.json']
+        required += [data['sharedDsp']+'/CMakeLists.txt',data['sharedDsp']+'/include/aifred/Contracts.h']
+        required += [data['engine']+'/AifredIntelligenceHost',data['engine']+'/channel.json']
+        required += ['model/Modelfile','intelligence/prompts/IntelligencePrompt.cs']
         channel_metadata=json.loads((folder/data['engine']/'channel.json').read_text(encoding='utf-8'))
         if channel_metadata.get('channel') != info['runtimeChannel'] or not channel_metadata.get('commit'):
             raise ValueError('Host channel metadata is malformed')

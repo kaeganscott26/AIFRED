@@ -19,6 +19,7 @@ HOST_TARGET="$DATA_PARENT/IntelligenceHost"
 HOST_EXECUTABLE="$HOST_TARGET/AifredIntelligenceHost"
 HOST_LABEL="com.north3rnlight3r.aifred-intelligence-host"
 LAUNCH_AGENT="$HOME/Library/LaunchAgents/$HOST_LABEL.plist"
+HOST_PORT=8787
 
 require_macos() {
   [[ "$(uname -s)" == Darwin && "$(uname -m)" == arm64 ]] || {
@@ -39,18 +40,21 @@ prepare_origin_source() {
   local lock_dir="$OUT_ROOT/pipeline.lock.d"
   mkdir "$lock_dir" 2>/dev/null || { echo "Another AIFRED macOS pipeline is running." >&2; exit 1; }
   trap 'rmdir "$OUT_ROOT/pipeline.lock.d" 2>/dev/null || true' EXIT
-  rm -rf "$BUILD_ROOT" "$STAGE_ROOT" "$PACKAGE_ROOT" "$OUT_ROOT/current" "$OUT_ROOT/previous"
   printf '%s\n' "$(git -C "$ROOT" rev-parse HEAD)" > "$OUT_ROOT/commit.txt"
 }
 
 assert_owned_path() {
   local target="$1" parent="$2"
   case "$target" in "$parent"/*) ;; *) echo "Install target escaped owner: $target" >&2; exit 1 ;; esac
-  [[ -L "$target" ]] && { echo "Refusing symlink install target: $target" >&2; exit 1; }
+  if [[ -L "$target" ]]; then
+    echo "Refusing symlink install target: $target" >&2
+    exit 1
+  fi
 }
 
 install_owned_tree() {
-  local source="$1" parent="$2" name="$3" target="$parent/$name" candidate="$parent/$name.candidate" previous="$parent/$name.previous"
+  local source="$1" parent="$2" name="$3"
+  local target="$parent/$name" candidate="$parent/$name.candidate" previous="$parent/$name.previous"
   assert_owned_path "$target" "$parent"; assert_owned_path "$candidate" "$parent"; assert_owned_path "$previous" "$parent"
   [[ ! -e "$candidate" && ! -e "$previous" ]] || { echo "Retained installation recovery requires inspection: $target" >&2; exit 1; }
   mkdir -p "$parent"
@@ -76,6 +80,7 @@ remove_owned_tree() {
 
 stage_release() {
   [[ -d "$PLUGIN_BUILD" ]] || { echo "Built VST3 bundle is missing: $PLUGIN_BUILD" >&2; exit 1; }
+  find "$PLUGIN_BUILD" \( -name '._*' -o -name '.DS_Store' \) -delete
   mkdir -p "$STAGE_ROOT"
   cp -R "$PLUGIN_BUILD" "$STAGE_ROOT/Aifred.vst3"
   cp -R "$SOURCE_ROOT/shared-dsp" "$STAGE_ROOT/shared-dsp"
@@ -87,13 +92,12 @@ stage_release() {
     -o "$STAGE_ROOT/IntelligenceHost"
   printf '{"channel":"beta","commit":"%s"}\n' "$(cat "$OUT_ROOT/commit.txt")" > "$STAGE_ROOT/IntelligenceHost/channel.json"
   cp "$SOURCE_ROOT/config/distribution/aifred-settings.example.json" "$STAGE_ROOT/aifred-settings.example.json"
-  cp "$SOURCE_ROOT/README.md" "$STAGE_ROOT/README.md"
   find "$STAGE_ROOT" \( -name '._*' -o -name '.DS_Store' \) -delete
 }
 
 package_release() {
-  local package_source="$STAGE_ROOT"
-  [[ -d "$CURRENT_ROOT" ]] && package_source="$CURRENT_ROOT"
+  local package_source="${1:-$STAGE_ROOT}"
+  [[ -d "$package_source" ]] || { echo "Package source is missing: $package_source" >&2; exit 1; }
   mkdir -p "$PACKAGE_ROOT"
   COPYFILE_DISABLE=1 tar -czf "$PACKAGE_ROOT/AIFRED-Beta-macos-arm64.tar.gz" -C "$package_source" .
   cp "$OUT_ROOT/commit.txt" "$PACKAGE_ROOT/commit.txt"
