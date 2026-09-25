@@ -25,12 +25,14 @@ juce::var metricJson(const FilteredMetric& m)
     obj->setProperty("coverage_seconds",number(m.observation.coverageSeconds,1));obj->setProperty("count",static_cast<int>(m.observation.count));
     constexpr std::array<const char*,4> trends {"unavailable","stable","rising","falling"};
     obj->setProperty("trend",trends[static_cast<std::size_t>(m.observation.trend)]);
-    constexpr std::array<const char*,6> relations {"unavailable","no_reference_available","insufficient_observation","inside_reference_distribution","below_reference_distribution","above_reference_distribution"};
+    constexpr std::array<const char*,7> relations {"unavailable","no_reference_available","insufficient_observation","inside_reference_distribution","below_reference_distribution","above_reference_distribution","matches_reference_value"};
     obj->setProperty("reference_relationship",relations[static_cast<std::size_t>(m.reference)]);
-    const auto semantic=m.reference==Relationship::inside?"inside_reference_distribution":
+    const auto semantic=m.reference==Relationship::atValue?"reference_value":
+        m.reference==Relationship::inside?"inside_reference_distribution":
         m.reference==Relationship::below||m.reference==Relationship::above?"outside_reference_distribution":
         m.reference==Relationship::insufficient?"insufficient_observation":"unavailable";
     obj->setProperty("semantic_state",semantic);
+    obj->setProperty("reference_value",m.referenceValue.valid?number(m.referenceValue.value,m.decimals):juce::var());
     obj->setProperty("reference_low",m.referenceLow.valid?number(m.referenceLow.value,m.decimals):juce::var());
     obj->setProperty("reference_high",m.referenceHigh.valid?number(m.referenceHigh.value,m.decimals):juce::var());
     obj->setProperty("standard_relationship","unavailable");
@@ -59,7 +61,7 @@ juce::var filteredContextJson(const FilteredMixContext& c)
     obj->setProperty("transport_known",o.transportKnown);obj->setProperty("transport_playing",o.transportKnown?juce::var(o.transportPlaying):juce::var());
     obj->setProperty("correlation_below_zero_seconds",number(o.correlationBelowZeroSeconds,1));
     obj->setProperty("reference_id",text(c.referenceId));obj->setProperty("reference_compatible",c.referenceCompatible);
-    constexpr std::array<const char*,6> compatibility {"no_reference","compatible","reference_unavailable","schema_mismatch","profile_mismatch","sample_rate_mismatch"};
+    constexpr std::array<const char*,7> compatibility {"no_reference","compatible","reference_unavailable","reference_metadata_unavailable","schema_mismatch","profile_mismatch","sample_rate_mismatch"};
     obj->setProperty("reference_compatibility",compatibility[static_cast<std::size_t>(c.referenceCompatibility)]);
     obj->setProperty("observation_state",!o.valid?"unavailable":!o.signalActive?"signal_inactive":!o.sufficient?"insufficient_observation":"available");
     juce::Array<juce::var> metrics,bands;

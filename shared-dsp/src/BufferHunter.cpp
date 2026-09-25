@@ -51,7 +51,7 @@ MetricObservation BufferHunter::summarizeMetric(std::size_t metric,bool spectrum
     if(result.count==0) return result;
     std::sort(values.begin(),values.begin()+static_cast<std::ptrdiff_t>(result.count));
     const auto quantile=[&](double p){const double t=p*static_cast<double>(result.count-1);const auto lo=static_cast<std::size_t>(t);const auto hi=std::min(lo+1,result.count-1);return values[lo]+(values[hi]-values[lo])*(t-static_cast<double>(lo));};
-    result.valid=true;result.typical=quantile(.5);result.low=quantile(.1);result.high=quantile(.9);result.minimum=values[0];result.maximum=values[result.count-1];
+    result.valid=true;result.hasDistribution=true;result.typical=quantile(.5);result.low=quantile(.1);result.high=quantile(.9);result.minimum=values[0];result.maximum=values[result.count-1];
     const double n=static_cast<double>(result.count),xx=sxx-sx*sx/n,xy=sxy-sx*sy/n;
     if(n>=30&&result.coverageSeconds>=5&&xx>0)
     {

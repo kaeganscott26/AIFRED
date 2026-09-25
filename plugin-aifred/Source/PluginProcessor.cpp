@@ -99,7 +99,10 @@ void AifredAudioProcessor::setStateInformation(const void* data, int sizeInBytes
 BetaView AifredAudioProcessor::getView() const {
   auto state = makeBetaView(analysis_.live(),analysis_.observation(),analysis_.presentation());
   applyCandleHistory(state,analysis_.candleHistory());
-  state.reference=reference_;state.hasReference=core::Filter::apply(state.observation,&reference_.distribution).referenceCompatible;
+  state.reference=reference_;
+  const auto referenceContext=core::Filter::apply(state.observation,&reference_.distribution);
+  state.hasReference=referenceContext.referenceCompatible;
+  state.referenceDataAvailable=reference_.distribution.available;
   state.mode = getMode();
   return state;
 }

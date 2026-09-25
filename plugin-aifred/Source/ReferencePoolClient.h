@@ -1,9 +1,11 @@
 #pragma once
 
+#include "aifred/Filter.h"
 #include <juce_core/juce_core.h>
 
 #include <atomic>
 #include <cstdint>
+#include <map>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -15,6 +17,11 @@ struct ReferencePoolEntry {
   std::string id;
   std::string name;
   std::string version;
+  // The public API currently supplies scalar analysis measurements without
+  // shared-core profile/sample-rate metadata. Keep both the canonical values
+  // and the source metric names; never turn a scalar into fake bounds.
+  core::ReferenceDistribution distribution;
+  std::map<std::string, double> suppliedMeasurements;
 };
 
 struct ReferencePoolSnapshot {

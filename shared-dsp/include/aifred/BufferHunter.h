@@ -10,6 +10,9 @@ struct MetricObservation
     double typical=0, low=0, high=0, minimum=0, maximum=0, latest=0, coverageSeconds=0;
     std::size_t count=0;
     Trend trend=Trend::unavailable;
+    // Scalar references have a value but no honest statistical bounds. Rolling
+    // observations set this when low/high are actual distribution bounds.
+    bool hasDistribution=false;
 };
 struct ObservationSnapshot
 {

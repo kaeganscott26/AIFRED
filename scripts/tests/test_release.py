@@ -40,4 +40,8 @@ class ReleaseSafety(unittest.TestCase):
  def test_corrupt_hash_fails_before_component_check(self):
   folder=self.artifact('current');(folder/'manifest.json').write_text(json.dumps({'product':'AIFRED 4','channel':'alpha','platform':self.key,'hashes':{}}))
   with self.assertRaisesRegex(ValueError,'hash mismatch'):release.verify(self.key)
+ def test_beta_modelfile_has_completion_budget(self):
+  modelfile=Path(__file__).resolve().parents[2]/'models/aifred/Modelfile'
+  self.assertIn('PARAMETER num_predict 768',modelfile.read_text())
+  self.assertNotIn('PARAMETER num_predict 180',modelfile.read_text())
 if __name__=='__main__':unittest.main()

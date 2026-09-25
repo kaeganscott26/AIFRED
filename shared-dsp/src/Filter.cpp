@@ -20,6 +20,7 @@ FilteredMixContext Filter::apply(const ObservationSnapshot& o,const ReferenceDis
     FilteredMixContext context;context.observation=o;
     if(!reference) context.referenceCompatibility=ReferenceCompatibility::noReference;
     else if(!reference->available) context.referenceCompatibility=ReferenceCompatibility::unavailable;
+    else if(!reference->compatibilityKnown) context.referenceCompatibility=ReferenceCompatibility::metadataUnavailable;
     else if(reference->schema!=o.schema) context.referenceCompatibility=ReferenceCompatibility::schemaMismatch;
     else if(reference->profileId!=o.profileId||reference->profileVersion!=o.profileVersion) context.referenceCompatibility=ReferenceCompatibility::profileMismatch;
     else if(reference->sampleRate!=o.sampleRate) context.referenceCompatibility=ReferenceCompatibility::sampleRateMismatch;
@@ -29,10 +30,20 @@ FilteredMixContext Filter::apply(const ObservationSnapshot& o,const ReferenceDis
     const auto relate=[&](FilteredMetric& metric,const MetricObservation* r)
     {
         if(!reference){metric.reference=Relationship::noReference;return;}
-        if(!context.referenceCompatible||!r||!r->valid){metric.reference=Relationship::unavailable;return;}
+        if(!r||!r->valid){metric.reference=Relationship::unavailable;return;}
+        metric.referenceValue={r->typical,true};
+        if(!context.referenceCompatible){metric.reference=Relationship::unavailable;return;}
         if(!o.sufficient||!o.fresh||!metric.observation.valid){metric.reference=Relationship::insufficient;return;}
-        metric.referenceLow={r->low,true};metric.referenceHigh={r->high,true};
-        metric.reference=metric.observation.typical<r->low?Relationship::below:metric.observation.typical>r->high?Relationship::above:Relationship::inside;
+        if(r->hasDistribution)
+        {
+            metric.referenceLow={r->low,true};metric.referenceHigh={r->high,true};
+            metric.reference=metric.observation.typical<r->low?Relationship::below:metric.observation.typical>r->high?Relationship::above:Relationship::inside;
+        }
+        else
+        {
+            const auto delta=metric.observation.typical-r->typical;
+            metric.reference=std::abs(delta)<1.0e-9?Relationship::atValue:delta<0?Relationship::below:Relationship::above;
+        }
     };
     for(std::size_t i=0;i<metricCount;++i)
     {

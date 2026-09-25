@@ -13,8 +13,8 @@ int main()
     auto live=std::make_unique<EngineSnapshot>(); auto observation=std::make_unique<ObservationSnapshot>();
     live->profileId=ProfileId::mixBalanced;live->profileVersion=profile(ProfileId::mixBalanced).version;
     live->valid=true;live->signalActive=true;
-    live->get(MetricId::rms)={-3.125,true};live->get(MetricId::truePeak)={-1.5,true};
-    live->get(MetricId::crest)={9.0,true};live->get(MetricId::correlation)={-.463742,true};live->get(MetricId::width)={71.638,true};
+    live->get(MetricId::rms)={-3.125,true};live->get(MetricId::samplePeak)={-1.5,true};live->get(MetricId::truePeak)={-1.5,true};
+    live->get(MetricId::crest)={1.625,true};live->get(MetricId::correlation)={-.463742,true};live->get(MetricId::width)={71.638,true};
     observation->fresh=true;observation->valid=true;observation->signalActive=true;observation->sufficient=false;
     observation->metrics[index(MetricId::rms)].valid=true;observation->metrics[index(MetricId::rms)].typical=-2.347123;
     observation->metrics[index(MetricId::correlation)].valid=true;observation->metrics[index(MetricId::correlation)].typical=.8;
@@ -30,7 +30,9 @@ int main()
     check(view->metricDetails[index(MetricId::correlation)].isLive&&view->metricDetails[index(MetricId::correlation)].displayedValue==-.463742,"click-ready live metric metadata");
     check(aifred::rmsPresentation(-96,SpectrumDisplayRange::db96)==0&&aifred::rmsPresentation(-48,SpectrumDisplayRange::db96)==.5f&&aifred::rmsPresentation(0,SpectrumDisplayRange::db96)==1,"RMS -96 presentation mapping");
     check(aifred::rmsPresentation(-72,SpectrumDisplayRange::db72)==0&&aifred::rmsPresentation(-36,SpectrumDisplayRange::db72)==.5f&&aifred::rmsPresentation(0,SpectrumDisplayRange::db72)==1,"RMS -72 presentation mapping");
-    check(aifred::truePeakPresentation(-24)==0&&aifred::truePeakPresentation(-12)==.5f&&aifred::truePeakPresentation(0)==1&&aifred::truePeakPresentation(-2)>aifred::truePeakPresentation(-12),"true peak moves hotter toward zero without -6 saturation");
+    check(aifred::truePeakPresentation(-24)==0&&aifred::truePeakPresentation(-12)==.5f&&aifred::truePeakPresentation(0)==1,"true peak presentation endpoints");
+    check(aifred::truePeakPresentation(-2)>aifred::truePeakPresentation(-12)&&aifred::truePeakPresentation(-12)>aifred::truePeakPresentation(-20),"true peak presentation grows monotonically toward zero");
+    check(aifred::truePeakArcStartProgress(aifred::truePeakPresentation(-24))==1&&aifred::truePeakArcStartProgress(aifred::truePeakPresentation(-12))==.5f&&aifred::truePeakArcStartProgress(aifred::truePeakPresentation(0))==0,"true peak halo arc grows from its hot endpoint");
     check(aifred::crestPresentation(0)==0&&aifred::crestPresentation(12)==.5f&&aifred::crestPresentation(24)==1,"crest difference presentation mapping");
     check(aifred::stereoSpreadPresentation(1)==0&&aifred::stereoSpreadPresentation(0)==.5f&&aifred::stereoSpreadPresentation(-1)==1,"correlation phase spread mapping");
     check(aifred::compareDelta(-6,-8)==2,"compare delta is A minus B");
@@ -42,7 +44,8 @@ int main()
     check(!aifred::modalShouldDismiss(10,10,100,100,50,50)&&aifred::modalShouldDismiss(10,10,100,100,5,50),"modal inside remains and outside dismisses");
     for(std::size_t i=0;i<view->metrics.spectrumBands.size();++i)check(view->metrics.spectrumBands[i]==(observation->bands[i].valid?aifred::linearPresentation(static_cast<float>(observation->bands[i].typical),-96,0):0),"every spectrum bar maps its measured band");
     check(!view->metricDetails[index(MetricId::rms)].isLive&&view->metricDetails[index(MetricId::rms)].rawCurrent==-3.125&&view->metricDetails[index(MetricId::rms)].displayedValue==-2.347123,"observed metric metadata remains separate");
-    check(view->metrics.truePeakDb==-1.5,"Halo true peak uses current DSP metric");
+    check(view->metrics.truePeakDb==-1.5&&view->metricDetails[index(MetricId::truePeak)].rawCurrent==-1.5,"Halo true peak uses current DSP metric");
+    check(std::abs(view->metrics.crestDb-(view->metrics.peakDb-view->metrics.rmsDb))<1.0e-5f,"crest uses sample peak minus RMS from the same snapshot");
     check(!view->isStale&&view->observation.sufficient==false,"freshness and sufficiency retain their independent meanings");
     check(view->metrics.liveCandleCount==0,"BetaView does not manufacture candle history");
     check(std::isnan(view->metrics.shortTermLufs)&&!view->liveMetricValid[index(MetricId::shortTerm)],"invalid live metric remains explicitly unavailable");

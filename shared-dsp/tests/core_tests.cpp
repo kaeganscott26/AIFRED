@@ -81,6 +81,9 @@ int main()
     near(f->latest.get(MetricId::samplePeak).value,-6.0206,.001,"half-scale sample peak");
     near(f->latest.get(MetricId::rms).value,-9.0309,.001,"sine RMS");
     near(f->latest.get(MetricId::crest).value,3.0103,.001,"paired broadband crest");
+    near(f->latest.get(MetricId::crest).value,
+         f->latest.get(MetricId::samplePeak).value-f->latest.get(MetricId::rms).value,
+         1.0e-10,"crest is sample peak minus RMS in the same window");
     near(f->latest.get(MetricId::correlation).value,1,1e-10,"mono correlation");
     near(f->latest.get(MetricId::width).value,0,1e-10,"mono side share");
     require(!f->latest.get(MetricId::shortTerm).valid,"short-term requires 3 s");
@@ -229,8 +232,20 @@ int main()
     ReferenceDistribution reference;reference.available=true;reference.sampleRate=48000;reference.profileId=ProfileId::masteringPrecision;
     require(!Filter::apply(observed,&reference).referenceCompatible,"incompatible profile reference unavailable");
     require(Filter::apply(observed,&reference).referenceCompatibility==ReferenceCompatibility::profileMismatch,"profile incompatibility is explicit");
-    reference.profileId=observed.profileId;reference.metrics[index(MetricId::rms)]={true,-52,-55,-50};
+    reference.profileId=observed.profileId;reference.metrics[index(MetricId::rms)]={true,-52,-55,-50};reference.metrics[index(MetricId::rms)].hasDistribution=true;
     require(Filter::apply(observed,&reference).metrics[index(MetricId::rms)].reference==Relationship::inside,"compatible distribution comparison");
+    ReferenceDistribution scalarReference;scalarReference.available=true;scalarReference.sampleRate=48000;scalarReference.profileId=observed.profileId;
+    scalarReference.metrics[index(MetricId::rms)]={true,-51};
+    const auto scalarContext=Filter::apply(observed,&scalarReference);
+    require(scalarContext.metrics[index(MetricId::rms)].referenceValue.valid&&
+            !scalarContext.metrics[index(MetricId::rms)].referenceLow.valid&&
+            scalarContext.metrics[index(MetricId::rms)].reference==Relationship::below,
+            "scalar reference compares without inventing statistical bounds");
+    scalarReference.compatibilityKnown=false;
+    const auto metadataMissing=Filter::apply(observed,&scalarReference);
+    require(!metadataMissing.referenceCompatible&&metadataMissing.referenceCompatibility==ReferenceCompatibility::metadataUnavailable&&
+            metadataMissing.metrics[index(MetricId::rms)].referenceValue.valid,
+            "reference metadata absence blocks compatibility but preserves measured value");
     measured->epoch++;measured->profileId=ProfileId::spectrumSurgical;measured->sequence++;measured->signalActive=true;measured->sampleStart=0;measured->sampleEnd=4800;
     hunter->consume(*measured,22);
     require(!hunter->snapshot(22).sufficient&&hunter->storedFrames()==1,"profile epoch has no incompatible history");

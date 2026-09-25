@@ -52,6 +52,14 @@ inline float truePeakPresentation(float value) noexcept
     return linearPresentation(value, truePeakFloorDbtp, truePeakCeilingDbtp);
 }
 
+// JUCE's halo lane is intentionally painted from its hot end. The
+// presentation value still means 0% cold and 100% hot; only the arc geometry
+// reverses the endpoints so hotter dBTP visibly adds coloured arc.
+inline float truePeakArcStartProgress(float presentation) noexcept
+{
+    return 1.0f - clamp01(presentation);
+}
+
 inline float crestPresentation(float value) noexcept
 {
     return linearPresentation(value, crestFloorDb, crestCeilingDb);
@@ -137,7 +145,7 @@ struct BetaView
     std::uint32_t profileRevision = 1;
     std::string_view measurementConfigurationId = "MIX_BALANCED.r1";
     core::PresentationConfiguration presentation = core::standardPresentation;
-    bool hasSignal = false, hasReference = false, valuesValid = false, isStale = true;
+    bool hasSignal = false, hasReference = false, referenceDataAvailable = false, valuesValid = false, isStale = true;
 };
 
 inline BetaView makeBetaView(const core::EngineSnapshot& live,

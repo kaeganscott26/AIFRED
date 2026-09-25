@@ -19,4 +19,4 @@ Rules:
 """
 
 PARAMETER temperature 0.35
-PARAMETER num_predict 180
+PARAMETER num_predict 768

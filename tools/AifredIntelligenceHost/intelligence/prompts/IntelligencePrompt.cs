@@ -99,6 +99,7 @@ public static class IntelligencePrompt
                 output.Append(" to ").Append(Value(metric, "maximum"));
                 output.Append("; trend=").Append(Text(metric, "trend", "unavailable"));
                 output.Append("; reference relationship=").Append(Text(metric, "semantic_state", Text(metric, "reference_relationship", "unavailable")));
+                output.Append("; reference value=").Append(Value(metric, "reference_value"));
                 output.Append("; reference bounds=").Append(Value(metric, "reference_low"));
                 output.Append(" to ").Append(Value(metric, "reference_high"));
             }

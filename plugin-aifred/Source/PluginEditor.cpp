@@ -120,7 +120,13 @@ float metricValue(const BetaView& state,int index) {
 
 juce::String AifredAudioProcessorEditor::metricText(const BetaView& state,Domain domain) {
     const auto id=domain==Domain::Tone?core::MetricId::rms:domain==Domain::Stereo?core::MetricId::width:domain==Domain::Dynamics?core::MetricId::crest:core::MetricId::shortTerm;
-    const auto& m=state.observation.get(id);const auto& d=core::metricDefinitions[core::index(id)];
+    const auto& d=core::metricDefinitions[core::index(id)];
+    if (id == core::MetricId::crest)
+    {
+      const auto current=state.metricDetails[core::index(id)].rawCurrent;
+      return std::isfinite(current)?juce::String(core::Filter::published(current,d.decimals),d.decimals)+" "+juce::String(d.unit.data()):"--";
+    }
+    const auto& m=state.observation.get(id);
     return m.valid?juce::String(core::Filter::published(m.typical,d.decimals),d.decimals)+" "+juce::String(d.unit.data()):"--";
   }
   AifredAudioProcessorEditor::AifredAudioProcessorEditor(AifredAudioProcessor& ownerProcessor)
@@ -420,13 +426,28 @@ void AifredAudioProcessorEditor::clearLocalReference() {
       return;
     }
     selectedOfficialReferenceId_ = pool.entries[static_cast<std::size_t>(index)].id;
+    const auto& entry = pool.entries[static_cast<std::size_t>(index)];
     ReferenceTarget target;
+    target.distribution=entry.distribution;
     target.distribution.id=selectedOfficialReferenceId_;
-    target.distribution.available=false;
     target.poolSize=static_cast<int>(pool.entries.size());
-    target.label="Official / "+pool.entries[static_cast<std::size_t>(index)].name;
+    target.label="Official / "+entry.name;
+    const auto referenceMetric = [&](core::MetricId id) -> const core::MetricObservation& {
+      return target.distribution.metrics[core::index(id)];
+    };
+    const auto& rms = referenceMetric(core::MetricId::rms);
+    const auto& width = referenceMetric(core::MetricId::width);
+    const auto& crest = referenceMetric(core::MetricId::crest);
+    const auto& loudness = referenceMetric(core::MetricId::integrated);
+    target.rmsScale = rms.valid ? haloRmsPresentation(static_cast<float>(rms.typical)) : 0.0f;
+    target.widthScale = width.valid ? clamp01(static_cast<float>(width.typical) / 100.0f) : 0.0f;
+    target.crestScale = crest.valid ? crestPresentation(static_cast<float>(crest.typical)) : 0.0f;
+    target.loudnessDb = loudness.valid ? static_cast<float>(loudness.typical) : unavailableMetric;
+    target.crestDb = crest.valid ? static_cast<float>(crest.typical) : unavailableMetric;
     processor_.setReferenceTarget(target);
-    referenceStatus_="Selected: "+juce::String(target.label)+" (metadata only; load local audio for measured deltas)";
+    referenceStatus_=target.distribution.available
+      ? "Selected: "+juce::String(target.label)+" (measured DSP values loaded; compatibility metadata unavailable)"
+      : "Selected: "+juce::String(target.label)+" (no measured DSP values supplied)";
     repaint();
   }
 
@@ -685,8 +706,10 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
   const auto widthScale=hasValidLiveData?stereoSpreadPresentation(state.metrics.correlation):0.0f;
   const auto canonicalLabel = [&](core::MetricId id) {
     const auto& detail = state.metricDetails[core::index(id)];
-    if (!detail.valid) return juce::String(detail.displayName.data()) + " --";
-    return juce::String(detail.displayName.data()) + " " + juce::String(detail.displayedValue, detail.id == core::MetricId::correlation ? 2 : static_cast<int>(core::metricDefinitions[core::index(id)].decimals)) + " " + juce::String(detail.unit.data());
+    const auto currentOwned = id == core::MetricId::crest || id == core::MetricId::truePeak;
+    const auto value = currentOwned ? detail.rawCurrent : detail.displayedValue;
+    if (!std::isfinite(value)) return juce::String(detail.displayName.data()) + " --";
+    return juce::String(detail.displayName.data()) + " " + juce::String(value, detail.id == core::MetricId::correlation ? 2 : static_cast<int>(core::metricDefinitions[core::index(id)].decimals)) + " " + juce::String(detail.unit.data());
   };
   const std::array<float, 4> values { 
     dynamics01,
@@ -721,10 +744,11 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
     g.strokePath(bg, juce::PathStrokeType(7.0f));
     const auto value =
         clamp01(values[static_cast<size_t>(i)]);
-    const auto arcStart=start;
+    const auto arcStart=i == 2 ? start + 72.0f * truePeakArcStartProgress(value) : start;
+    const auto arcEnd=i == 2 ? start + 72.0f : start + 72.0f * value;
     juce::Path arc;
     arc.addCentredArc(centre.x, centre.y, radius + 18.0f + lane * 8.0f, radius + 18.0f + lane * 8.0f, 0.0f,
-                      juce::degreesToRadians(arcStart),juce::degreesToRadians(start+72.0f*value),true);
+                      juce::degreesToRadians(arcStart),juce::degreesToRadians(arcEnd),true);
     g.setColour(colours[static_cast<size_t>(i)].withAlpha(0.95f));
     g.strokePath(arc, juce::PathStrokeType(7.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     const auto labelAngle = juce::degreesToRadians(start + 36.0f);
@@ -1100,12 +1124,12 @@ void AifredAudioProcessorEditor::drawReferencePanel(juce::Graphics& g, juce::Rec
   const std::array<RefRow,5> rows {{{"RMS",core::MetricId::rms,state.metrics.rmsDb," dBFS","dB"},
     {"WIDTH",core::MetricId::width,state.metrics.stereoWidth*100.0f,"%","pp"},
     {"CREST",core::MetricId::crest,state.metrics.crestDb," dB","dB"},
-    {"LOUDNESS",core::MetricId::shortTerm,state.metrics.shortTermLufs," LUFS","LU"},
+    {"LOUDNESS",core::MetricId::integrated,state.metrics.integratedLufs," LUFS","LU"},
     {"TRUE PEAK",core::MetricId::truePeak,state.metrics.truePeakDb," dBTP","dB"}}};
   g.setFont(juce::FontOptions(10.5f,juce::Font::bold));
   for(const auto& row:rows){auto line=inner.removeFromTop(30);const auto& observed=state.reference.distribution.metrics[core::index(row.id)];
     auto label=line.removeFromLeft(74);g.setColour(Colours::muted);g.drawText(row.label,label,juce::Justification::centredLeft);
-    if(state.hasReference&&observed.valid){const auto reference=static_cast<float>(observed.typical);const auto third=line.getWidth()/3;
+    if(state.referenceDataAvailable&&observed.valid){const auto reference=static_cast<float>(observed.typical);const auto third=line.getWidth()/3;
       g.setColour(Colours::cyan);g.drawFittedText("LIVE "+juce::String(row.live,1)+row.valueUnit,line.removeFromLeft(third),juce::Justification::centredLeft,1);
       g.setColour(Colours::violet);g.drawFittedText("REF "+juce::String(reference,1)+row.valueUnit,line.removeFromLeft(third),juce::Justification::centredLeft,1);
       g.setColour(Colours::ink);g.drawFittedText("D "+signedText(compareDelta(row.live,reference),row.deltaUnit),line,juce::Justification::centredRight,1);

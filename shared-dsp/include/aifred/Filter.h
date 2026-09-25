@@ -4,14 +4,15 @@
 
 namespace aifred::core
 {
-enum class Relationship { unavailable, noReference, insufficient, inside, below, above };
-enum class ReferenceCompatibility { noReference, compatible, unavailable, schemaMismatch, profileMismatch, sampleRateMismatch };
+enum class Relationship { unavailable, noReference, insufficient, inside, below, above, atValue };
+enum class ReferenceCompatibility { noReference, compatible, unavailable, metadataUnavailable, schemaMismatch, profileMismatch, sampleRateMismatch };
 struct ReferenceDistribution
 {
     std::uint32_t schema=schemaVersion,profileVersion=1;
     ProfileId profileId=ProfileId::mixBalanced;
     std::string id;
     bool available=false;
+    bool compatibilityKnown=true;
     double sampleRate=0;
     std::array<MetricObservation,metricCount> metrics {};
     std::array<MetricObservation,30> bands {};
@@ -21,7 +22,7 @@ struct FilteredMetric
     std::string_view name,displayName,unit,definition;
     MetricObservation observation;
     Relationship reference=Relationship::noReference;
-    MetricValue referenceLow,referenceHigh;
+    MetricValue referenceValue,referenceLow,referenceHigh;
     double centreHz=0,lowerHz=0,upperHz=0;
     std::string_view region;
     int decimals=0;
