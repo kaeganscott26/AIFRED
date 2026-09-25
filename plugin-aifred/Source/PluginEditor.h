@@ -25,6 +25,7 @@ public:
   bool keyPressed(const juce::KeyPress&) override;
 
 private:
+  friend struct HaloPaintTest;
   enum class CandleStripType 
   {
     Session,

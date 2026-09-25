@@ -725,7 +725,7 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
   g.setColour(accent.withAlpha(0.10f));
   g.drawEllipse(centre.x - radius * pulse, centre.y - radius * pulse, radius * 2.0f * pulse, radius * 2.0f * pulse, 3.0f + 3.0f * state.metrics.widthScale);
 
-  const std::array<juce::Colour, 4> colours {Colours::cyan, Colours::green, Colours::yellow, Colours::violet};
+  const std::array<juce::Colour, 4> colours {Colours::green, Colours::cyan, Colours::violet, Colours::yellow};
   const std::array<juce::String, 4> labels {
     canonicalLabel(core::MetricId::crest),
     canonicalLabel(core::MetricId::rms),
@@ -737,20 +737,23 @@ void AifredAudioProcessorEditor::drawHalo(juce::Graphics& g, juce::Rectangle<int
   for (int i = 0; i < 4; ++i) {
     const auto lane = static_cast<float>(i);
     const float start = -150.0f + lane * 90.0f;
+    // JUCE arcs use 0 degrees at twelve o'clock; the ticks and labels use
+    // ordinary screen-space angles with 0 degrees at three o'clock.
+    const auto arcAngle = [](float degrees) { return juce::degreesToRadians(degrees + 90.0f); };
     juce::Path bg;
     bg.addCentredArc(centre.x, centre.y, radius + 18.0f + lane * 8.0f, radius + 18.0f + lane * 8.0f, 0.0f,
-                     juce::degreesToRadians(start), juce::degreesToRadians(start + 72.0f), true);
+                     arcAngle(start), arcAngle(start + 72.0f), true);
     g.setColour(Colours::line.withAlpha(0.45f));
     g.strokePath(bg, juce::PathStrokeType(7.0f));
     const auto value =
         clamp01(values[static_cast<size_t>(i)]);
-    const auto arcStart=i == 2 ? start + 72.0f * truePeakArcStartProgress(value) : start;
-    const auto arcEnd=i == 2 ? start + 72.0f : start + 72.0f * value;
-    juce::Path arc;
-    arc.addCentredArc(centre.x, centre.y, radius + 18.0f + lane * 8.0f, radius + 18.0f + lane * 8.0f, 0.0f,
-                      juce::degreesToRadians(arcStart),juce::degreesToRadians(arcEnd),true);
-    g.setColour(colours[static_cast<size_t>(i)].withAlpha(0.95f));
-    g.strokePath(arc, juce::PathStrokeType(7.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    if (value > 0.0f) {
+      juce::Path arc;
+      arc.addCentredArc(centre.x, centre.y, radius + 18.0f + lane * 8.0f, radius + 18.0f + lane * 8.0f, 0.0f,
+                        arcAngle(start),arcAngle(start + 72.0f * value),true);
+      g.setColour(colours[static_cast<size_t>(i)].withAlpha(0.95f));
+      g.strokePath(arc, juce::PathStrokeType(7.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    }
     const auto labelAngle = juce::degreesToRadians(start + 36.0f);
     const auto labelRadius = radius + 58.0f;
     const auto labelCentre = juce::Point<float>(centre.x + std::cos(labelAngle) * labelRadius,

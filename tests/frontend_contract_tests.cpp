@@ -32,7 +32,6 @@ int main()
     check(aifred::rmsPresentation(-72,SpectrumDisplayRange::db72)==0&&aifred::rmsPresentation(-36,SpectrumDisplayRange::db72)==.5f&&aifred::rmsPresentation(0,SpectrumDisplayRange::db72)==1,"RMS -72 presentation mapping");
     check(aifred::truePeakPresentation(-24)==0&&aifred::truePeakPresentation(-12)==.5f&&aifred::truePeakPresentation(0)==1,"true peak presentation endpoints");
     check(aifred::truePeakPresentation(-2)>aifred::truePeakPresentation(-12)&&aifred::truePeakPresentation(-12)>aifred::truePeakPresentation(-20),"true peak presentation grows monotonically toward zero");
-    check(aifred::truePeakArcStartProgress(aifred::truePeakPresentation(-24))==1&&aifred::truePeakArcStartProgress(aifred::truePeakPresentation(-12))==.5f&&aifred::truePeakArcStartProgress(aifred::truePeakPresentation(0))==0,"true peak halo arc grows from its hot endpoint");
     check(aifred::crestPresentation(0)==0&&aifred::crestPresentation(12)==.5f&&aifred::crestPresentation(24)==1,"crest difference presentation mapping");
     check(aifred::stereoSpreadPresentation(1)==0&&aifred::stereoSpreadPresentation(0)==.5f&&aifred::stereoSpreadPresentation(-1)==1,"correlation phase spread mapping");
     check(aifred::compareDelta(-6,-8)==2,"compare delta is A minus B");
