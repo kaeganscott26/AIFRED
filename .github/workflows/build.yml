@@ -27,9 +27,9 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Build, test, and package Beta
+      - name: Build and package Beta
         shell: pwsh
-        run: ./scripts/windows/build.ps1 -Action release
+        run: ./scripts/windows/lifecycle.ps1 -Action update
 
       - name: Upload validated Beta artifacts
         uses: actions/upload-artifact@v4
